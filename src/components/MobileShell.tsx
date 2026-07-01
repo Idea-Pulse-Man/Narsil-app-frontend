@@ -1,0 +1,423 @@
+import { Capacitor } from "@capacitor/core";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import type { Artist, CategoryId } from "@/data";
+import { useCatalog } from "@/data/catalog";
+import TopTabs from "./TopTabs";
+import BottomNav from "./BottomNav";
+import { isFeedScreen, type Screen } from "./navigation";
+import ArtFeed, { type FeedFilter } from "./ArtFeed";
+import HistoryView from "./HistoryView";
+import BuyView from "./BuyView";
+import CreateView from "./CreateView";
+import DiscoverView from "./DiscoverView";
+import SearchView from "./SearchView";
+import SavedView from "./SavedView";
+import YouView from "./YouView";
+import ArtistProfileModal from "./ArtistProfileModal";
+import HistoryPlacard from "./HistoryPlacard";
+import PreferenceModal from "./PreferenceModal";
+import TutorialCoach from "./TutorialCoach";
+import Toast, { type ToastState } from "./Toast";
+import { useAppState } from "./AppState";
+import type { TutorialAction } from "./tutorial";
+
+// The gesture each tutorial step teaches, in order (matches STEPS in the coach).
+const TUTORIAL_ALLOW: TutorialAction[] = [
+  "scroll",
+  "placard",
+  "artist",
+  "fit",
+  "clean",
+  "actions",
+];
+
+export default function MobileShell() {
+  const isNative = Capacitor.isNativePlatform();
+  const { getArtist, getArtwork } = useCatalog();
+  const {
+    ready,
+    preferences,
+    savePreferences,
+    dismissPreferences,
+    tutorialDone,
+    completeTutorial,
+    restartTutorial,
+  } = useAppState();
+
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const [screen, setScreen] = useState<Screen>("for-you");
+  // For You source toggle (client sketch: "Mix of historical and freelance → add toggle").
+  const [feedFilter, setFeedFilter] = useState<FeedFilter>("all");
+  // Once a source is chosen the toggle hides; it returns when For You is re-selected.
+  const [showFeedToggle, setShowFeedToggle] = useState(true);
+  const [activeArtist, setActiveArtist] = useState<Artist | null>(null);
+  const [activeArtworkId, setActiveArtworkId] = useState<string | null>(null);
+  const [searchCategory, setSearchCategory] = useState<CategoryId | null>(null);
+  const [clean, setClean] = useState(false);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Preference modal ("Personalize your museum").
+  const [prefsOpen, setPrefsOpen] = useState(false);
+  const [prefsManual, setPrefsManual] = useState(false);
+  const prefsTriggered = useRef(false);
+
+  // Interactive, learn-by-doing tutorial. Persists "done" in localStorage so it
+  // only runs on first visit (resettable from the You tab).
+  const [tutorialActive, setTutorialActive] = useState(false);
+  const [tutorialStep, setTutorialStep] = useState(0);
+  const [resetToken, setResetToken] = useState(0);
+  const [advancing, setAdvancing] = useState(false);
+  const advancingRef = useRef(false);
+
+  // Kick off the tutorial once persisted state has hydrated.
+  useEffect(() => {
+    if (ready && !tutorialDone) {
+      setTutorialActive(true);
+      setScreen("for-you");
+    }
+  }, [ready, tutorialDone]);
+
+  const showToast = useCallback(
+    (message: string, variant: ToastState["variant"] = "default") => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+      setToast({ id: Date.now(), message, variant });
+      toastTimer.current = setTimeout(() => setToast(null), 2200);
+    },
+    []
+  );
+
+  const openArtist = useCallback(
+    (artistId: string) => {
+      const artist = getArtist(artistId);
+      if (artist) setActiveArtist(artist);
+    },
+    [getArtist]
+  );
+
+  const openArtwork = useCallback((artworkId: string) => {
+    setActiveArtworkId(artworkId);
+  }, []);
+
+  const navigate = useCallback(
+    (next: Screen) => {
+      if (tutorialActive) return;
+      setScreen(next);
+      setClean(false);
+      if (next === "for-you") setShowFeedToggle(true);
+      if (next !== "search") setSearchCategory(null);
+    },
+    [tutorialActive]
+  );
+
+  const openCategory = useCallback(
+    (id: CategoryId) => {
+      setSearchCategory(id);
+      setScreen("search");
+    },
+    []
+  );
+
+  // ── Preference modal triggers ──────────────────────────────────────
+  const handleViewIndex = useCallback(
+    (index: number) => {
+      if (
+        ready &&
+        tutorialDone &&
+        !preferences.completed &&
+        !prefsTriggered.current &&
+        index >= 3
+      ) {
+        prefsTriggered.current = true;
+        setPrefsManual(false);
+        setPrefsOpen(true);
+      }
+    },
+    [ready, tutorialDone, preferences.completed]
+  );
+
+  const editPreferences = useCallback(() => {
+    setPrefsManual(true);
+    setPrefsOpen(true);
+  }, []);
+
+  const handleSavePrefs = useCallback(
+    (prefs: Parameters<typeof savePreferences>[0]) => {
+      savePreferences(prefs);
+      setPrefsOpen(false);
+      showToast("Preferences saved");
+    },
+    [savePreferences, showToast]
+  );
+
+  const handleSkipPrefs = useCallback(() => {
+    setPrefsOpen(false);
+    if (!prefsManual) dismissPreferences();
+  }, [prefsManual, dismissPreferences]);
+
+  // ── Tutorial flow ──────────────────────────────────────────────────
+  const endTutorial = useCallback(() => {
+    setTutorialActive(false);
+    setActiveArtist(null);
+    setActiveArtworkId(null);
+    setResetToken((t) => t + 1);
+    completeTutorial();
+  }, [completeTutorial]);
+
+  const reportGesture = useCallback(
+    (action: TutorialAction) => {
+      if (!tutorialActive || advancingRef.current) return;
+      if (action !== TUTORIAL_ALLOW[tutorialStep]) return;
+
+      advancingRef.current = true;
+      setAdvancing(true);
+      const advance = () => {
+        setTutorialStep((s) => s + 1);
+        advancingRef.current = false;
+        setAdvancing(false);
+      };
+
+      switch (action) {
+        case "scroll":
+          setTimeout(advance, 650);
+          break;
+        case "placard":
+          setTimeout(() => {
+            setResetToken((t) => t + 1);
+            advance();
+          }, 1200);
+          break;
+        case "artist":
+          setTimeout(() => {
+            setActiveArtist(null);
+            advance();
+          }, 1200);
+          break;
+        case "fit":
+          setTimeout(advance, 1000);
+          break;
+        case "clean":
+          setTimeout(advance, 800);
+          break;
+        case "actions":
+          setTimeout(advance, 150);
+          break;
+      }
+    },
+    [tutorialActive, tutorialStep]
+  );
+
+  const tutorialBridge = {
+    active: tutorialActive,
+    allow: tutorialActive ? TUTORIAL_ALLOW[tutorialStep] ?? null : null,
+    report: reportGesture,
+    resetToken,
+  };
+
+  const activeArtwork = activeArtworkId ? getArtwork(activeArtworkId) : undefined;
+  const activeArtworkArtist = activeArtwork
+    ? getArtist(activeArtwork.artistId)
+    : undefined;
+
+  const showChrome = !clean && !tutorialActive;
+
+  return (
+    <div
+      className={`flex min-h-[100dvh] w-full items-center justify-center ${
+        isNative ? "bg-ink" : "bg-neutral-950 sm:bg-neutral-900 sm:py-6"
+      }`}
+    >
+      <div
+        className={`relative h-[100dvh] w-full overflow-hidden bg-ink ${
+          isNative
+            ? ""
+            : "sm:h-[844px] sm:w-[390px] sm:rounded-[44px] sm:border-[10px] sm:border-neutral-800 sm:shadow-2xl"
+        }`}
+      >
+        {/* Brand mark — feed only */}
+        <AnimatePresence>
+          {showChrome && isFeedScreen(screen) && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="pointer-events-none absolute left-1/2 top-[calc(env(safe-area-inset-top)+1.5rem)] z-40 flex -translate-x-1/2 items-center gap-1.5"
+            >
+              <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-white text-[11px] font-bold text-ink">
+                N
+              </span>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white">
+                Narsil
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Top tabs — shared across every screen so the active pill animates */}
+        <AnimatePresence>
+          {showChrome && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+            >
+              <TopTabs active={screen} onChange={navigate} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Feed source toggle — mix / museum / freelance */}
+        <AnimatePresence>
+          {showChrome && isFeedScreen(screen) && showFeedToggle && (
+            <motion.div
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              className="absolute inset-x-0 top-[calc(env(safe-area-inset-top)+6.6rem)] z-30 flex justify-center"
+            >
+              <div className="flex items-center rounded-full border border-white/25 bg-black/40 p-1 backdrop-blur-xl">
+                {(
+                  [
+                    { id: "all", label: "Mix" },
+                    { id: "museum", label: "Museum" },
+                    { id: "freelance", label: "Freelance" },
+                  ] as { id: FeedFilter; label: string }[]
+                ).map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => {
+                      setFeedFilter(opt.id);
+                      setShowFeedToggle(false);
+                    }}
+                    className={`rounded-full px-4 py-1.5 text-[12px] font-medium transition-all ${
+                      feedFilter === opt.id
+                        ? "bg-white text-ink shadow-sm"
+                        : "text-white/60 hover:text-white/85"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Screens */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={screen}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="absolute inset-0 bg-ink"
+          >
+            {screen === "for-you" && (
+              <div className="absolute inset-0 bg-ink">
+                <ArtFeed
+                  key={`feed-${feedFilter}`}
+                  showToast={showToast}
+                  onOpenArtist={openArtist}
+                  onCleanChange={setClean}
+                  onViewIndex={handleViewIndex}
+                  filter={feedFilter}
+                  tutorial={tutorialBridge}
+                />
+              </div>
+            )}
+
+            {screen === "history" && (
+              <HistoryView
+                onOpenArtist={openArtist}
+                onOpenArtwork={openArtwork}
+              />
+            )}
+
+            {screen === "buy" && <BuyView showToast={showToast} />}
+
+            {screen === "search" && (
+              <SearchView
+                initialCategory={searchCategory}
+                onOpenArtwork={openArtwork}
+              />
+            )}
+
+            {screen === "discover" && (
+              <DiscoverView onOpenCategory={openCategory} />
+            )}
+
+            {screen === "create" && <CreateView showToast={showToast} />}
+
+            {screen === "saved" && (
+              <SavedView onOpenArtwork={openArtwork} onNavigate={navigate} />
+            )}
+
+            {screen === "you" && (
+              <YouView
+                onOpenArtwork={openArtwork}
+                onOpenArtist={openArtist}
+                onEditPreferences={editPreferences}
+                onRestartTutorial={() => {
+                  restartTutorial();
+                  setTutorialStep(0);
+                  setTutorialActive(true);
+                  setScreen("for-you");
+                  setResetToken((t) => t + 1);
+                }}
+                onNavigate={navigate}
+              />
+            )}
+          </motion.div>
+        </AnimatePresence>
+
+        {/* Bottom navigation */}
+        <AnimatePresence>
+          {showChrome && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 12 }}
+            >
+              <BottomNav active={screen} onChange={navigate} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <Toast toast={toast} />
+
+        {/* Shell-level artwork placard (opened from tiles across screens) */}
+        {activeArtwork && activeArtworkArtist && (
+          <HistoryPlacard
+            artwork={activeArtwork}
+            artist={activeArtworkArtist}
+            open={!!activeArtworkId}
+            onClose={() => setActiveArtworkId(null)}
+          />
+        )}
+
+        <ArtistProfileModal
+          artist={activeArtist}
+          onClose={() => setActiveArtist(null)}
+          onOpenArtwork={openArtwork}
+        />
+
+        <PreferenceModal
+          open={prefsOpen}
+          initial={preferences}
+          onSave={handleSavePrefs}
+          onSkip={handleSkipPrefs}
+        />
+
+        <TutorialCoach
+          open={tutorialActive}
+          step={tutorialStep}
+          advancing={advancing}
+          onSkip={endTutorial}
+          onStart={endTutorial}
+          onAdvance={() => reportGesture("actions")}
+        />
+      </div>
+    </div>
+  );
+}
