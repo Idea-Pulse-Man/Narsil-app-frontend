@@ -7,6 +7,7 @@
  */
 
 import type { Artwork, Artist } from "@/data";
+import { ngrokFetch } from "@/lib/ngrok";
 
 const API_URL =
   (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ??
@@ -18,7 +19,7 @@ interface ListResponse<T> {
 }
 
 async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, { signal });
+  const res = await ngrokFetch(`${API_URL}${path}`, { signal });
   if (!res.ok) {
     throw new Error(`Request to ${path} failed with ${res.status}`);
   }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { isNgrokUrl, resolveNgrokImageSrc } from "@/lib/ngrok";
 
 interface BlurImageProps {
   src: string;
@@ -67,6 +68,7 @@ export default function BlurImage({
   zoomable = false,
   syncToken,
 }: BlurImageProps) {
+  const [displaySrc, setDisplaySrc] = useState(src);
   const [loaded, setLoaded] = useState(false);
   const [coverRatio, setCoverRatio] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -74,7 +76,38 @@ export default function BlurImage({
   const coverRef = useRef<HTMLImageElement>(null);
   const containRef = useRef<HTMLImageElement>(null);
   const isContain = fit === "contain";
-  const previewSrc = previewOf(src);
+  const previewSrc = previewOf(displaySrc);
+
+  useEffect(() => {
+    let blobUrl: string | null = null;
+    let active = true;
+
+    if (!isNgrokUrl(src)) {
+      setDisplaySrc(src);
+      return;
+    }
+
+    setDisplaySrc(src);
+    setLoaded(false);
+
+    resolveNgrokImageSrc(src)
+      .then((resolved) => {
+        if (!active) {
+          if (resolved.startsWith("blob:")) URL.revokeObjectURL(resolved);
+          return;
+        }
+        blobUrl = resolved.startsWith("blob:") ? resolved : null;
+        setDisplaySrc(resolved);
+      })
+      .catch(() => {
+        if (active) setDisplaySrc(src);
+      });
+
+    return () => {
+      active = false;
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
+  }, [src]);
 
   // Ratio between the cover and contain renderings of this image. The contain
   // layer starts at this scale (matching the cover framing) and animates to 1.
@@ -121,7 +154,7 @@ export default function BlurImage({
       cancelAnimationFrame(outer);
       cancelAnimationFrame(inner);
     };
-  }, [src, syncLoadedFromCache]);
+  }, [displaySrc, syncLoadedFromCache]);
 
   useEffect(() => {
     if (loaded) return;
@@ -167,7 +200,7 @@ export default function BlurImage({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           ref={mainImgRef}
-          src={src}
+          src={displaySrc}
           alt={alt}
           loading={priority ? "eager" : "lazy"}
           decoding="async"
@@ -191,7 +224,7 @@ export default function BlurImage({
       {/* Soft blurred backdrop, revealed in Fit Art mode. Uses the tiny preview
           (blur hides the low resolution) so it appears instantly. */}
       <motion.img
-        src={previewSrc ?? src}
+        src={previewSrc ?? displaySrc}
         alt=""
         aria-hidden
         className="absolute inset-0 h-full w-full scale-110 object-cover blur-2xl will-change-[opacity]"
@@ -225,7 +258,7 @@ export default function BlurImage({
       {/* Contain layer — full artwork. Zooms from the cover framing to 1. */}
       <motion.img
         ref={containRef}
-        src={src}
+        src={displaySrc}
         alt=""
         aria-hidden
         loading={priority ? "eager" : "lazy"}
@@ -243,7 +276,7 @@ export default function BlurImage({
       {/* Cover layer — crisp default framing. */}
       <motion.img
         ref={coverRef}
-        src={src}
+        src={displaySrc}
         alt={alt}
         loading={priority ? "eager" : "lazy"}
         decoding="async"
