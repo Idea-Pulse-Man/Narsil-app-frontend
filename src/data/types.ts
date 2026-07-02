@@ -33,6 +33,13 @@ export interface Artist {
    * fall back to a representative artwork, then to initials.
    */
   avatar?: string;
+  /**
+   * When true, never resolve an online portrait for this artist — show the
+   * monogram instead. Used for entities that have no likeness of the person:
+   * anonymous workshops and ancient figures known only by their work (looking
+   * them up returns their artwork, not a face).
+   */
+  noLookup?: boolean;
 }
 
 /** How a piece entered the catalogue — drives the badge on the feed card. */

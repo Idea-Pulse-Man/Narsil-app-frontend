@@ -37,3 +37,13 @@ export const priceForSize = (basePriceFrom: number, size: CanvasSize): number =>
   const option = CANVAS_SIZES.find((s) => s.size === size) ?? CANVAS_SIZES[0];
   return option.price + offset;
 };
+
+/**
+ * Deterministic per-artwork "from" price so any surface (Buy grid, Saved cards)
+ * shows a stable, real-feeling starting price for the same artwork.
+ */
+export const priceFromId = (id: string): number => {
+  let h = 0;
+  for (let i = 0; i < id.length; i += 1) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return CANVAS_SIZES[0].price + (h % 3) * 5;
+};

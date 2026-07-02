@@ -1,21 +1,34 @@
+import { useState } from "react";
 import { useCatalog } from "@/data/catalog";
 import { useAppState } from "./AppState";
 import { screenScrollClass, screenContentClass } from "./artwork-layout";
 import { BookmarkIcon } from "./Icons";
 import ArtworkTile from "./ArtworkTile";
+import CanvasPurchaseSheet from "./CanvasPurchaseSheet";
 import type { Screen } from "./navigation";
+import type { ToastState } from "./Toast";
 
 interface SavedViewProps {
   onOpenArtwork: (artworkId: string) => void;
   onNavigate: (screen: Screen) => void;
+  showToast: (message: string, variant?: ToastState["variant"]) => void;
 }
 
-export default function SavedView({ onOpenArtwork, onNavigate }: SavedViewProps) {
+export default function SavedView({
+  onOpenArtwork,
+  onNavigate,
+  showToast,
+}: SavedViewProps) {
   const { saved, ready } = useAppState();
   const { getArtwork } = useCatalog();
+  // The saved artwork whose canvas purchase sheet is open (null = closed).
+  const [canvasId, setCanvasId] = useState<string | null>(null);
+
   const items = saved
     .map((id) => getArtwork(id))
     .filter((a): a is NonNullable<typeof a> => !!a);
+
+  const canvasArtwork = canvasId ? getArtwork(canvasId) ?? null : null;
 
   return (
     <div className={screenScrollClass}>
@@ -26,9 +39,6 @@ export default function SavedView({ onOpenArtwork, onNavigate }: SavedViewProps)
         <h1 className="mt-2 font-serif text-[28px] leading-tight text-white">
           Saved
         </h1>
-        <p className="mt-2 max-w-[92%] text-[15px] leading-relaxed text-white/60">
-          Artworks you bookmark in the feed are kept here on this device.
-        </p>
 
         {ready && items.length === 0 ? (
           <div className="mt-16 flex flex-col items-center text-center">
@@ -50,13 +60,14 @@ export default function SavedView({ onOpenArtwork, onNavigate }: SavedViewProps)
             </button>
           </div>
         ) : (
-          <div className="mt-7 grid grid-cols-3 gap-2">
+          <div className="mt-7 grid grid-cols-2 gap-3">
             {items.map((art, i) => (
               <ArtworkTile
                 key={art.id}
                 artwork={art}
                 index={i}
                 onOpen={onOpenArtwork}
+                onOrderCanvas={setCanvasId}
               />
             ))}
           </div>
@@ -68,6 +79,12 @@ export default function SavedView({ onOpenArtwork, onNavigate }: SavedViewProps)
           </p>
         )}
       </div>
+
+      <CanvasPurchaseSheet
+        artwork={canvasArtwork}
+        onClose={() => setCanvasId(null)}
+        showToast={showToast}
+      />
     </div>
   );
 }

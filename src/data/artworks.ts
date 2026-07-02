@@ -276,16 +276,6 @@ export const artworks: Artwork[] = [
   },
 ];
 
-/**
- * Serve imagery locally from `public/img/artworks/<id>.jpg` (downloaded from the
- * Wikimedia sources noted above). Wikimedia's on-demand thumbnailer was slow and
- * unreliable over the network, so the feed now loads instantly from the app's
- * own origin. Swap these for real uploads when the Create flow gets storage.
- */
-for (const artwork of artworks) {
-  artwork.image = `/img/artworks/${artwork.id}.jpg`;
-}
-
 export const artworkMap: Record<string, Artwork> = Object.fromEntries(
   artworks.map((a) => [a.id, a])
 );

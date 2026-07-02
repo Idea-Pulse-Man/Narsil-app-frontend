@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import type { Artist } from "@/data";
+import { shouldResolvePortrait, type Artist } from "@/data";
 import { useCatalog } from "@/data/catalog";
 import BlurImage from "./BlurImage";
 import ArtistAvatar from "./ArtistAvatar";
@@ -30,6 +30,13 @@ export default function ArtistProfileModal({
   const isFreelance = artist?.profileType === "freelance";
   const following = artist ? isFollowing(artist.id) : false;
 
+  // Scale the display name to its length so long historical names (e.g.
+  // "Joseph Mallord William Turner") stay balanced against the avatar instead
+  // of overflowing the hero.
+  const nameLength = artist?.name.length ?? 0;
+  const nameSizeClass =
+    nameLength > 34 ? "text-xl" : nameLength > 22 ? "text-2xl" : "text-3xl";
+
   return (
     <AnimatePresence>
       {artist && (
@@ -41,7 +48,7 @@ export default function ArtistProfileModal({
           className="absolute inset-0 z-[60] overflow-y-auto bg-ink [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {/* Hero */}
-          <div className="relative h-60 w-full overflow-hidden">
+          <div className="relative w-full overflow-hidden">
             <div
               className="absolute inset-0"
               style={{
@@ -50,22 +57,25 @@ export default function ArtistProfileModal({
                   : `radial-gradient(120% 90% at 30% 10%, rgba(255,255,255,0.10), rgba(10,10,11,0.2)), linear-gradient(160deg, #2a2a30, #0a0a0b)`,
               }}
             />
-            <div className="absolute inset-0 flex items-end p-6">
-              <div className="flex items-end gap-4">
+            <div className="relative flex min-h-60 items-center p-6">
+              <div className="flex w-full items-center gap-4">
                 <ArtistAvatar
                   src={getArtistAvatar(artist.id)}
                   name={artist.name}
                   initials={artist.initials}
-                  className="h-20 w-20 rounded-full border border-white/15 font-serif text-2xl shadow-rail backdrop-blur-md"
+                  lookup={shouldResolvePortrait(artist)}
+                  className="h-20 w-20 shrink-0 rounded-full border border-white/15 font-serif text-2xl shadow-rail backdrop-blur-md"
                   fallbackClassName={
                     isFreelance ? "text-white" : "bg-white/10 text-white"
                   }
                 />
-                <div className="pb-1">
+                <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">
                     {isFreelance ? "Freelance Artist" : "Artist"}
                   </p>
-                  <h2 className="mt-1 font-serif text-3xl leading-none text-white">
+                  <h2
+                    className={`mt-1.5 font-serif ${nameSizeClass} leading-[1.05] text-white [overflow-wrap:anywhere] line-clamp-3`}
+                  >
                     {artist.name}
                   </h2>
                   <p className="mt-2 text-sm text-white/60">

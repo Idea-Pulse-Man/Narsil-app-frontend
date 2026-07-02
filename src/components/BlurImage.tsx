@@ -79,7 +79,6 @@ export default function BlurImage({
   const previewSrc = previewOf(displaySrc);
 
   useEffect(() => {
-    let blobUrl: string | null = null;
     let active = true;
 
     if (!isNgrokUrl(src)) {
@@ -90,14 +89,12 @@ export default function BlurImage({
     setDisplaySrc(src);
     setLoaded(false);
 
+    // Resolved blob URLs are cached and shared across every mount (see
+    // resolveNgrokImageSrc), so we must NOT revoke them on unmount — doing so
+    // would break other components still showing the same image.
     resolveNgrokImageSrc(src)
       .then((resolved) => {
-        if (!active) {
-          if (resolved.startsWith("blob:")) URL.revokeObjectURL(resolved);
-          return;
-        }
-        blobUrl = resolved.startsWith("blob:") ? resolved : null;
-        setDisplaySrc(resolved);
+        if (active) setDisplaySrc(resolved);
       })
       .catch(() => {
         if (active) setDisplaySrc(src);
@@ -105,7 +102,6 @@ export default function BlurImage({
 
     return () => {
       active = false;
-      if (blobUrl) URL.revokeObjectURL(blobUrl);
     };
   }, [src]);
 
