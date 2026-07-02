@@ -47,10 +47,6 @@ export default function CreateView({ showToast }: CreateViewProps) {
         <h1 className="mt-2 font-serif text-[28px] leading-tight text-white">
           Create
         </h1>
-        <p className="mt-2 max-w-[92%] text-[15px] leading-relaxed text-white/60">
-          Post your own artwork to Narsil. Freelance creators can share originals,
-          studies, and curated public-domain finds.
-        </p>
 
         <motion.button
           type="button"

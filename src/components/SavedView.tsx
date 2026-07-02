@@ -48,10 +48,6 @@ export default function SavedView({
             <h2 className="mt-5 font-serif text-xl text-white">
               Nothing saved yet
             </h2>
-            <p className="mt-2 max-w-[16rem] text-sm leading-relaxed text-white/50">
-              Tap the bookmark on any artwork to start building your private
-              gallery.
-            </p>
             <button
               onClick={() => onNavigate("for-you")}
               className="mt-6 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-ink transition-transform active:scale-95"

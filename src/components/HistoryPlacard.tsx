@@ -44,7 +44,7 @@ export default function HistoryPlacard({
               <div className="h-1.5 w-11 rounded-full bg-ink/15" />
             </div>
 
-            <div className="px-6 pb-9">
+            <div className="px-6 pb-[calc(env(safe-area-inset-bottom)+2.75rem)]">
               <div className="flex items-center gap-2">
                 <span className="rounded-full bg-ink/8 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-ink/55">
                   Museum Placard

@@ -97,10 +97,6 @@ export default function DiscoverView({ onOpenCategory }: DiscoverViewProps) {
         <h1 className="mt-2 font-serif text-[28px] leading-tight text-white">
           Browse by category
         </h1>
-        <p className="mt-2 max-w-[92%] text-[15px] leading-relaxed text-white/60">
-          Wander through periods, empires, and mediums — from ancient marble to
-          modern abstraction.
-        </p>
 
         {SECTIONS.map((section) => {
           const rows = categories.filter((c) => c.group === section.group);

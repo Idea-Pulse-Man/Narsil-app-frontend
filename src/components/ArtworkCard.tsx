@@ -267,21 +267,6 @@ export default function ArtworkCard({
               onPointerCancel={handleFooterPointerCancel}
             >
               <div className="pointer-events-none max-w-[90%]">
-                <div className="mb-2.5 flex flex-nowrap items-center gap-2">
-                  <span
-                    className={`shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${
-                      artwork.origin === "artist-original"
-                        ? "border-sky-300/30 bg-sky-400/15 text-sky-200"
-                        : "border-emerald-300/30 bg-emerald-400/15 text-emerald-200"
-                    }`}
-                  >
-                    {originLabel(artwork.origin)}
-                  </span>
-                  <span className="truncate whitespace-nowrap rounded-full border border-white/15 bg-white/10 px-2.5 py-0.5 text-[10px] font-medium tracking-wide text-white/80 backdrop-blur-md">
-                    {artwork.source}
-                  </span>
-                </div>
-
                 <h2 className="font-serif text-[26px] leading-[1.14] text-white drop-shadow">
                   {!titleTruncated ? (
                     artwork.title
@@ -334,8 +319,19 @@ export default function ArtworkCard({
                 </button>
               </div>
 
-              {/* Description trigger — centered across the full width. */}
-              <div className="mt-3.5 flex w-full justify-center">
+              {/* Description trigger — centered, with the origin tag pinned left. */}
+              <div className="relative mt-3.5 flex w-full items-center justify-center">
+                {!placardTutorial && (
+                  <span
+                    className={`pointer-events-none absolute left-0 shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${
+                      artwork.origin === "artist-original"
+                        ? "border-sky-300/30 bg-sky-400/15 text-sky-200"
+                        : "border-emerald-300/30 bg-emerald-400/15 text-emerald-200"
+                    }`}
+                  >
+                    {originLabel(artwork.origin)}
+                  </span>
+                )}
                 <motion.button
                   type="button"
                   data-tutorial="placard-trigger"
