@@ -34,8 +34,8 @@ const STEPS: CoachStep[] = [
   },
   {
     label: "Reveal the history",
-    instruction: "Swipe up or tap the button below to open the museum placard.",
-    hint: "swipe-up",
+    instruction: "Tap the Description button below to open the museum placard.",
+    hint: "tap",
     zone: "footer",
     done: "There's the story",
   },
@@ -247,24 +247,21 @@ function HoldHint() {
   );
 }
 
-function FooterSwipeUpHint() {
+function FooterTapHint() {
   return (
     <div className="flex flex-col items-center">
       <span className="mb-2 rounded-full bg-white px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-ink shadow-[0_4px_24px_rgba(0,0,0,0.45)]">
-        Swipe up
+        Tap the button
       </span>
-      <div className="relative flex h-[4.5rem] w-32 items-end justify-center">
+      <div className="relative flex h-[4.5rem] w-32 items-center justify-center">
         <div className="absolute inset-0 rounded-full bg-white/25 blur-xl" />
-        <SpotlightRing className="h-20 w-28" />
+        <motion.span
+          className="absolute h-16 w-16 rounded-full border-2 border-white/60"
+          animate={{ scale: [1, 1.2, 1], opacity: [0.7, 0.25, 0.7] }}
+          transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+        />
         <motion.div
-          className="absolute top-0 text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]"
-          animate={{ opacity: [0.4, 1, 0.4], y: [2, -3, 2] }}
-          transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
-        >
-          <UpArrow className="h-7 w-7" />
-        </motion.div>
-        <motion.div
-          animate={{ y: [6, -10, 6] }}
+          animate={{ scale: [1, 0.88, 1] }}
           transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
         >
           <Finger />
@@ -333,8 +330,8 @@ function GestureHint({ hint, footer = false }: { hint: HintKey; footer?: boolean
     return <HoldHint />;
   }
 
-  if (hint === "swipe-up" && footer) {
-    return <FooterSwipeUpHint />;
+  if (hint === "tap" && footer) {
+    return <FooterTapHint />;
   }
 
   // "actions" is rendered separately by ActionsExplainer, never here.

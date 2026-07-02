@@ -4,9 +4,9 @@ export const ARTWORK_FOOTER_HEIGHT = "15rem";
 export const artworkFooterClass =
   "min-h-[15rem] px-5 pt-4 pb-[calc(env(safe-area-inset-bottom)+5rem)]";
 
-/** Positions the step-2 swipe cue directly above the description button. */
+/** Positions the step-2 tap cue right over the Description button. */
 export const tutorialFooterHintClass =
-  "bottom-[calc(env(safe-area-inset-bottom)+8.5rem)]";
+  "bottom-[calc(env(safe-area-inset-bottom)+4rem)]";
 
 /**
  * Standard padding for scrollable content screens so content clears the top

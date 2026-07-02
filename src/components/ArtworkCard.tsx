@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { Artwork, Artist } from "@/data";
-import { originLabel } from "@/data";
+import { originLabel, shouldResolvePortrait } from "@/data";
 import { useCatalog } from "@/data/catalog";
 import BlurImage from "./BlurImage";
 import ArtistAvatar from "./ArtistAvatar";
@@ -25,6 +25,8 @@ interface ArtworkCardProps {
 
 const SWIPE_DISTANCE = 60;
 const LONG_PRESS_MS = 400;
+/** Feed heading shows only the first few words; the rest expands on tap. */
+const TITLE_WORDS = 4;
 
 export default function ArtworkCard({
   artwork,
@@ -40,14 +42,12 @@ export default function ArtworkCard({
   const [discussionOpen, setDiscussionOpen] = useState(false);
   const [clean, setClean] = useState(false);
   const [fit, setFit] = useState<"cover" | "contain">("contain");
-  // Long museum titles are collapsed to a short preview so they never cover the
-  // artwork; the "more" toggle reveals the full title inline.
   const [titleExpanded, setTitleExpanded] = useState(false);
 
-  const TITLE_PREVIEW_WORDS = 8;
-  const titleWords = artwork.title.split(/\s+/);
-  const titleIsLong = titleWords.length > TITLE_PREVIEW_WORDS;
-  const titlePreview = titleWords.slice(0, TITLE_PREVIEW_WORDS).join(" ");
+  // Split the title so the heading can show a short version with a tappable "…"
+  // that reveals the rest, like a "more" toggle.
+  const titleWords = artwork.title.replace(/…$/, "").trim().split(/\s+/);
+  const titleTruncated = titleWords.length > TITLE_WORDS;
 
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressFired = useRef(false);
@@ -283,15 +283,29 @@ export default function ArtworkCard({
                 </div>
 
                 <h2 className="font-serif text-[26px] leading-[1.14] text-white drop-shadow">
-                  {titleExpanded || !titleIsLong ? artwork.title : `${titlePreview}… `}
-                  {titleIsLong && (
+                  {!titleTruncated ? (
+                    artwork.title
+                  ) : titleExpanded ? (
                     <button
                       type="button"
-                      onClick={() => setTitleExpanded((v) => !v)}
-                      className="pointer-events-auto ml-1 align-baseline font-sans text-[14px] font-medium text-white/60 underline underline-offset-2 transition-colors hover:text-white"
+                      onClick={() => setTitleExpanded(false)}
+                      aria-label="Collapse title"
+                      className="pointer-events-auto text-left"
                     >
-                      {titleExpanded ? "less" : "more"}
+                      {artwork.title}
                     </button>
+                  ) : (
+                    <>
+                      {titleWords.slice(0, TITLE_WORDS).join(" ")}
+                      <button
+                        type="button"
+                        onClick={() => setTitleExpanded(true)}
+                        aria-label="Show full title"
+                        className="pointer-events-auto ml-1 align-baseline text-white/60 transition-colors hover:text-white"
+                      >
+                        …
+                      </button>
+                    </>
                   )}
                 </h2>
 
@@ -307,6 +321,7 @@ export default function ArtworkCard({
                     src={getArtistAvatar(artist.id)}
                     name={artist.name}
                     initials={artist.initials}
+                    lookup={shouldResolvePortrait(artist)}
                     className="h-6 w-6 shrink-0 rounded-full text-[10px] font-semibold backdrop-blur-md"
                     fallbackClassName="bg-white/15 text-white"
                   />

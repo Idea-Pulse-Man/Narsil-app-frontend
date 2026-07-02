@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useArtistPhoto } from "@/lib/artistPhoto";
 
 interface ArtistAvatarProps {
@@ -11,6 +11,13 @@ interface ArtistAvatarProps {
   name?: string;
   /** Fallback shown while loading, on error, or when there is no picture. */
   initials: string;
+  /**
+   * Whether to resolve an online portrait from `name` when there's no working
+   * `src`. Off for entities with no likeness (anonymous/ancient makers, fictional
+   * freelancers) so they show a monogram instead of an artwork or a stranger.
+   * Defaults to true.
+   */
+  lookup?: boolean;
   /** Sizing + shape applied to the wrapper (e.g. "h-11 w-11 rounded-full"). */
   className?: string;
   /** Background + text styles for the initials fallback layer. */
@@ -41,18 +48,22 @@ export default function ArtistAvatar({
   src,
   name,
   initials,
+  lookup = true,
   className = "",
   fallbackClassName = "bg-white/12 text-white",
   style,
 }: ArtistAvatarProps) {
   const [srcOk, setSrcOk] = useState(true);
   const [photoOk, setPhotoOk] = useState(true);
+  const [loaded, setLoaded] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => setSrcOk(true), [src]);
 
   const usePreferred = !!src && srcOk;
-  // Only fetch a Wikipedia photo when the preferred src is missing or failed.
-  const photo = useArtistPhoto(usePreferred ? undefined : name);
+  // Only fetch a Wikipedia photo when lookup is allowed and the preferred src is
+  // missing or failed.
+  const photo = useArtistPhoto(usePreferred || !lookup ? undefined : name);
 
   useEffect(() => setPhotoOk(true), [photo]);
 
@@ -65,6 +76,23 @@ export default function ArtistAvatar({
     imageUrl = photo;
     onError = () => setPhotoOk(false);
   }
+
+  // Reset the fade whenever the resolved image changes, so a newly loaded
+  // portrait always animates in over the initials rather than snapping.
+  // A cached image (e.g. one the Featured rail already fetched) can be
+  // `complete` before React attaches `onLoad`, so that event would never fire
+  // and the portrait would stay stuck at opacity-0. Detect that here and reveal
+  // it immediately.
+  useEffect(() => {
+    setLoaded(false);
+    const check = () => {
+      const img = imgRef.current;
+      if (img && img.complete && img.naturalWidth > 0) setLoaded(true);
+    };
+    check();
+    const frame = requestAnimationFrame(check);
+    return () => cancelAnimationFrame(frame);
+  }, [imageUrl]);
 
   const autoStyle: React.CSSProperties | undefined = name
     ? { background: monogramBackground(name) }
@@ -80,13 +108,17 @@ export default function ArtistAvatar({
       </span>
       {imageUrl && (
         <img
+          ref={imgRef}
           src={imageUrl}
           alt=""
           aria-hidden
           decoding="async"
           loading="lazy"
+          onLoad={() => setLoaded(true)}
           onError={onError}
-          className="absolute inset-0 h-full w-full object-cover"
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${
+            loaded ? "opacity-100" : "opacity-0"
+          }`}
         />
       )}
     </span>

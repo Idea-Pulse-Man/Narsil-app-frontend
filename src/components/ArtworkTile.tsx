@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import type { Artwork } from "@/data";
-import { originLabel } from "@/data";
+import { originLabel, priceFromId } from "@/data";
 import { useCatalog } from "@/data/catalog";
 import BlurImage from "./BlurImage";
 import { BookmarkIcon } from "./Icons";
@@ -12,6 +12,8 @@ interface ArtworkTileProps {
   /** Show the quick-save bookmark overlay. */
   showSave?: boolean;
   index?: number;
+  /** When set, renders an "Order canvas" action below the tile. */
+  onOrderCanvas?: (artworkId: string) => void;
 }
 
 export default function ArtworkTile({
@@ -19,6 +21,7 @@ export default function ArtworkTile({
   onOpen,
   showSave = true,
   index = 0,
+  onOrderCanvas,
 }: ArtworkTileProps) {
   const { getArtist } = useCatalog();
   const artist = getArtist(artwork.artistId);
@@ -45,7 +48,7 @@ export default function ArtworkTile({
             className="transition-transform duration-500 group-hover:scale-105"
           />
         </div>
-        <div className="p-3">
+        <div className={onOrderCanvas ? "px-3 pt-3" : "p-3"}>
           <p className="truncate font-serif text-sm text-white">
             {artwork.title}
           </p>
@@ -53,7 +56,7 @@ export default function ArtworkTile({
             {artist?.name} · {artwork.year}
           </p>
           <span
-            className={`mt-2 inline-block rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.1em] ${
+            className={`mt-1.5 inline-block whitespace-nowrap rounded-full px-1.5 py-0.5 text-[8px] font-semibold uppercase leading-none tracking-[0.05em] ${
               artwork.origin === "artist-original"
                 ? "bg-sky-400/15 text-sky-200"
                 : "bg-emerald-400/15 text-emerald-200"
@@ -63,6 +66,17 @@ export default function ArtworkTile({
           </span>
         </div>
       </button>
+
+      {onOrderCanvas && (
+        <div className="px-3 pb-3 pt-2.5">
+          <button
+            onClick={() => onOrderCanvas(artwork.id)}
+            className="flex w-full items-center justify-center gap-1 rounded-full border border-white/15 bg-white/5 py-1.5 text-[11px] font-medium text-white/85 transition-colors hover:bg-white/10"
+          >
+            Canvas · from ${priceFromId(artwork.id)}
+          </button>
+        </div>
+      )}
 
       {showSave && (
         <button

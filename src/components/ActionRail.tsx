@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import type { Artist, ArtworkOrigin } from "@/data";
+import { shouldResolvePortrait, type Artist, type ArtworkOrigin } from "@/data";
 import { useCatalog } from "@/data/catalog";
 import ArtistAvatar from "./ArtistAvatar";
 import {
@@ -116,6 +116,7 @@ export default function ActionRail({
             src={getArtistAvatar(artist.id)}
             name={artist.name}
             initials={artist.initials}
+            lookup={shouldResolvePortrait(artist)}
             className="h-full w-full rounded-full"
             fallbackClassName="bg-black/25 text-white"
           />

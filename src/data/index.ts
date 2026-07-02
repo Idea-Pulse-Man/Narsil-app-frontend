@@ -1,11 +1,12 @@
 import { artworks, artworkMap } from "./artworks";
-import { artists, artistMap } from "./artists";
+import { artists, artistMap, shouldResolvePortrait } from "./artists";
 import { historyEras, featuredArtistIds } from "./history";
 import { categories, categoryMap, artworkMatchesCategory } from "./categories";
 import {
   canvasProducts,
   CANVAS_SIZES,
   priceForSize,
+  priceFromId,
 } from "./shop";
 import type {
   Artwork,
@@ -23,6 +24,7 @@ export {
   artworkMap,
   artists,
   artistMap,
+  shouldResolvePortrait,
   historyEras,
   featuredArtistIds,
   categories,
@@ -31,6 +33,7 @@ export {
   canvasProducts,
   CANVAS_SIZES,
   priceForSize,
+  priceFromId,
 };
 
 export type {

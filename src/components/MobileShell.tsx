@@ -15,7 +15,7 @@ import SearchView from "./SearchView";
 import SavedView from "./SavedView";
 import YouView from "./YouView";
 import ArtistProfileModal from "./ArtistProfileModal";
-import HistoryPlacard from "./HistoryPlacard";
+import ArtworkViewer from "./ArtworkViewer";
 import PreferenceModal from "./PreferenceModal";
 import TutorialCoach from "./TutorialCoach";
 import Toast, { type ToastState } from "./Toast";
@@ -304,13 +304,16 @@ export default function MobileShell() {
         </AnimatePresence>
 
         {/* Screens */}
-        <AnimatePresence mode="wait">
+        {/* Crossfade screens: the incoming screen mounts immediately (no
+            mode="wait") and both layers overlap via `absolute inset-0`, so
+            navigation feels instant instead of waiting on the exit animation. */}
+        <AnimatePresence>
           <motion.div
             key={screen}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.15 }}
             className="absolute inset-0 bg-ink"
           >
             {screen === "for-you" && (
@@ -350,7 +353,11 @@ export default function MobileShell() {
             {screen === "create" && <CreateView showToast={showToast} />}
 
             {screen === "saved" && (
-              <SavedView onOpenArtwork={openArtwork} onNavigate={navigate} />
+              <SavedView
+                onOpenArtwork={openArtwork}
+                onNavigate={navigate}
+                showToast={showToast}
+              />
             )}
 
             {screen === "you" && (
@@ -386,13 +393,16 @@ export default function MobileShell() {
 
         <Toast toast={toast} />
 
-        {/* Shell-level artwork placard (opened from tiles across screens) */}
+        {/* Shell-level artwork viewer (opened from tiles across screens):
+            a zoomable canvas + quick actions + the placard as an info layer. */}
         {activeArtwork && activeArtworkArtist && (
-          <HistoryPlacard
+          <ArtworkViewer
             artwork={activeArtwork}
             artist={activeArtworkArtist}
             open={!!activeArtworkId}
             onClose={() => setActiveArtworkId(null)}
+            showToast={showToast}
+            onOpenArtist={openArtist}
           />
         )}
 

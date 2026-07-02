@@ -132,7 +132,6 @@ export const artists: Artist[] = [
     id: "friedrich",
     name: "Caspar David Friedrich",
     initials: "CF",
-    avatar: portrait("Caspar David Friedrich 025.jpg"),
     profileType: "historical",
     lifespan: "1774 – 1840",
     nationality: "German",
@@ -150,6 +149,7 @@ export const artists: Artist[] = [
     id: "pythokritos",
     name: "Pythokritos of Rhodes",
     initials: "PR",
+    noLookup: true,
     profileType: "historical",
     lifespan: "fl. c. 200 – 150 BC",
     nationality: "Hellenistic Greek",
@@ -165,6 +165,7 @@ export const artists: Artist[] = [
     id: "egyptian-royal-workshop",
     name: "Royal Workshop of Thebes",
     initials: "RT",
+    noLookup: true,
     profileType: "historical",
     lifespan: "fl. c. 1323 BC",
     nationality: "Ancient Egyptian",
@@ -180,6 +181,7 @@ export const artists: Artist[] = [
     id: "exekias",
     name: "Exekias",
     initials: "EX",
+    noLookup: true,
     profileType: "historical",
     lifespan: "fl. c. 545 – 530 BC",
     nationality: "Ancient Greek",
@@ -195,6 +197,7 @@ export const artists: Artist[] = [
     id: "etruscan-workshop",
     name: "Etruscan Bronze Workshop",
     initials: "EB",
+    noLookup: true,
     profileType: "historical",
     lifespan: "5th century BC",
     nationality: "Etruscan · Roman",
@@ -243,21 +246,32 @@ export const artists: Artist[] = [
 ];
 
 /**
- * Portraits are resolved at runtime in the browser from the artist's name (see
- * `ArtistAvatar` + `lib/artistPhoto`), which avoids bundling/serving image
- * files. The hard-coded Wikimedia URLs above are therefore cleared here so we
- * don't emit broken requests; the name-based resolver handles portraits, and a
- * colored monogram is shown when no photo is available.
+ * Portrait strategy (see `ArtistAvatar` + `lib/artistPhoto`):
+ *   1. `avatar` — a curated Wikimedia Commons portrait, used as-is when present.
+ *      These load instantly with no lookup, so the famous masters never flicker
+ *      as initials while a network request runs.
+ *   2. name-based Wikipedia resolution — used only for artists WITHOUT a curated
+ *      avatar (e.g. the live museum catalog), and falls back to a colored
+ *      monogram when no photo is found.
  *
- * To use curated local portraits instead, drop files in
- * `public/img/artists/<id>.jpg` and set `artist.avatar = "/img/artists/<id>.jpg"`.
+ * `ArtistAvatar` degrades gracefully: if a curated URL ever fails to load it
+ * automatically falls back to the name-based resolver, then to initials. So we
+ * keep the curated URLs rather than clearing them.
+ *
+ * To use local portraits instead, drop files in `public/img/artists/<id>.jpg`
+ * and set `artist.avatar = "/img/artists/<id>.jpg"`.
  */
-for (const artist of artists) {
-  if (artist.avatar && artist.avatar.startsWith("http")) {
-    artist.avatar = undefined;
-  }
-}
 
 export const artistMap: Record<string, Artist> = Object.fromEntries(
   artists.map((a) => [a.id, a])
 );
+
+/**
+ * Whether to resolve an online portrait for this artist. False for entities with
+ * no likeness of a person — freelance (fictional) creators and the
+ * `noLookup`-flagged anonymous/ancient makers — so we show a clean monogram
+ * instead of their artwork or a same-name stranger.
+ */
+export function shouldResolvePortrait(artist: Artist): boolean {
+  return artist.profileType !== "freelance" && !artist.noLookup;
+}
