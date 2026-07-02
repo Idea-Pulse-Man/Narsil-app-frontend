@@ -13,7 +13,7 @@ const API_URL =
   (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ??
   "http://localhost:4000";
 
-  console.log("API_URL", API_URL);
+export { API_URL };
 
 interface ListResponse<T> {
   data: T[];
