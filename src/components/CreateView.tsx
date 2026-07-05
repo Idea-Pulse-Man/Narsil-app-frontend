@@ -1,7 +1,13 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { categories, type CategoryId, type ArtworkOrigin } from "@/data";
 import { screenScrollClass, screenContentClass } from "./artwork-layout";
+import { useAppState } from "./AppState";
+import {
+  uploadArtworkImage,
+  ensureArtistForUser,
+  createArtwork,
+} from "@/lib/artworkUpload";
 import type { ToastState } from "./Toast";
 
 interface CreateViewProps {
@@ -9,9 +15,8 @@ interface CreateViewProps {
 }
 
 /**
- * v1 artist posting flow — local/mock only (nothing is uploaded or persisted).
- * FUTURE (v1.1 / v2): real image upload to storage, moderation/review queue,
- * and rich media posts (video + music) — intentionally out of scope for v1.0.
+ * Artist posting flow — uploads the image to Supabase Storage and inserts a row
+ * into `artworks`, attributed to the user's freelance artist profile.
  */
 const ORIGIN_OPTIONS: { value: ArtworkOrigin; label: string }[] = [
   { value: "artist-original", label: "Original" },
@@ -19,23 +24,77 @@ const ORIGIN_OPTIONS: { value: ArtworkOrigin; label: string }[] = [
   { value: "fan-study", label: "Fan Study" },
 ];
 
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB
+
 export default function CreateView({ showToast }: CreateViewProps) {
+  const { isGuest, profile, user } = useAppState();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<CategoryId>("paintings");
   const [origin, setOrigin] = useState<ArtworkOrigin>("artist-original");
-  const [hasImage, setHasImage] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const canPublish = title.trim().length > 0 && description.trim().length > 0;
+  const canPublish =
+    title.trim().length > 0 && description.trim().length > 0 && !busy;
 
-  const handlePublish = () => {
-    if (!canPublish) return;
-    showToast("Post submitted (demo)");
+  const pickImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > MAX_IMAGE_BYTES) {
+      showToast("Image too large (max 10 MB)", "error");
+      return;
+    }
+    setImageFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+  };
+
+  const reset = () => {
     setTitle("");
     setDescription("");
     setCategory("paintings");
     setOrigin("artist-original");
-    setHasImage(false);
+    setImageFile(null);
+    setPreviewUrl(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handlePublish = async () => {
+    if (!canPublish) return;
+    if (isGuest) {
+      showToast("Sign in from the You tab to publish", "error");
+      return;
+    }
+    setBusy(true);
+    try {
+      const imageUrl = imageFile ? await uploadArtworkImage(imageFile) : null;
+      const authorName =
+        profile?.full_name ?? user?.email?.split("@")[0] ?? "Artist";
+      const artistId = await ensureArtistForUser(authorName);
+      const { error } = await createArtwork({
+        title: title.trim(),
+        description: description.trim(),
+        imageUrl,
+        category,
+        origin,
+        artistId,
+      });
+      if (error) {
+        showToast(error.message, "error");
+        return;
+      }
+      showToast("Posted to Narsil");
+      reset();
+    } catch (err) {
+      showToast(
+        err instanceof Error ? err.message : "Failed to publish",
+        "error",
+      );
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -48,26 +107,42 @@ export default function CreateView({ showToast }: CreateViewProps) {
           Create
         </h1>
 
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          onChange={pickImage}
+          className="hidden"
+        />
         <motion.button
           type="button"
           whileTap={{ scale: 0.98 }}
-          onClick={() => {
-            setHasImage(true);
-            showToast("Image selected (demo)");
-          }}
-          className={`mt-6 flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed py-10 transition-colors ${
-            hasImage
-              ? "border-emerald-400/40 bg-emerald-400/10"
-              : "border-white/15 bg-white/[0.02] hover:border-white/25"
+          onClick={() => fileInputRef.current?.click()}
+          className={`mt-6 flex w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border-2 border-dashed transition-colors ${
+            previewUrl
+              ? "border-emerald-400/40 bg-emerald-400/10 p-0"
+              : "border-white/15 bg-white/[0.02] py-10 hover:border-white/25"
           }`}
         >
-          <span className="flex h-12 w-12 items-center justify-center rounded-full border border-white/15 bg-white/10 text-2xl text-white/70">
-            +
-          </span>
-          <span className="text-sm font-medium text-white/80">
-            {hasImage ? "Image ready" : "Upload artwork image"}
-          </span>
-          <span className="text-xs text-white/40">JPG or PNG · max 10 MB</span>
+          {previewUrl ? (
+            <img
+              src={previewUrl}
+              alt="Selected artwork"
+              className="max-h-64 w-full object-contain"
+            />
+          ) : (
+            <>
+              <span className="flex h-12 w-12 items-center justify-center rounded-full border border-white/15 bg-white/10 text-2xl text-white/70">
+                +
+              </span>
+              <span className="text-sm font-medium text-white/80">
+                Upload artwork image
+              </span>
+              <span className="text-xs text-white/40">
+                JPG or PNG · max 10 MB
+              </span>
+            </>
+          )}
         </motion.button>
 
         <form
@@ -138,13 +213,14 @@ export default function CreateView({ showToast }: CreateViewProps) {
             whileTap={canPublish ? { scale: 0.98 } : undefined}
             className="mt-2 flex w-full items-center justify-center rounded-full bg-white py-3.5 text-sm font-semibold text-ink transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Post to Narsil
+            {busy ? "Publishing…" : "Post to Narsil"}
           </motion.button>
         </form>
 
         <p className="mt-5 text-center text-[11px] leading-relaxed text-white/30">
-          Demo only — posts aren&apos;t uploaded or saved. Video &amp; music
-          posting are planned for a future release.
+          {isGuest
+            ? "Sign in from the You tab to publish your work."
+            : "Your post is uploaded to Narsil and attributed to your profile."}
         </p>
       </div>
     </div>

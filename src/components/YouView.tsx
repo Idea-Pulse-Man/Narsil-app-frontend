@@ -1,8 +1,11 @@
+import { useState } from "react";
 import { useCatalog } from "@/data/catalog";
 import { useAppState } from "./AppState";
 import { screenScrollClass, screenContentClass } from "./artwork-layout";
 import { SparkleIcon } from "./Icons";
 import ArtworkTile from "./ArtworkTile";
+import AddressManager from "./AddressManager";
+import type { ToastState } from "./Toast";
 import type { Screen } from "./navigation";
 
 interface YouViewProps {
@@ -11,6 +14,8 @@ interface YouViewProps {
   onEditPreferences: () => void;
   onRestartTutorial: () => void;
   onNavigate: (screen: Screen) => void;
+  onSignIn: () => void;
+  showToast: (message: string, variant?: ToastState["variant"]) => void;
 }
 
 export default function YouView({
@@ -19,9 +24,41 @@ export default function YouView({
   onEditPreferences,
   onRestartTutorial,
   onNavigate,
+  onSignIn,
+  showToast,
 }: YouViewProps) {
-  const { saved, liked, following, preferences } = useAppState();
+  const { saved, liked, following, preferences, user, profile, isGuest, signOut } =
+    useAppState();
   const { getArtist, getArtwork } = useCatalog();
+  const [addressOpen, setAddressOpen] = useState(false);
+
+  const openAddresses = () => {
+    if (isGuest) {
+      onSignIn();
+      return;
+    }
+    setAddressOpen(true);
+  };
+
+  const email = profile?.email ?? user?.email ?? null;
+  const meta = (user?.user_metadata ?? {}) as {
+    full_name?: string;
+    name?: string;
+  };
+  const displayName = isGuest
+    ? "Guest"
+    : profile?.full_name ??
+      meta.full_name ??
+      meta.name ??
+      email?.split("@")[0] ??
+      "Member";
+  const avatarUrl = profile?.avatar_url ?? null;
+  const initial = (displayName.charAt(0) || "?").toUpperCase();
+
+  const handleSignOut = async () => {
+    await signOut();
+    showToast("Signed out");
+  };
 
   const likedArtworks = liked
     .map((id) => getArtwork(id))
@@ -44,16 +81,44 @@ export default function YouView({
       <div className={screenContentClass}>
         {/* Identity */}
         <div className="flex items-center gap-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full border border-white/15 bg-gradient-to-br from-white/20 to-white/5 font-serif text-2xl text-white">
-            G
+          <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-gradient-to-br from-white/20 to-white/5 font-serif text-2xl text-white">
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt={displayName}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              initial
+            )}
           </div>
-          <div>
-            <h1 className="font-serif text-2xl leading-none text-white">Guest</h1>
-            <p className="mt-1.5 text-sm text-white/55">
-              Narsil member · v1.0 preview
+          <div className="min-w-0">
+            <h1 className="truncate font-serif text-2xl leading-none text-white">
+              {displayName}
+            </h1>
+            <p className="mt-1.5 truncate text-sm text-white/55">
+              {isGuest ? "Narsil member · v1.0 preview" : email}
             </p>
           </div>
         </div>
+
+        {/* Sign in prompt */}
+        {isGuest && (
+          <button
+            onClick={onSignIn}
+            className="mt-5 flex w-full items-center justify-between rounded-2xl border border-white/12 bg-white/[0.05] px-4 py-4 text-left transition-colors hover:bg-white/[0.08]"
+          >
+            <span>
+              <span className="block text-sm font-medium text-white">
+                Sign in or create an account
+              </span>
+              <span className="mt-0.5 block text-xs text-white/50">
+                Sync your saved art across devices
+              </span>
+            </span>
+            <span className="text-white/40">›</span>
+          </button>
+        )}
 
         {/* Stats */}
         <div className="mt-6 grid grid-cols-3 gap-3">
@@ -141,15 +206,24 @@ export default function YouView({
         {/* Settings */}
         <section className="mt-8 space-y-2">
           <h2 className="font-serif text-lg text-white">Settings</h2>
+          <Row label="Delivery addresses" onClick={openAddresses} />
           <Row label="Replay the tutorial" onClick={onRestartTutorial} />
           <Row label="About Narsil v1.0" onClick={() => onNavigate("discover")} />
+          {!isGuest && (
+            <Row label="Sign out" onClick={handleSignOut} destructive />
+          )}
         </section>
 
         <p className="mt-8 text-center text-[11px] leading-relaxed text-white/30">
-          Narsil v1.0 — a product preview. Accounts, sync, and checkout arrive in
-          a later version.
+          Narsil v1.0 — a product preview.
         </p>
       </div>
+
+      <AddressManager
+        open={addressOpen}
+        onClose={() => setAddressOpen(false)}
+        showToast={showToast}
+      />
     </div>
   );
 }
@@ -177,11 +251,21 @@ function Stat({
   );
 }
 
-function Row({ label, onClick }: { label: string; onClick: () => void }) {
+function Row({
+  label,
+  onClick,
+  destructive = false,
+}: {
+  label: string;
+  onClick: () => void;
+  destructive?: boolean;
+}) {
   return (
     <button
       onClick={onClick}
-      className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3.5 text-left text-sm text-white/85 transition-colors hover:bg-white/[0.06]"
+      className={`flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3.5 text-left text-sm transition-colors hover:bg-white/[0.06] ${
+        destructive ? "text-red-400" : "text-white/85"
+      }`}
     >
       {label}
       <span className="text-white/35">›</span>

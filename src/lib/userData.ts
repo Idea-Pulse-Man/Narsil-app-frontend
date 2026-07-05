@@ -17,6 +17,36 @@ export interface RemoteUserData {
   following: string[];
 }
 
+export interface Profile {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  avatar_url: string | null;
+}
+
+/** Load the signed-in user's profile row (name/avatar) from Supabase. */
+export async function fetchProfile(): Promise<Profile | null> {
+  if (!supabase) return null;
+  try {
+    const { data: auth } = await supabase.auth.getUser();
+    const uid = auth.user?.id;
+    if (!uid) return null;
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, full_name, email, avatar_url")
+      .eq("id", uid)
+      .maybeSingle();
+    if (error) {
+      console.warn("Supabase: profile load failed.", error.message);
+      return null;
+    }
+    return (data as Profile | null) ?? null;
+  } catch (err) {
+    console.warn("Supabase: profile load error.", err);
+    return null;
+  }
+}
+
 /**
  * Make sure we have a user id. With anonymous sign-ins enabled in the Supabase
  * dashboard this transparently creates a per-device user. Returns null when

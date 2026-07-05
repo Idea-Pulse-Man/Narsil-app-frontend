@@ -16,6 +16,7 @@ import SavedView from "./SavedView";
 import YouView from "./YouView";
 import ArtistProfileModal from "./ArtistProfileModal";
 import ArtworkViewer from "./ArtworkViewer";
+import AuthView from "./AuthView";
 import PreferenceModal from "./PreferenceModal";
 import TutorialCoach from "./TutorialCoach";
 import Toast, { type ToastState } from "./Toast";
@@ -40,9 +41,11 @@ export default function MobileShell() {
     preferences,
     savePreferences,
     dismissPreferences,
-    tutorialDone,
     completeTutorial,
     restartTutorial,
+    authSeen,
+    markAuthSeen,
+    isGuest,
   } = useAppState();
 
   const [toast, setToast] = useState<ToastState | null>(null);
@@ -57,6 +60,15 @@ export default function MobileShell() {
   const [clean, setClean] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Sign-in / sign-up screen (full-screen overlay above the shell).
+  const [authOpen, setAuthOpen] = useState(false);
+  // True when the app opened from an auth redirect (`?code=`) that's still being
+  // completed — suppress the first-launch gate so it doesn't flash open.
+  const authRedirectPending = useRef(
+    typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).has("code")
+  );
+
   // Preference modal ("Personalize your museum").
   const [prefsOpen, setPrefsOpen] = useState(false);
   const [prefsManual, setPrefsManual] = useState(false);
@@ -70,13 +82,13 @@ export default function MobileShell() {
   const [advancing, setAdvancing] = useState(false);
   const advancingRef = useRef(false);
 
-  // Kick off the tutorial once persisted state has hydrated.
+  // On first launch, show the sign-in / sign-up page (once). The tutorial no
+  // longer auto-starts — it's available from the You tab ("Replay the tutorial").
   useEffect(() => {
-    if (ready && !tutorialDone) {
-      setTutorialActive(true);
-      setScreen("for-you");
+    if (ready && !authSeen && isGuest && !authRedirectPending.current) {
+      setAuthOpen(true);
     }
-  }, [ready, tutorialDone]);
+  }, [ready, authSeen, isGuest]);
 
   const showToast = useCallback(
     (message: string, variant: ToastState["variant"] = "default") => {
@@ -123,7 +135,7 @@ export default function MobileShell() {
     (index: number) => {
       if (
         ready &&
-        tutorialDone &&
+        authSeen &&
         !preferences.completed &&
         !prefsTriggered.current &&
         index >= 3
@@ -133,7 +145,7 @@ export default function MobileShell() {
         setPrefsOpen(true);
       }
     },
-    [ready, tutorialDone, preferences.completed]
+    [ready, authSeen, preferences.completed]
   );
 
   const editPreferences = useCallback(() => {
@@ -373,6 +385,8 @@ export default function MobileShell() {
                   setResetToken((t) => t + 1);
                 }}
                 onNavigate={navigate}
+                onSignIn={() => setAuthOpen(true)}
+                showToast={showToast}
               />
             )}
           </motion.div>
@@ -411,6 +425,17 @@ export default function MobileShell() {
           onClose={() => setActiveArtist(null)}
           onOpenArtwork={openArtwork}
         />
+
+        <AnimatePresence>
+          {authOpen && (
+            <AuthView
+              onClose={() => {
+                setAuthOpen(false);
+                markAuthSeen();
+              }}
+            />
+          )}
+        </AnimatePresence>
 
         <PreferenceModal
           open={prefsOpen}

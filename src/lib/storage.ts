@@ -13,6 +13,7 @@ export const STORAGE_KEYS = {
   following: "narsil:following",
   preferences: "narsil:preferences",
   tutorialDone: "narsil:tutorial-done",
+  authSeen: "narsil:auth-seen",
 } as const;
 
 export function readJSON<T>(key: string, fallback: T): T {

@@ -7,12 +7,21 @@ import {
   useRef,
   useState,
 } from "react";
+import type { User } from "@supabase/supabase-js";
 import { STORAGE_KEYS, readJSON, writeJSON } from "@/lib/storage";
+import { supabase } from "@/lib/supabase";
+import {
+  initNativeAuthListener,
+  completeAuthFromUrl,
+  signOut as authSignOut,
+} from "@/lib/auth";
 import {
   ensureSession,
   fetchUserData,
+  fetchProfile,
   setCollection,
   setFollow,
+  type Profile,
 } from "@/lib/userData";
 
 /** User preferences captured by the "Personalize your museum" modal. */
@@ -54,6 +63,20 @@ interface AppStateValue {
   tutorialDone: boolean;
   completeTutorial: () => void;
   restartTutorial: () => void;
+
+  /** True once the sign-in gate has been shown (and signed in or dismissed). */
+  authSeen: boolean;
+  /** Mark the sign-in gate as handled so it won't auto-open again. */
+  markAuthSeen: () => void;
+
+  /** The current Supabase user (null when auth is disabled or not loaded). */
+  user: User | null;
+  /** The current user's profile row (name/avatar), when loaded. */
+  profile: Profile | null;
+  /** True when there is no real (non-anonymous) account signed in. */
+  isGuest: boolean;
+  /** Sign the current user out. */
+  signOut: () => Promise<void>;
 }
 
 const AppStateContext = createContext<AppStateValue | null>(null);
@@ -65,6 +88,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [following, setFollowing] = useState<string[]>([]);
   const [preferences, setPreferences] = useState<Preferences>(EMPTY_PREFS);
   const [tutorialDone, setTutorialDone] = useState(false);
+  const [authSeen, setAuthSeen] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
 
   // True once a Supabase (anonymous) session exists — gates cloud writes.
   const cloudReady = useRef(false);
@@ -77,6 +103,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setFollowing(readJSON<string[]>(STORAGE_KEYS.following, []));
     setPreferences(readJSON<Preferences>(STORAGE_KEYS.preferences, EMPTY_PREFS));
     setTutorialDone(readJSON<boolean>(STORAGE_KEYS.tutorialDone, false));
+    setAuthSeen(readJSON<boolean>(STORAGE_KEYS.authSeen, false));
     setReady(true);
 
     let cancelled = false;
@@ -98,6 +125,68 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  // Track the Supabase auth session so the UI can reflect who's signed in and
+  // re-pull cloud data when a real account logs in (or out). Native OAuth is
+  // completed by the deep-link listener registered here.
+  useEffect(() => {
+    if (!supabase) return;
+
+    initNativeAuthListener();
+
+    let cancelled = false;
+    void (async () => {
+      // Finish any redirect sign-in (OAuth / email confirmation) before we read
+      // the current user, so a fresh confirmation lands as signed-in.
+      await completeAuthFromUrl();
+      const { data } = await supabase.auth.getUser();
+      if (cancelled) return;
+      setUser(data.user ?? null);
+      if (data.user && !data.user.is_anonymous) {
+        const p = await fetchProfile();
+        if (!cancelled) setProfile(p);
+      }
+    })();
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      const nextUser = session?.user ?? null;
+      setUser(nextUser);
+      cloudReady.current = Boolean(nextUser);
+      if (!nextUser) {
+        setProfile(null);
+        return;
+      }
+      void (async () => {
+        const [remote, p] = await Promise.all([
+          fetchUserData(),
+          nextUser.is_anonymous ? Promise.resolve(null) : fetchProfile(),
+        ]);
+        if (cancelled) return;
+        if (p) setProfile(p);
+        if (!remote) return;
+        setSaved(remote.saved);
+        setLiked(remote.liked);
+        setFollowing(remote.following);
+        writeJSON(STORAGE_KEYS.saved, remote.saved);
+        writeJSON(STORAGE_KEYS.liked, remote.liked);
+        writeJSON(STORAGE_KEYS.following, remote.following);
+      })();
+    });
+
+    return () => {
+      cancelled = true;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
+
+  const signOut = useCallback(async () => {
+    await authSignOut();
+  }, []);
+
+  const markAuthSeen = useCallback(() => {
+    setAuthSeen(true);
+    writeJSON(STORAGE_KEYS.authSeen, true);
   }, []);
 
   // Build a toggle that updates state, mirrors to localStorage, and (when a
@@ -185,6 +274,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     tutorialDone,
     completeTutorial,
     restartTutorial,
+    authSeen,
+    markAuthSeen,
+    user,
+    profile,
+    isGuest: !user || user.is_anonymous === true,
+    signOut,
   };
 
   return (
