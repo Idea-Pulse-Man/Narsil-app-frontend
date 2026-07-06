@@ -26,10 +26,10 @@ import {
   toSelectionList,
 } from "./index";
 import type { Artwork, Artist, CategoryId, ArtworkSearchQuery } from "./index";
-import { fetchRemoteCatalog } from "@/lib/api";
+import { fetchSupabaseCatalog } from "@/lib/catalog";
 
 /** Where the currently-shown data came from. */
-type CatalogSource = "mock" | "backend";
+type CatalogSource = "mock" | "supabase";
 
 interface CatalogValue {
   artworks: Artwork[];
@@ -91,19 +91,19 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetchRemoteCatalog(controller.signal)
+    fetchSupabaseCatalog(controller.signal)
       .then((data) => {
         if (controller.signal.aborted) return;
-        // Only switch to backend data if it actually returned artworks.
+        // Only switch to live data if Supabase actually returned artworks.
         if (data.artworks.length > 0) {
           setRemote(data);
-          setSource("backend");
+          setSource("supabase");
         }
       })
       .catch((err) => {
         if (controller.signal.aborted) return;
-        // Backend unreachable — stay on mock data so the app still works.
-        console.warn("Catalog: using mock data (backend unavailable).", err);
+        // Supabase unreachable — stay on mock data so the app still works.
+        console.warn("Catalog: using mock data (Supabase unavailable).", err);
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
