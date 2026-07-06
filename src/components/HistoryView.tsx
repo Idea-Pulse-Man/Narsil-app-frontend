@@ -40,7 +40,7 @@ export default function HistoryView({
 }: HistoryViewProps) {
   const {
     artworks: liveArtworks,
-    feedArtworks,
+    artists: liveArtists,
     getArtwork,
     getArtist,
     getArtistAvatar,
@@ -104,9 +104,10 @@ export default function HistoryView({
         .filter((a): a is Artist => !!a)
     : [];
 
-  // ── Lens 3: Artists ── show the famous featured masters first, then only the
-  // artists that actually appear in the "For You" feed. This keeps the grid tied
-  // to what the user is browsing (and to a small set of portrait lookups).
+  // ── Lens 3: Artists ── show the famous featured masters first, then the whole
+  // live museum catalog of named artists. Anonymous/"Unknown" makers are skipped
+  // (no real portrait), and we cap the grid so we don't render a huge number of
+  // avatars at once.
   const browseArtists = useMemo(() => {
     const list: Artist[] = [];
     const seen = new Set<string>();
@@ -118,10 +119,10 @@ export default function HistoryView({
     };
     // Famous artists first.
     for (const id of featuredArtistIds) push(getArtist(id));
-    // Then everyone featured in the For You feed.
-    for (const art of feedArtworks) push(getArtist(art.artistId));
-    return list;
-  }, [feedArtworks, getArtist]);
+    // Then every named artist from the live museum catalog.
+    for (const artist of liveArtists) push(artist);
+    return list.slice(0, 120);
+  }, [liveArtists, getArtist]);
 
   return (
     <div className={screenScrollClass}>

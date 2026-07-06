@@ -188,12 +188,24 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
       });
     };
 
+    // The For You feed (and, by extension, the Buy page, which derives from it)
+    // should feature real, named makers — not the huge pile of works the museum
+    // catalogs as "Unknown Artist". Drop those before building the feed so the
+    // 80-item window fills up with attributable art.
+    const isUnknownArtist = (artistId: string): boolean => {
+      const name = artistMap[artistId]?.name ?? "";
+      return !name || /^(unknown|anonymous|unidentified)/i.test(name);
+    };
+    const namedFeed = buildFeed(
+      browseArtworks.filter((a) => !isUnknownArtist(a.artistId)),
+    ).slice(0, FEED_LIMIT);
+
     return {
       artworks: browseArtworks,
       artists: browseArtists,
       artworkMap,
       artistMap,
-      feedArtworks: buildFeed(browseArtworks).slice(0, FEED_LIMIT),
+      feedArtworks: namedFeed,
       searchFacets,
       source,
       loading,
