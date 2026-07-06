@@ -67,6 +67,13 @@ function mergeById<T extends { id: string }>(base: T[], extra: T[]): T[] {
   return out;
 }
 
+/**
+ * Max number of artworks loaded into the browse feed at once. Keeps the "For
+ * You" page fast (only ~80 images decode) and, since Buy + History + Search all
+ * derive from this same feed, keeps every browse surface showing the same set.
+ */
+export const FEED_LIMIT = 80;
+
 /** Interleave historical masters with freelance originals (same rule as v1). */
 function buildFeed(list: Artwork[]): Artwork[] {
   const historical = list.filter((a) => a.origin !== "artist-original");
@@ -186,7 +193,7 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
       artists: browseArtists,
       artworkMap,
       artistMap,
-      feedArtworks: buildFeed(browseArtworks),
+      feedArtworks: buildFeed(browseArtworks).slice(0, FEED_LIMIT),
       searchFacets,
       source,
       loading,

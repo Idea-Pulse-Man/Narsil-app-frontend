@@ -13,13 +13,10 @@ interface BuyViewProps {
 
 type BuySource = "museum" | "freelance";
 
-/** Cap the museum grid so we don't render 100+ images at once. */
-const MUSEUM_LIMIT = 48;
-
 export default function BuyView({ showToast }: BuyViewProps) {
-  // Drive the shop from the live catalog (real museum art via the backend image
-  // proxy) so canvases show actual artwork — the same source the feed uses.
-  const { artworks, getArtist } = useCatalog();
+  // Drive the shop from the same ~80-image feed the "For You" page uses, so the
+  // Buy page shows the exact same artworks (and stays just as fast to load).
+  const { feedArtworks, getArtist } = useCatalog();
   // Museum Art (public-domain) vs Freelance (artist-original) — matches the
   // client's Buy-page sketch.
   const [source, setSource] = useState<BuySource>("museum");
@@ -28,22 +25,21 @@ export default function BuyView({ showToast }: BuyViewProps) {
 
   const products = useMemo(
     () =>
-      artworks.map((artwork) => ({
+      feedArtworks.map((artwork) => ({
         id: `canvas-${artwork.id}`,
         artwork,
         priceFrom: priceFromId(artwork.id),
       })),
-    [artworks],
+    [feedArtworks],
   );
 
   const visibleProducts = useMemo(() => {
     const isFreelance = source === "freelance";
-    const filtered = products.filter(({ artwork }) =>
+    return products.filter(({ artwork }) =>
       isFreelance
         ? artwork.origin === "artist-original"
         : artwork.origin !== "artist-original",
     );
-    return isFreelance ? filtered : filtered.slice(0, MUSEUM_LIMIT);
   }, [products, source]);
 
   const activeArtwork =

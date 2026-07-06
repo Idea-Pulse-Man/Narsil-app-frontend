@@ -137,15 +137,36 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
     let cancelled = false;
     void (async () => {
-      // Finish any redirect sign-in (OAuth / email confirmation) before we read
-      // the current user, so a fresh confirmation lands as signed-in.
-      await completeAuthFromUrl();
-      const { data } = await supabase.auth.getUser();
-      if (cancelled) return;
-      setUser(data.user ?? null);
-      if (data.user && !data.user.is_anonymous) {
-        const p = await fetchProfile();
-        if (!cancelled) setProfile(p);
+      try {
+        // Finish any redirect sign-in (OAuth / email confirmation) before we
+        // read the current user, so a fresh confirmation lands as signed-in.
+        await completeAuthFromUrl();
+
+        // `getUser()` validates the token over the network, so it throws
+        // `TypeError: Failed to fetch` when offline or behind a blocking proxy.
+        // Fall back to the cached session (read locally, no network) so the user
+        // still appears signed in and the app keeps working instead of crashing.
+        let currentUser: User | null = null;
+        try {
+          const { data } = await supabase.auth.getUser();
+          currentUser = data.user ?? null;
+        } catch {
+          const { data } = await supabase.auth.getSession();
+          currentUser = data.session?.user ?? null;
+        }
+
+        if (cancelled) return;
+        setUser(currentUser);
+        if (currentUser && !currentUser.is_anonymous) {
+          const p = await fetchProfile();
+          if (!cancelled) setProfile(p);
+        }
+      } catch (err) {
+        // Never let an auth/network failure surface as an uncaught rejection —
+        // the app runs fine on localStorage until connectivity returns.
+        if (!cancelled) {
+          console.warn("Auth: could not load current user (offline?).", err);
+        }
       }
     })();
 

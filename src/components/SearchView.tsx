@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { categoryMap, type CategoryId } from "@/data";
-import { useCatalog } from "@/data/catalog";
+import { useCatalog, FEED_LIMIT } from "@/data/catalog";
 import { screenScrollClass, screenContentClass } from "./artwork-layout";
 import { SearchIcon, CloseIcon, ChevronDownIcon } from "./Icons";
 import ArtworkTile from "./ArtworkTile";
@@ -44,6 +44,8 @@ export default function SearchView({
     }
   }, [initialCategory]);
 
+  // Show every match, but never render more than 80 images at once so the
+  // results grid stays fast even for very broad searches.
   const results = useMemo(
     () =>
       searchArtworks({
@@ -52,7 +54,7 @@ export default function SearchView({
         periods: sel.periods.length ? sel.periods : undefined,
         empires: sel.empires.length ? sel.empires : undefined,
         artistIds: sel.artistIds.length ? sel.artistIds : undefined,
-      }),
+      }).slice(0, FEED_LIMIT),
     [text, sel, searchArtworks]
   );
 

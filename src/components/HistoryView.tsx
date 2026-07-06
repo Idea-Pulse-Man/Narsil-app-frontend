@@ -4,7 +4,6 @@ import {
   historyEras,
   featuredArtistIds,
   artworks as curatedArtworks,
-  artists as curatedArtists,
   shouldResolvePortrait,
   type Artwork,
   type Artist,
@@ -41,7 +40,7 @@ export default function HistoryView({
 }: HistoryViewProps) {
   const {
     artworks: liveArtworks,
-    artists: liveArtists,
+    feedArtworks,
     getArtwork,
     getArtist,
     getArtistAvatar,
@@ -105,15 +104,24 @@ export default function HistoryView({
         .filter((a): a is Artist => !!a)
     : [];
 
-  // ── Lens 3: Artists ── curated masters first (best portraits), then the live
-  // catalog. Capped so we don't fire hundreds of portrait lookups at once.
-  const browseArtists = useMemo(
-    () =>
-      mergeById(curatedArtists, liveArtists)
-        .filter((a) => a.name && !/^unknown/i.test(a.name))
-        .slice(0, 60),
-    [liveArtists],
-  );
+  // ── Lens 3: Artists ── show the famous featured masters first, then only the
+  // artists that actually appear in the "For You" feed. This keeps the grid tied
+  // to what the user is browsing (and to a small set of portrait lookups).
+  const browseArtists = useMemo(() => {
+    const list: Artist[] = [];
+    const seen = new Set<string>();
+    const push = (artist: Artist | undefined) => {
+      if (!artist || seen.has(artist.id)) return;
+      if (!artist.name || /^unknown/i.test(artist.name)) return;
+      seen.add(artist.id);
+      list.push(artist);
+    };
+    // Famous artists first.
+    for (const id of featuredArtistIds) push(getArtist(id));
+    // Then everyone featured in the For You feed.
+    for (const art of feedArtworks) push(getArtist(art.artistId));
+    return list;
+  }, [feedArtworks, getArtist]);
 
   return (
     <div className={screenScrollClass}>
