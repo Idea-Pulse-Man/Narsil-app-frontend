@@ -13,6 +13,16 @@ export function sizedImageUrl(src: string, cssPx: number): string {
     return `${src}${sep}width=${w}`;
   }
 
+  // S3-hosted museum images are stored full-size and have no native resizing,
+  // so grids would download the whole ~843px JPEG per tile (slow, and prone to
+  // timeouts when many load at once). Route them through the wsrv.nl image CDN
+  // to fetch a small WebP thumbnail instead. If the CDN is ever unreachable,
+  // BlurImage's onError falls back to the original S3 URL, so this never makes
+  // loading less reliable than before.
+  if (/^https?:\/\/[^/]*\.amazonaws\.com\//.test(src)) {
+    return `https://wsrv.nl/?url=${encodeURIComponent(src)}&w=${w}&output=webp&we`;
+  }
+
   return src;
 }
 

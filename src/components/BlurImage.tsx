@@ -33,6 +33,9 @@ const ZOOM_TRANSITION = {
   ease: [0.22, 1, 0.36, 1] as const,
 };
 
+/** How many times a thumbnail retries (with a direct-URL fallback) before giving up. */
+const MAX_IMAGE_ATTEMPTS = 3;
+
 // A tiny (~24px) variant of the same Wikimedia URL. It downloads almost
 // instantly and is shown blurred as a placeholder so the user sees the artwork
 // take shape immediately, instead of an empty frame, while the full-resolution
@@ -85,6 +88,24 @@ export default function BlurImage({
       ? sizedImageUrl(displaySrc, thumbWidth)
       : displaySrc;
   const previewSrc = previewOf(renderSrc);
+
+  // A single S3/CDN request can transiently time out (net::ERR_TIMED_OUT). Retry
+  // the tile a few times instead of leaving it stuck on the accent placeholder:
+  //  • attempt 0 — the (possibly CDN-resized) thumbnail
+  //  • attempt ≥1 — fall back to the direct, unresized URL (cache-busted so the
+  //    browser actually re-fetches), in case the resized/proxied variant is the
+  //    thing failing.
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    setAttempt(0);
+  }, [renderSrc]);
+  const attemptSrc =
+    attempt === 0
+      ? renderSrc
+      : `${displaySrc}${displaySrc.includes("?") ? "&" : "?"}retry=${attempt}`;
+  const handleError = useCallback(() => {
+    setAttempt((a) => (a < MAX_IMAGE_ATTEMPTS ? a + 1 : a));
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -204,11 +225,12 @@ export default function BlurImage({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           ref={mainImgRef}
-          src={renderSrc}
+          src={attemptSrc}
           alt={alt}
           loading={priority ? "eager" : "lazy"}
           decoding="async"
           onLoad={markLoaded}
+          onError={handleError}
           className={`relative h-full w-full transition-all duration-500 ease-out ${
             isContain ? "object-contain" : "object-cover"
           } ${
