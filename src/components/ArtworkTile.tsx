@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import type { Artwork } from "@/data";
-import { originLabel, priceFromId } from "@/data";
+import { originLabel } from "@/data";
 import { useCatalog } from "@/data/catalog";
 import BlurImage from "./BlurImage";
 import { BookmarkIcon } from "./Icons";
@@ -69,12 +69,12 @@ export default function ArtworkTile({
       </button>
 
       {onOrderCanvas && (
-        <div className="px-3 pb-3 pt-2.5">
+        <div className="px-3 pb-3 pt-2">
           <button
             onClick={() => onOrderCanvas(artwork.id)}
-            className="flex w-full items-center justify-center gap-1 rounded-full border border-white/15 bg-white/5 py-1.5 text-[11px] font-medium text-white/85 transition-colors hover:bg-white/10"
+            className="inline-block whitespace-nowrap rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[8px] font-semibold uppercase leading-none tracking-[0.05em] text-white/85 transition-colors hover:bg-white/20"
           >
-            Canvas · from ${priceFromId(artwork.id)}
+            Canvas
           </button>
         </div>
       )}
