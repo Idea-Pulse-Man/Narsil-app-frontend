@@ -32,6 +32,8 @@ create extension if not exists pgcrypto;
 -- ---------------------------------------------------------------------------
 drop table if exists public.canvas_orders cascade;
 drop table if exists public.addresses     cascade;
+drop table if exists public.comments      cascade;
+drop table if exists public.seen          cascade;
 drop table if exists public.collections   cascade;
 drop table if exists public.follows       cascade;
 drop table if exists public.artworks      cascade;
@@ -195,6 +197,70 @@ create policy "Users manage their own follows"
   to authenticated
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
+
+-- ===========================================================================
+-- 5b. SEEN  — artworks a user has already viewed in the feed, so the next
+--     session can surface UNSEEN art first instead of replaying the same works.
+-- ===========================================================================
+create table public.seen (
+  user_id    uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  artwork_id text not null,
+  seen_at    timestamptz not null default now(),
+  primary key (user_id, artwork_id)
+);
+
+create index on public.seen (user_id);
+
+alter table public.seen enable row level security;
+
+create policy "Users manage their own seen"
+  on public.seen for all
+  to authenticated
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+-- ===========================================================================
+-- 5c. COMMENTS  — public per-artwork "Art Discussion" threads.
+--     Anyone can READ; a signed-in user (incl. anonymous guests) can POST and
+--     DELETE their OWN. Author name/avatar are denormalised because `profiles`
+--     is owner-only readable and could not back a public thread via a join.
+-- ===========================================================================
+create table public.comments (
+  id            uuid primary key default gen_random_uuid(),
+  artwork_id    text not null,
+  user_id       uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  author_name   text,
+  author_avatar text,
+  body          text not null check (char_length(body) between 1 and 1000),
+  created_at    timestamptz not null default now()
+);
+
+create index on public.comments (artwork_id, created_at);
+
+alter table public.comments enable row level security;
+
+create policy "Comments are public"
+  on public.comments for select
+  using (true);
+
+create policy "Users can post their own comments"
+  on public.comments for insert
+  to authenticated
+  with check (auth.uid() = user_id);
+
+create policy "Users can delete their own comments"
+  on public.comments for delete
+  to authenticated
+  using (auth.uid() = user_id);
+
+-- Realtime: broadcast INSERTs so open threads update live across devices.
+do $$
+begin
+  alter publication supabase_realtime add table public.comments;
+exception
+  when duplicate_object then null;
+  when undefined_object then null;
+end $$;
 
 -- ===========================================================================
 -- 6. ADDRESSES  — delivery / home addresses, many per user.

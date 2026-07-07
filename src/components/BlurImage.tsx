@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { sizedImageUrl } from "@/lib/imageUrl";
 import { isNgrokUrl, resolveNgrokImageSrc } from "@/lib/ngrok";
 
 interface BlurImageProps {
@@ -23,6 +24,8 @@ interface BlurImageProps {
    * (e.g. after the tutorial resets UI state without changing `src`).
    */
   syncToken?: number;
+  /** When set, requests a smaller source image for grids and thumbnails. */
+  thumbWidth?: number;
 }
 
 const ZOOM_TRANSITION = {
@@ -67,6 +70,7 @@ export default function BlurImage({
   fit = "cover",
   zoomable = false,
   syncToken,
+  thumbWidth,
 }: BlurImageProps) {
   const [displaySrc, setDisplaySrc] = useState(src);
   const [loaded, setLoaded] = useState(false);
@@ -76,7 +80,11 @@ export default function BlurImage({
   const coverRef = useRef<HTMLImageElement>(null);
   const containRef = useRef<HTMLImageElement>(null);
   const isContain = fit === "contain";
-  const previewSrc = previewOf(displaySrc);
+  const renderSrc =
+    !zoomable && thumbWidth
+      ? sizedImageUrl(displaySrc, thumbWidth)
+      : displaySrc;
+  const previewSrc = previewOf(renderSrc);
 
   useEffect(() => {
     let active = true;
@@ -150,7 +158,7 @@ export default function BlurImage({
       cancelAnimationFrame(outer);
       cancelAnimationFrame(inner);
     };
-  }, [displaySrc, syncLoadedFromCache]);
+  }, [renderSrc, syncLoadedFromCache]);
 
   useEffect(() => {
     if (loaded) return;
@@ -196,12 +204,12 @@ export default function BlurImage({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           ref={mainImgRef}
-          src={displaySrc}
+          src={renderSrc}
           alt={alt}
           loading={priority ? "eager" : "lazy"}
           decoding="async"
           onLoad={markLoaded}
-          className={`relative h-full w-full transition-all duration-700 ease-out ${
+          className={`relative h-full w-full transition-all duration-500 ease-out ${
             isContain ? "object-contain" : "object-cover"
           } ${
             loaded ? "scale-100 opacity-100 blur-0" : "scale-105 opacity-0 blur-xl"

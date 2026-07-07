@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   categories,
@@ -6,6 +7,7 @@ import {
   type CategoryId,
 } from "@/data";
 import { useCatalog } from "@/data/catalog";
+import type { Artwork } from "@/data";
 import BlurImage from "./BlurImage";
 import { screenScrollClass, screenContentClass } from "./artwork-layout";
 
@@ -38,14 +40,14 @@ function ChevronRight({ className = "" }: { className?: string }) {
 function CategoryRow({
   category,
   index,
+  works,
   onOpen,
 }: {
   category: Category;
   index: number;
+  works: Artwork[];
   onOpen: (id: CategoryId) => void;
 }) {
-  const { getArtworksByCategory } = useCatalog();
-  const works = getArtworksByCategory(category.id);
   const count = works.length;
   const thumb = works[0]?.image;
 
@@ -64,7 +66,12 @@ function CategoryRow({
         style={{ background: `linear-gradient(155deg, ${category.from}, ${category.to})` }}
       >
         {thumb && (
-          <BlurImage src={thumb} alt={category.label} accent={category.from} />
+          <BlurImage
+            src={thumb}
+            alt={category.label}
+            accent={category.from}
+            thumbWidth={112}
+          />
         )}
       </div>
 
@@ -88,6 +95,16 @@ function CategoryRow({
 }
 
 export default function DiscoverView({ onOpenCategory }: DiscoverViewProps) {
+  const { getArtworksByCategory } = useCatalog();
+
+  const worksByCategory = useMemo(() => {
+    const map = new Map<CategoryId, Artwork[]>();
+    for (const category of categories) {
+      map.set(category.id, getArtworksByCategory(category.id));
+    }
+    return map;
+  }, [getArtworksByCategory]);
+
   return (
     <div className={screenScrollClass}>
       <div className={screenContentClass}>
@@ -112,6 +129,7 @@ export default function DiscoverView({ onOpenCategory }: DiscoverViewProps) {
                     key={category.id}
                     category={category}
                     index={i}
+                    works={worksByCategory.get(category.id) ?? []}
                     onOpen={onOpenCategory}
                   />
                 ))}

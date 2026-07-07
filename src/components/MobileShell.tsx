@@ -362,7 +362,18 @@ export default function MobileShell() {
               <DiscoverView onOpenCategory={openCategory} />
             )}
 
-            {screen === "create" && <CreateView showToast={showToast} />}
+            {screen === "create" && (
+              <CreateView
+                showToast={showToast}
+                onPublished={() => {
+                  // Jump to the feed filtered to freelance originals, where the
+                  // freshly-posted (newest) artwork sorts to the front.
+                  setFeedFilter("freelance");
+                  setShowFeedToggle(true);
+                  setScreen("for-you");
+                }}
+              />
+            )}
 
             {screen === "saved" && (
               <SavedView

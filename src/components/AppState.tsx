@@ -19,6 +19,8 @@ import {
   ensureSession,
   fetchUserData,
   fetchProfile,
+  fetchSeen,
+  markSeenRemote,
   setCollection,
   setFollow,
   type Profile,
@@ -56,6 +58,12 @@ interface AppStateValue {
   toggleLiked: (id: string) => void;
   toggleFollowing: (id: string) => void;
 
+  /** Artwork ids the user has already viewed in the feed. */
+  seen: string[];
+  isSeen: (id: string) => boolean;
+  /** Record that an artwork has been viewed (idempotent, mirrored to cloud). */
+  markSeen: (id: string) => void;
+
   preferences: Preferences;
   savePreferences: (prefs: Omit<Preferences, "completed">) => void;
   dismissPreferences: () => void;
@@ -86,6 +94,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [saved, setSaved] = useState<string[]>([]);
   const [liked, setLiked] = useState<string[]>([]);
   const [following, setFollowing] = useState<string[]>([]);
+  const [seen, setSeen] = useState<string[]>([]);
   const [preferences, setPreferences] = useState<Preferences>(EMPTY_PREFS);
   const [tutorialDone, setTutorialDone] = useState(false);
   const [authSeen, setAuthSeen] = useState(false);
@@ -95,12 +104,24 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   // True once a Supabase (anonymous) session exists — gates cloud writes.
   const cloudReady = useRef(false);
 
+  // Union incoming ids into the local seen set (and cache) without dropping any.
+  const mergeSeen = useCallback((ids: string[]) => {
+    if (ids.length === 0) return;
+    setSeen((prev) => {
+      const next = Array.from(new Set([...prev, ...ids]));
+      if (next.length === prev.length) return prev;
+      writeJSON(STORAGE_KEYS.seen, next);
+      return next;
+    });
+  }, []);
+
   // Hydrate from localStorage immediately (instant + offline cache), then, if
   // Supabase is configured, sign in anonymously and replace with cloud data.
   useEffect(() => {
     setSaved(readJSON<string[]>(STORAGE_KEYS.saved, []));
     setLiked(readJSON<string[]>(STORAGE_KEYS.liked, []));
     setFollowing(readJSON<string[]>(STORAGE_KEYS.following, []));
+    setSeen(readJSON<string[]>(STORAGE_KEYS.seen, []));
     setPreferences(readJSON<Preferences>(STORAGE_KEYS.preferences, EMPTY_PREFS));
     setTutorialDone(readJSON<boolean>(STORAGE_KEYS.tutorialDone, false));
     setAuthSeen(readJSON<boolean>(STORAGE_KEYS.authSeen, false));
@@ -111,8 +132,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       const userId = await ensureSession();
       if (cancelled || !userId) return;
       cloudReady.current = true;
-      const remote = await fetchUserData();
-      if (cancelled || !remote) return;
+      const [remote, remoteSeen] = await Promise.all([
+        fetchUserData(),
+        fetchSeen(),
+      ]);
+      if (cancelled) return;
+      // Seen is a union of local + cloud so nothing already-viewed reappears.
+      mergeSeen(remoteSeen);
+      if (!remote) return;
       // Cloud is the source of truth once available; mirror to local cache.
       setSaved(remote.saved);
       setLiked(remote.liked);
@@ -125,7 +152,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [mergeSeen]);
 
   // Track the Supabase auth session so the UI can reflect who's signed in and
   // re-pull cloud data when a real account logs in (or out). Native OAuth is
@@ -179,12 +206,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       void (async () => {
-        const [remote, p] = await Promise.all([
+        const [remote, remoteSeen, p] = await Promise.all([
           fetchUserData(),
+          fetchSeen(),
           nextUser.is_anonymous ? Promise.resolve(null) : fetchProfile(),
         ]);
         if (cancelled) return;
         if (p) setProfile(p);
+        mergeSeen(remoteSeen);
         if (!remote) return;
         setSaved(remote.saved);
         setLiked(remote.liked);
@@ -199,7 +228,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
       sub.subscription.unsubscribe();
     };
-  }, []);
+  }, [mergeSeen]);
 
   const signOut = useCallback(async () => {
     await authSignOut();
@@ -208,6 +237,16 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const markAuthSeen = useCallback(() => {
     setAuthSeen(true);
     writeJSON(STORAGE_KEYS.authSeen, true);
+  }, []);
+
+  const markSeen = useCallback((id: string) => {
+    setSeen((prev) => {
+      if (prev.includes(id)) return prev;
+      const next = [...prev, id];
+      writeJSON(STORAGE_KEYS.seen, next);
+      if (cloudReady.current) void markSeenRemote(id);
+      return next;
+    });
   }, []);
 
   // Build a toggle that updates state, mirrors to localStorage, and (when a
@@ -289,6 +328,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     toggleSaved,
     toggleLiked,
     toggleFollowing,
+    seen,
+    isSeen: (id) => seen.includes(id),
+    markSeen,
     preferences,
     savePreferences,
     dismissPreferences,

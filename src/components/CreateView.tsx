@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { categories, type CategoryId, type ArtworkOrigin } from "@/data";
+import { useCatalog } from "@/data/catalog";
 import { screenScrollClass, screenContentClass } from "./artwork-layout";
 import { useAppState } from "./AppState";
 import {
@@ -12,6 +13,8 @@ import type { ToastState } from "./Toast";
 
 interface CreateViewProps {
   showToast: (message: string, variant?: ToastState["variant"]) => void;
+  /** Called after a successful post so the shell can jump to the new artwork. */
+  onPublished?: () => void;
 }
 
 /**
@@ -26,8 +29,9 @@ const ORIGIN_OPTIONS: { value: ArtworkOrigin; label: string }[] = [
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB
 
-export default function CreateView({ showToast }: CreateViewProps) {
+export default function CreateView({ showToast, onPublished }: CreateViewProps) {
   const { isGuest, profile, user } = useAppState();
+  const { refresh } = useCatalog();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<CategoryId>("paintings");
@@ -87,6 +91,10 @@ export default function CreateView({ showToast }: CreateViewProps) {
       }
       showToast("Posted to Narsil");
       reset();
+      // Re-pull the catalog so the new artwork is in memory, then let the shell
+      // surface it — otherwise the post only appears after a full app reload.
+      await refresh();
+      onPublished?.();
     } catch (err) {
       showToast(
         err instanceof Error ? err.message : "Failed to publish",

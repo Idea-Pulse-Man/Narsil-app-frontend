@@ -105,6 +105,7 @@ export default function BuyView({ showToast }: BuyViewProps) {
                     src={artwork.image}
                     alt={artwork.title}
                     accent={artwork.accent}
+                    thumbWidth={320}
                   />
                 </div>
                 <div className="p-3">

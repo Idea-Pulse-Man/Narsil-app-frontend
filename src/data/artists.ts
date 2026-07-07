@@ -7,7 +7,7 @@ import type { Artist } from "./types";
  */
 
 /** Public-domain portrait via Wikimedia Commons (same endpoint as artworks). */
-const portrait = (file: string, width = 200) =>
+const portrait = (file: string, width = 128) =>
   `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(
     file
   )}?width=${width}`;

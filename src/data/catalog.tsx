@@ -14,6 +14,7 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -36,7 +37,11 @@ interface CatalogValue {
   artists: Artist[];
   artworkMap: Record<string, Artwork>;
   artistMap: Record<string, Artist>;
+  /** Capped browse window (kept for Buy / History / Search — see FEED_LIMIT). */
   feedArtworks: Artwork[];
+  /** Full named + interleaved feed order (uncapped) — used by the For You feed
+   *  so it can pick unseen works from the whole pool, not just the first window. */
+  feedPool: Artwork[];
   searchFacets: {
     periods: string[];
     empires: string[];
@@ -44,6 +49,8 @@ interface CatalogValue {
   };
   source: CatalogSource;
   loading: boolean;
+  /** Re-fetch the catalog from Supabase (e.g. after the user posts new art). */
+  refresh: () => Promise<void>;
 
   getArtist: (id: string) => Artist | undefined;
   getArtwork: (id: string) => Artwork | undefined;
@@ -96,28 +103,35 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
   const [source, setSource] = useState<CatalogSource>("mock");
   const [loading, setLoading] = useState(true);
 
+  const load = useCallback(async (signal?: AbortSignal) => {
+    try {
+      const data = await fetchSupabaseCatalog(signal);
+      if (signal?.aborted) return;
+      // Only switch to live data if Supabase actually returned artworks.
+      if (data.artworks.length > 0) {
+        setRemote(data);
+        setSource("supabase");
+      }
+    } catch (err) {
+      if (signal?.aborted) return;
+      // Supabase unreachable — stay on mock data so the app still works.
+      console.warn("Catalog: using mock data (Supabase unavailable).", err);
+    } finally {
+      if (!signal?.aborted) setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     const controller = new AbortController();
-    fetchSupabaseCatalog(controller.signal)
-      .then((data) => {
-        if (controller.signal.aborted) return;
-        // Only switch to live data if Supabase actually returned artworks.
-        if (data.artworks.length > 0) {
-          setRemote(data);
-          setSource("supabase");
-        }
-      })
-      .catch((err) => {
-        if (controller.signal.aborted) return;
-        // Supabase unreachable — stay on mock data so the app still works.
-        console.warn("Catalog: using mock data (Supabase unavailable).", err);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
-
+    void load(controller.signal);
     return () => controller.abort();
-  }, []);
+  }, [load]);
+
+  // Pull fresh rows on demand (e.g. right after a user publishes new art) so the
+  // new post shows up immediately instead of only after a full app reload.
+  const refresh = useCallback(async () => {
+    await load();
+  }, [load]);
 
   const value = useMemo<CatalogValue>(() => {
     const hasRemote = !!remote && remote.artworks.length > 0;
@@ -196,9 +210,10 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
       const name = artistMap[artistId]?.name ?? "";
       return !name || /^(unknown|anonymous|unidentified)/i.test(name);
     };
-    const namedFeed = buildFeed(
+    const namedFeedFull = buildFeed(
       browseArtworks.filter((a) => !isUnknownArtist(a.artistId)),
-    ).slice(0, FEED_LIMIT);
+    );
+    const namedFeed = namedFeedFull.slice(0, FEED_LIMIT);
 
     return {
       artworks: browseArtworks,
@@ -206,9 +221,11 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
       artworkMap,
       artistMap,
       feedArtworks: namedFeed,
+      feedPool: namedFeedFull,
       searchFacets,
       source,
       loading,
+      refresh,
       getArtist: (id) => artistMap[id],
       getArtwork: (id) => artworkMap[id],
       // Profiles resolve works from the full pool (real + curated).
@@ -219,7 +236,7 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
         browseArtworks.filter((a) => artworkMatchesCategory(a, id)),
       searchArtworks,
     };
-  }, [remote, source, loading]);
+  }, [remote, source, loading, refresh]);
 
   return (
     <CatalogContext.Provider value={value}>{children}</CatalogContext.Provider>

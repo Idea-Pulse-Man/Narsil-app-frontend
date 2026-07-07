@@ -1,13 +1,11 @@
-import { useEffect, useRef, useState } from "react";
-import { useArtistPhoto } from "@/lib/artistPhoto";
+import { memo, useEffect, useRef, useState } from "react";
+import { useInView } from "@/hooks/useInView";
+import { sizedAvatarUrl } from "@/lib/imageUrl";
 
 interface ArtistAvatarProps {
   /** Preferred picture URL (e.g. a curated local portrait). Tried first. */
   src?: string;
-  /**
-   * Artist name. When there is no working `src`, the avatar resolves a portrait
-   * from Wikipedia by this name. Also used as the final photo source.
-   */
+  /** Artist name — used for the initials monogram fallback. */
   name?: string;
   /** Fallback shown while loading, on error, or when there is no picture. */
   initials: string;
@@ -18,6 +16,10 @@ interface ArtistAvatarProps {
    * Defaults to true.
    */
   lookup?: boolean;
+  /** Display size in CSS px — requests a right-sized download. Default 48. */
+  size?: number;
+  /** Load immediately (above the fold). Skips viewport deferral. */
+  priority?: boolean;
   /** Sizing + shape applied to the wrapper (e.g. "h-11 w-11 rounded-full"). */
   className?: string;
   /** Background + text styles for the initials fallback layer. */
@@ -26,8 +28,7 @@ interface ArtistAvatarProps {
   style?: React.CSSProperties;
 }
 
-/** Deterministic, pleasant gradient derived from the artist name, so the
- * initials fallback looks like an intentional avatar rather than a flat blank. */
+/** Deterministic, pleasant gradient derived from the artist name. */
 function monogramBackground(seed: string): string {
   let h = 0;
   for (let i = 0; i < seed.length; i += 1) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
@@ -35,54 +36,28 @@ function monogramBackground(seed: string): string {
   return `linear-gradient(150deg, hsl(${hue} 52% 42%), hsl(${(hue + 40) % 360} 58% 24%))`;
 }
 
-/**
- * Circular artist profile picture with a graceful fallback chain:
- *   1. `src` (a curated portrait), if it loads
- *   2. a Wikipedia portrait resolved from `name`, if available
- *   3. a deterministic colored monogram (initials)
- *
- * The initials always render underneath, so a slow or broken image never leaves
- * an empty/broken circle — it simply reveals the layer beneath it.
- */
-export default function ArtistAvatar({
+function ArtistAvatar({
   src,
   name,
   initials,
-  lookup = true,
+  lookup: _lookup = true,
+  size = 48,
+  priority = false,
   className = "",
   fallbackClassName = "bg-white/12 text-white",
   style,
 }: ArtistAvatarProps) {
   const [srcOk, setSrcOk] = useState(true);
-  const [photoOk, setPhotoOk] = useState(true);
   const [loaded, setLoaded] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
+  const { ref, inView } = useInView({ enabled: !priority, rootMargin: "300px" });
 
   useEffect(() => setSrcOk(true), [src]);
 
-  const usePreferred = !!src && srcOk;
-  // Only fetch a Wikipedia photo when lookup is allowed and the preferred src is
-  // missing or failed.
-  const photo = useArtistPhoto(usePreferred || !lookup ? undefined : name);
+  const shouldLoad = priority || inView;
+  const imageUrl =
+    src && srcOk && shouldLoad ? sizedAvatarUrl(src, size) : undefined;
 
-  useEffect(() => setPhotoOk(true), [photo]);
-
-  let imageUrl: string | undefined;
-  let onError: (() => void) | undefined;
-  if (usePreferred) {
-    imageUrl = src;
-    onError = () => setSrcOk(false);
-  } else if (photo && photoOk) {
-    imageUrl = photo;
-    onError = () => setPhotoOk(false);
-  }
-
-  // Reset the fade whenever the resolved image changes, so a newly loaded
-  // portrait always animates in over the initials rather than snapping.
-  // A cached image (e.g. one the Featured rail already fetched) can be
-  // `complete` before React attaches `onLoad`, so that event would never fire
-  // and the portrait would stay stuck at opacity-0. Detect that here and reveal
-  // it immediately.
   useEffect(() => {
     setLoaded(false);
     const check = () => {
@@ -100,6 +75,7 @@ export default function ArtistAvatar({
 
   return (
     <span
+      ref={ref}
       style={{ ...autoStyle, ...style }}
       className={`relative flex items-center justify-center overflow-hidden ${fallbackClassName} ${className}`}
     >
@@ -113,10 +89,11 @@ export default function ArtistAvatar({
           alt=""
           aria-hidden
           decoding="async"
-          loading="lazy"
+          loading={priority ? "eager" : "lazy"}
+          fetchPriority={priority ? "high" : "auto"}
           onLoad={() => setLoaded(true)}
-          onError={onError}
-          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${
+          onError={() => setSrcOk(false)}
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-150 ${
             loaded ? "opacity-100" : "opacity-0"
           }`}
         />
@@ -124,3 +101,5 @@ export default function ArtistAvatar({
     </span>
   );
 }
+
+export default memo(ArtistAvatar);

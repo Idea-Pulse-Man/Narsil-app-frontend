@@ -46,6 +46,7 @@ export default function ArtworkTile({
             alt={artwork.title}
             accent={artwork.accent}
             className="transition-transform duration-500 group-hover:scale-105"
+            thumbWidth={320}
           />
         </div>
         <div className={onOrderCanvas ? "px-3 pt-3" : "p-3"}>

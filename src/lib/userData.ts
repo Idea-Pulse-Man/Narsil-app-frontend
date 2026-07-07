@@ -128,6 +128,36 @@ export async function setCollection(
   }
 }
 
+/**
+ * Load the set of artwork ids the current user has already seen in the feed.
+ * Fails soft (returns []) so a missing `seen` table never breaks startup — run
+ * `supabase/seen.sql` to enable cross-device seen tracking.
+ */
+export async function fetchSeen(): Promise<string[]> {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase.from("seen").select("artwork_id");
+    if (error) {
+      console.warn("Supabase: seen load failed.", error.message);
+      return [];
+    }
+    return (data ?? []).map((r) => r.artwork_id as string);
+  } catch (err) {
+    console.warn("Supabase: seen load error.", err);
+    return [];
+  }
+}
+
+/** Record that the current user has seen an artwork (idempotent upsert). */
+export async function markSeenRemote(artworkId: string): Promise<void> {
+  if (!supabase) return;
+  try {
+    await supabase.from("seen").upsert({ artwork_id: artworkId });
+  } catch (err) {
+    console.warn("Supabase: seen write failed.", err);
+  }
+}
+
 /** Follow/unfollow an artist for the current user. */
 export async function setFollow(artistId: string, on: boolean): Promise<void> {
   if (!supabase) return;

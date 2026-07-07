@@ -117,6 +117,7 @@ export default function ActionRail({
             name={artist.name}
             initials={artist.initials}
             lookup={shouldResolvePortrait(artist)}
+            size={44}
             className="h-full w-full rounded-full"
             fallbackClassName="bg-black/25 text-white"
           />

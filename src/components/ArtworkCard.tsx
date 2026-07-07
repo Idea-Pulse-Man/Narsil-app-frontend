@@ -307,6 +307,7 @@ export default function ArtworkCard({
                     name={artist.name}
                     initials={artist.initials}
                     lookup={shouldResolvePortrait(artist)}
+                    size={24}
                     className="h-6 w-6 shrink-0 rounded-full text-[10px] font-semibold backdrop-blur-md"
                     fallbackClassName="bg-white/15 text-white"
                   />

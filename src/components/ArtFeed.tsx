@@ -1,5 +1,7 @@
-import { useCallback, useRef } from "react";
-import { useCatalog } from "@/data/catalog";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import type { Artwork } from "@/data";
+import { useCatalog, FEED_LIMIT } from "@/data/catalog";
+import { useAppState } from "./AppState";
 import ArtworkCard from "./ArtworkCard";
 import type { ToastState } from "./Toast";
 import type { TutorialBridge } from "./tutorial";
@@ -10,7 +12,7 @@ interface ArtFeedProps {
   showToast: (message: string, variant?: ToastState["variant"]) => void;
   onOpenArtist: (artistId: string) => void;
   onCleanChange: (clean: boolean) => void;
-  /** Reports the index of the visible artwork in the full `feedArtworks` array. */
+  /** Reports the index of the currently-visible artwork within the feed. */
   onViewIndex?: (index: number) => void;
   /** Source toggle: mixed (all), museum (public-domain) or freelance originals. */
   filter?: FeedFilter;
@@ -25,16 +27,50 @@ export default function ArtFeed({
   filter = "all",
   tutorial,
 }: ArtFeedProps) {
-  const { feedArtworks, getArtist, loading } = useCatalog();
+  const { feedPool, getArtist, loading } = useCatalog();
+  const { seen, markSeen } = useAppState();
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastScrollTop = useRef(0);
   const lastIndex = useRef(0);
 
-  const items = feedArtworks.filter((art) => {
-    if (filter === "museum") return art.origin !== "artist-original";
-    if (filter === "freelance") return art.origin === "artist-original";
-    return true;
-  });
+  // Freeze the "seen" set once the catalog is ready, so cards marked seen while
+  // scrolling don't reshuffle under the user mid-session. The snapshot refreshes
+  // on the next app load — that's when unseen art gets promoted to the top.
+  const frozenSeen = useRef<Set<string> | null>(null);
+  if (frozenSeen.current === null && !loading && feedPool.length > 0) {
+    frozenSeen.current = new Set(seen);
+  }
+  const seenSnapshot = frozenSeen.current;
+
+  // Build the feed: filter by source, then show unseen works first and let seen
+  // ones follow so the feed never runs dry. Capped to FEED_LIMIT images.
+  const items = useMemo<Artwork[]>(() => {
+    const filtered = feedPool.filter((art) => {
+      if (filter === "museum") return art.origin !== "artist-original";
+      if (filter === "freelance") return art.origin === "artist-original";
+      return true;
+    });
+    if (!seenSnapshot || seenSnapshot.size === 0) {
+      return filtered.slice(0, FEED_LIMIT);
+    }
+    const unseen: Artwork[] = [];
+    const alreadySeen: Artwork[] = [];
+    for (const art of filtered) {
+      (seenSnapshot.has(art.id) ? alreadySeen : unseen).push(art);
+    }
+    return [...unseen, ...alreadySeen].slice(0, FEED_LIMIT);
+  }, [feedPool, filter, seenSnapshot]);
+
+  // Warm the browser cache for images just ahead of the user so swiping to the
+  // next artwork shows it instantly instead of popping in (applies equally to
+  // museum and freelance images — both load from a plain CDN URL).
+  const preloaded = useRef<Set<string>>(new Set());
+  const preload = useCallback((art?: Artwork) => {
+    if (!art?.image || preloaded.current.has(art.id)) return;
+    preloaded.current.add(art.id);
+    const img = new Image();
+    img.src = art.image;
+  }, []);
 
   // Lock vertical scrolling except on the step that teaches it, so the user
   // stays on the artwork while learning the other gestures.
@@ -45,16 +81,15 @@ export default function ArtFeed({
     const el = scrollRef.current;
     if (!el) return;
 
-    // Report the snapped index into the full feedArtworks array (not the filtered
-    // list) so MobileShell's preference-modal trigger stays correct when the
-    // Museum / Freelance toggle is active.
-    const filteredIndex = Math.round(el.scrollTop / el.clientHeight);
-    if (filteredIndex !== lastIndex.current) {
-      lastIndex.current = filteredIndex;
-      const artwork = items[filteredIndex];
+    const index = Math.round(el.scrollTop / el.clientHeight);
+    if (index !== lastIndex.current) {
+      lastIndex.current = index;
+      const artwork = items[index];
       if (artwork) {
-        const fullIndex = feedArtworks.findIndex((a) => a.id === artwork.id);
-        if (fullIndex >= 0) onViewIndex?.(fullIndex);
+        markSeen(artwork.id);
+        onViewIndex?.(index);
+        preload(items[index + 1]);
+        preload(items[index + 2]);
       }
     }
 
@@ -63,7 +98,16 @@ export default function ArtFeed({
     if (delta < 24) return;
     lastScrollTop.current = el.scrollTop;
     tutorial?.report("scroll");
-  }, [scrollStep, tutorial, onViewIndex, items, feedArtworks]);
+  }, [scrollStep, tutorial, onViewIndex, items, markSeen, preload]);
+
+  // The first card is on screen at mount — count it as seen and warm the next.
+  useEffect(() => {
+    if (items[0]) {
+      markSeen(items[0].id);
+      preload(items[1]);
+      preload(items[2]);
+    }
+  }, [items, markSeen, preload]);
 
   // No real artworks yet: show a loading state while fetching, or a friendly
   // empty state if the gallery couldn't be reached. Never show mock/fake data.

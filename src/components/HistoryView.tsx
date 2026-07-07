@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   historyEras,
@@ -9,6 +9,7 @@ import {
   type Artist,
 } from "@/data";
 import { useCatalog } from "@/data/catalog";
+import { sizedAvatarUrl } from "@/lib/imageUrl";
 import BlurImage from "./BlurImage";
 import ArtistAvatar from "./ArtistAvatar";
 import ArtworkTile from "./ArtworkTile";
@@ -34,6 +35,9 @@ function mergeById<T extends { id: string }>(base: T[], extra: T[]): T[] {
   return out;
 }
 
+/** How many artists to show in the grid before loading more on scroll. */
+const ARTIST_PAGE = 36;
+
 export default function HistoryView({
   onOpenArtist,
   onOpenArtwork,
@@ -47,10 +51,27 @@ export default function HistoryView({
   } = useCatalog();
   const [lens, setLens] = useState<Lens>("age");
   const [activeEmpire, setActiveEmpire] = useState<string | null>(null);
+  const [visibleArtists, setVisibleArtists] = useState(ARTIST_PAGE);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
   const featured = featuredArtistIds
     .map((id) => getArtist(id))
     .filter((a): a is Artist => !!a);
+
+  // Warm the cache for above-the-fold featured portraits.
+  useEffect(() => {
+    for (const artist of featured) {
+      const url = getArtistAvatar(artist.id);
+      if (!url) continue;
+      const img = new Image();
+      img.src = sizedAvatarUrl(url, 64);
+    }
+  }, [featured, getArtistAvatar]);
+
+  // Reset pagination when switching to the artist lens.
+  useEffect(() => {
+    if (lens === "artist") setVisibleArtists(ARTIST_PAGE);
+  }, [lens]);
 
   // Explore across BOTH the curated timeline and the live museum catalog, so the
   // famous set pieces always appear and the real collection fills everything in.
@@ -124,6 +145,28 @@ export default function HistoryView({
     return list.slice(0, 120);
   }, [liveArtists, getArtist]);
 
+  const shownArtists = browseArtists.slice(0, visibleArtists);
+  const hasMoreArtists = visibleArtists < browseArtists.length;
+
+  // Load the next page of artists as the user scrolls near the grid bottom.
+  useEffect(() => {
+    const el = loadMoreRef.current;
+    if (!el || lens !== "artist" || !hasMoreArtists) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisibleArtists((n) =>
+            Math.min(n + ARTIST_PAGE, browseArtists.length),
+          );
+        }
+      },
+      { rootMargin: "400px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [lens, hasMoreArtists, browseArtists.length, visibleArtists]);
+
   return (
     <div className={screenScrollClass}>
       <div className={screenContentClass}>
@@ -148,6 +191,8 @@ export default function HistoryView({
                 name={artist.name}
                 initials={artist.initials}
                 lookup={shouldResolvePortrait(artist)}
+                size={64}
+                priority
                 className="h-16 w-16 rounded-full border border-white/15 font-serif text-lg text-white"
                 fallbackClassName=""
                 style={
@@ -337,16 +382,11 @@ export default function HistoryView({
               {browseArtists.length === 0 ? (
                 <EmptyNote text="Artists appear here once the collection loads." />
               ) : (
+                <>
                 <div className="grid grid-cols-3 gap-x-3 gap-y-6">
-                  {browseArtists.map((artist, i) => (
-                    <motion.button
+                  {shownArtists.map((artist) => (
+                    <button
                       key={artist.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{
-                        delay: Math.min(i * 0.02, 0.3),
-                        duration: 0.3,
-                      }}
                       onClick={() => onOpenArtist(artist.id)}
                       className="flex flex-col items-center gap-2"
                     >
@@ -355,6 +395,7 @@ export default function HistoryView({
                         name={artist.name}
                         initials={artist.initials}
                         lookup={shouldResolvePortrait(artist)}
+                        size={80}
                         className="h-20 w-20 rounded-full border border-white/15 font-serif text-lg text-white"
                         fallbackClassName=""
                         style={
@@ -366,9 +407,13 @@ export default function HistoryView({
                       <span className="line-clamp-2 text-center text-[11px] leading-tight text-white/65">
                         {artist.name}
                       </span>
-                    </motion.button>
+                    </button>
                   ))}
                 </div>
+                {hasMoreArtists && (
+                  <div ref={loadMoreRef} className="h-1" aria-hidden />
+                )}
+                </>
               )}
             </motion.div>
           )}
@@ -402,6 +447,7 @@ function ArtistRail({
             name={artist.name}
             initials={artist.initials}
             lookup={shouldResolvePortrait(artist)}
+            size={48}
             className="h-12 w-12 rounded-full border border-white/15 text-[13px] font-semibold text-white"
             fallbackClassName=""
             style={artist.accent ? { backgroundColor: artist.accent } : undefined}
@@ -431,7 +477,12 @@ function ArtworkRow({
       className="group flex w-full items-center gap-3 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-2 text-left transition-colors hover:border-white/20 hover:bg-white/[0.06]"
     >
       <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl">
-        <BlurImage src={artwork.image} alt={artwork.title} accent={artwork.accent} />
+        <BlurImage
+          src={artwork.image}
+          alt={artwork.title}
+          accent={artwork.accent}
+          thumbWidth={128}
+        />
       </div>
       <div className="min-w-0 flex-1 pr-2">
         <p className="truncate font-serif text-[15px] text-white">

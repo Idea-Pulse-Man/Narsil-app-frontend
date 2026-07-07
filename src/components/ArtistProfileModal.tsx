@@ -64,6 +64,8 @@ export default function ArtistProfileModal({
                   name={artist.name}
                   initials={artist.initials}
                   lookup={shouldResolvePortrait(artist)}
+                  size={80}
+                  priority
                   className="h-20 w-20 shrink-0 rounded-full border border-white/15 font-serif text-2xl shadow-rail backdrop-blur-md"
                   fallbackClassName={
                     isFreelance ? "text-white" : "bg-white/10 text-white"
@@ -159,6 +161,7 @@ export default function ArtistProfileModal({
                       alt={work.title}
                       accent={work.accent}
                       className="transition-transform duration-500 group-hover:scale-105"
+                      thumbWidth={320}
                     />
                   </div>
                   <div className="p-3">
