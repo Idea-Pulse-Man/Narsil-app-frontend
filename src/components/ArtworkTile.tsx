@@ -56,8 +56,26 @@ export default function ArtworkTile({
           <p className="mt-0.5 truncate text-[11px] text-white/45">
             {artist?.name} · {artwork.year}
           </p>
+          {/* When a Canvas action is present the origin badge moves into the
+              footer row below so both pills sit side by side. */}
+          {!onOrderCanvas && (
+            <span
+              className={`mt-1.5 inline-block whitespace-nowrap rounded-full px-1.5 py-0.5 text-[8px] font-semibold uppercase leading-none tracking-[0.05em] ${
+                artwork.origin === "artist-original"
+                  ? "bg-sky-400/15 text-sky-200"
+                  : "bg-emerald-400/15 text-emerald-200"
+              }`}
+            >
+              {originLabel(artwork.origin)}
+            </span>
+          )}
+        </div>
+      </button>
+
+      {onOrderCanvas && (
+        <div className="flex flex-wrap items-center gap-2 px-3 pb-3 pt-1.5">
           <span
-            className={`mt-1.5 inline-block whitespace-nowrap rounded-full px-1.5 py-0.5 text-[8px] font-semibold uppercase leading-none tracking-[0.05em] ${
+            className={`inline-block whitespace-nowrap rounded-full px-1.5 py-0.5 text-[8px] font-semibold uppercase leading-none tracking-[0.05em] ${
               artwork.origin === "artist-original"
                 ? "bg-sky-400/15 text-sky-200"
                 : "bg-emerald-400/15 text-emerald-200"
@@ -65,11 +83,6 @@ export default function ArtworkTile({
           >
             {originLabel(artwork.origin)}
           </span>
-        </div>
-      </button>
-
-      {onOrderCanvas && (
-        <div className="px-3 pb-3 pt-2">
           <button
             onClick={() => onOrderCanvas(artwork.id)}
             className="inline-block whitespace-nowrap rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[8px] font-semibold uppercase leading-none tracking-[0.05em] text-white/85 transition-colors hover:bg-white/20"
