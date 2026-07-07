@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { shouldResolvePortrait, type Artist, type ArtworkOrigin } from "@/data";
+import { shouldResolvePortrait, type Artist } from "@/data";
 import { useCatalog } from "@/data/catalog";
 import ArtistAvatar from "./ArtistAvatar";
 import {
@@ -11,13 +11,13 @@ import {
   BookmarkIcon,
 } from "./Icons";
 import { useAppState } from "./AppState";
+import { downloadArtwork, shareArtwork } from "@/lib/download";
 import type { ToastState } from "./Toast";
 
 interface ActionRailProps {
   artist: Artist;
   artworkId: string;
   artworkTitle: string;
-  artworkOrigin: ArtworkOrigin;
   /** Opens the artist profile (the rail's top button is profile-only). */
   onOpenArtist: () => void;
   onOpenComments: () => void;
@@ -62,7 +62,6 @@ export default function ActionRail({
   artist,
   artworkId,
   artworkTitle,
-  artworkOrigin,
   onOpenArtist,
   onOpenComments,
   showToast,
@@ -70,32 +69,16 @@ export default function ActionRail({
   highlight = false,
 }: ActionRailProps) {
   const { isLiked, toggleLiked, isSaved, toggleSaved } = useAppState();
-  const { getArtistAvatar } = useCatalog();
+  const { getArtistAvatar, getArtwork } = useCatalog();
 
   const liked = isLiked(artworkId);
   const saved = isSaved(artworkId);
 
-  // Share uses the native share sheet when available, otherwise copies a link.
-  const handleShare = async () => {
-    const url = typeof window !== "undefined" ? window.location.href : "";
-    try {
-      if (typeof navigator !== "undefined" && navigator.share) {
-        await navigator.share({
-          title: artworkTitle,
-          text: `${artworkTitle} — on Narsil`,
-          url,
-        });
-        return;
-      }
-      if (typeof navigator !== "undefined" && navigator.clipboard && url) {
-        await navigator.clipboard.writeText(url);
-        showToast("Link copied to clipboard");
-        return;
-      }
-      showToast("Sharing isn't available here");
-    } catch {
-      // User dismissed the native share sheet — no toast needed.
-    }
+  const handleShare = () => shareArtwork(artworkId, artworkTitle, showToast);
+
+  const handleDownload = () => {
+    const artwork = getArtwork(artworkId);
+    if (artwork) downloadArtwork(artwork, showToast);
   };
 
   return (
@@ -164,16 +147,9 @@ export default function ActionRail({
         <CommentIcon className="h-5 w-5" />
       </RailButton>
 
-      {/* 5. Download — public domain is free; freelance needs permission.
-          (Simulated — no real device download in v1.) */}
-      <RailButton
-        label="Download"
-        onClick={() =>
-          artworkOrigin === "artist-original"
-            ? showToast("Download needs the artist's permission")
-            : showToast(`"${artworkTitle}" downloaded · public domain`)
-        }
-      >
+      {/* 5. Download — public domain saves to a folder you choose;
+          freelance originals need the artist's permission. */}
+      <RailButton label="Download" onClick={handleDownload}>
         <DownloadIcon className="h-5 w-5" />
       </RailButton>
 

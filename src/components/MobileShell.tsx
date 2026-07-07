@@ -21,6 +21,7 @@ import PreferenceModal from "./PreferenceModal";
 import TutorialCoach from "./TutorialCoach";
 import Toast, { type ToastState } from "./Toast";
 import { useAppState } from "./AppState";
+import { SHARE_ART_PARAM } from "@/lib/download";
 import type { TutorialAction } from "./tutorial";
 
 // The gesture each tutorial step teaches, in order (matches STEPS in the coach).
@@ -35,7 +36,7 @@ const TUTORIAL_ALLOW: TutorialAction[] = [
 
 export default function MobileShell() {
   const isNative = Capacitor.isNativePlatform();
-  const { getArtist, getArtwork } = useCatalog();
+  const { getArtist, getArtwork, loading: catalogLoading } = useCatalog();
   const {
     ready,
     preferences,
@@ -110,6 +111,33 @@ export default function MobileShell() {
   const openArtwork = useCallback((artworkId: string) => {
     setActiveArtworkId(artworkId);
   }, []);
+
+  // Deep link: `?art=<id>` (from a shared link) opens straight into that
+  // artwork's viewer. We consume the param once, then strip it from the URL so
+  // a refresh or back-navigation doesn't reopen it.
+  const deepLinkConsumed = useRef(false);
+  useEffect(() => {
+    if (deepLinkConsumed.current || typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get(SHARE_ART_PARAM);
+    if (!id) {
+      deepLinkConsumed.current = true;
+      return;
+    }
+    // Wait for the catalog before deciding the id is unknown.
+    if (getArtwork(id)) {
+      deepLinkConsumed.current = true;
+      openArtwork(id);
+    } else if (catalogLoading) {
+      return;
+    } else {
+      deepLinkConsumed.current = true;
+    }
+    params.delete(SHARE_ART_PARAM);
+    const query = params.toString();
+    const cleaned = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`;
+    window.history.replaceState({}, "", cleaned);
+  }, [getArtwork, catalogLoading, openArtwork]);
 
   const navigate = useCallback(
     (next: Screen) => {

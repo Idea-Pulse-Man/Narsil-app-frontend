@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import type { Artwork, Artist } from "@/data";
 import { originLabel } from "@/data";
 import { useAppState } from "./AppState";
+import { downloadArtwork, shareArtwork } from "@/lib/download";
 import ZoomableImage, { type ZoomableImageHandle } from "./ZoomableImage";
 import HistoryPlacard from "./HistoryPlacard";
 import ArtDiscussion from "./ArtDiscussion";
@@ -107,32 +108,9 @@ export default function ArtworkViewer({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, infoOpen, discussionOpen, onClose]);
 
-  const handleShare = async () => {
-    const url = typeof window !== "undefined" ? window.location.href : "";
-    try {
-      if (typeof navigator !== "undefined" && navigator.share) {
-        await navigator.share({
-          title: artwork.title,
-          text: `${artwork.title} — on Narsil`,
-          url,
-        });
-        return;
-      }
-      if (typeof navigator !== "undefined" && navigator.clipboard && url) {
-        await navigator.clipboard.writeText(url);
-        showToast("Link copied to clipboard");
-        return;
-      }
-      showToast("Sharing isn't available here");
-    } catch {
-      // User dismissed the native share sheet — no toast needed.
-    }
-  };
+  const handleShare = () => shareArtwork(artwork.id, artwork.title, showToast);
 
-  const handleDownload = () =>
-    artwork.origin === "artist-original"
-      ? showToast("Download needs the artist's permission")
-      : showToast(`"${artwork.title}" downloaded · public domain`);
+  const handleDownload = () => downloadArtwork(artwork, showToast);
 
   return (
     <AnimatePresence>

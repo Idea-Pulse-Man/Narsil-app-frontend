@@ -245,7 +245,6 @@ export default function ArtworkCard({
                 artist={artist}
                 artworkId={artwork.id}
                 artworkTitle={artwork.title}
-                artworkOrigin={artwork.origin}
                 onOpenArtist={() => onOpenArtist(artist.id)}
                 onOpenComments={() => setDiscussionOpen(true)}
                 showToast={showToast}
