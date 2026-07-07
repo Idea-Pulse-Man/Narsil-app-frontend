@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useDragControls } from "framer-motion";
 import {
   CANVAS_SIZES,
   priceForSize,
@@ -47,6 +47,7 @@ export default function CanvasPurchaseSheet({
   onClose,
   showToast,
 }: CanvasPurchaseSheetProps) {
+  const dragControls = useDragControls();
   const { getArtist } = useCatalog();
   const { isGuest } = useAppState();
   const [size, setSize] = useState<CanvasSize>("Medium");
@@ -151,41 +152,56 @@ export default function CanvasPurchaseSheet({
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", stiffness: 320, damping: 36 }}
-            className="absolute inset-x-0 bottom-0 z-50 max-h-[88%] overflow-y-auto rounded-t-[28px] border-t border-white/10 bg-ink-soft/95 text-white shadow-placard backdrop-blur-2xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            drag="y"
+            dragControls={dragControls}
+            dragListener={false}
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0, bottom: 0.4 }}
+            onDragEnd={(_, info) => {
+              if (info.offset.y > 120 || info.velocity.y > 500) onClose();
+            }}
+            className="absolute inset-x-0 bottom-0 z-50 flex max-h-[88%] flex-col rounded-t-[28px] border-t border-white/10 bg-ink-soft/95 text-white shadow-placard backdrop-blur-2xl"
           >
-            <div className="flex flex-col items-center pb-1 pt-3">
-              <div className="h-1.5 w-11 rounded-full bg-white/15" />
-            </div>
-
-            <div className="flex items-start justify-between gap-3 px-6 pt-2">
-              <div className="min-w-0">
-                <h2 className="truncate font-serif text-xl text-white">
-                  {artwork.title}
-                </h2>
-                <p className="mt-1 truncate text-sm text-white/55">
-                  {artist?.name} · Canvas print
-                </p>
+            {/* Swipe-down handle — drag starts here, not on the scrollable form below. */}
+            <div
+              className="shrink-0 touch-none"
+              onPointerDown={(e) => dragControls.start(e)}
+            >
+              <div className="flex flex-col items-center pb-1 pt-3">
+                <div className="h-1.5 w-11 rounded-full bg-white/15" />
               </div>
-              <button
-                onClick={onClose}
-                aria-label="Close"
-                className="-mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white/55 transition-colors hover:bg-white/10 hover:text-white"
-              >
-                <CloseIcon className="h-4 w-4" />
-              </button>
-            </div>
 
-            <div className="mx-6 mt-4 overflow-hidden rounded-2xl">
-              <div className="aspect-[4/3] w-full">
-                <BlurImage
-                  src={artwork.image}
-                  alt={artwork.title}
-                  accent={artwork.accent}
-                  fit="contain"
-                />
+              <div className="flex items-start justify-between gap-3 px-6 pt-2">
+                <div className="min-w-0">
+                  <h2 className="truncate font-serif text-xl text-white">
+                    {artwork.title}
+                  </h2>
+                  <p className="mt-1 truncate text-sm text-white/55">
+                    {artist?.name} · Canvas print
+                  </p>
+                </div>
+                <button
+                  onClick={onClose}
+                  aria-label="Close"
+                  className="-mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white/55 transition-colors hover:bg-white/10 hover:text-white"
+                >
+                  <CloseIcon className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="mx-6 mt-4 overflow-hidden rounded-2xl">
+                <div className="aspect-[4/3] w-full">
+                  <BlurImage
+                    src={artwork.image}
+                    alt={artwork.title}
+                    accent={artwork.accent}
+                    fit="contain"
+                  />
+                </div>
               </div>
             </div>
 
+            <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {/* Size selection */}
             <div className="px-6 pt-5">
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45">
@@ -363,6 +379,7 @@ export default function CanvasPurchaseSheet({
                   Sign in from the You tab to order a canvas.
                 </p>
               )}
+            </div>
             </div>
           </motion.div>
         </>
