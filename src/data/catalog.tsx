@@ -188,7 +188,9 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
           const artist = artistMap[art.artistId];
           const haystack = [
             art.title,
+            art.description,
             art.period,
+            art.year,
             art.medium,
             art.empire ?? "",
             artist?.name ?? "",
@@ -196,7 +198,11 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
           ]
             .join(" ")
             .toLowerCase();
-          if (!haystack.includes(text)) return false;
+          // Match if EVERY whitespace-separated term appears somewhere in the
+          // metadata, so multi-word queries (e.g. "silene botanical") still hit
+          // works whose terms are split across title, description and tags.
+          const terms = text.split(/\s+/).filter(Boolean);
+          if (!terms.every((term) => haystack.includes(term))) return false;
         }
         return true;
       });

@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { priceFromId } from "@/data";
 import { useCatalog } from "@/data/catalog";
 import BlurImage from "./BlurImage";
 import CanvasPurchaseSheet from "./CanvasPurchaseSheet";
 import { screenScrollClass, screenContentClass } from "./artwork-layout";
+import { useInfiniteScroll } from "./useInfiniteScroll";
 import type { ToastState } from "./Toast";
 
 interface BuyViewProps {
@@ -14,26 +15,27 @@ interface BuyViewProps {
 type BuySource = "museum" | "freelance";
 
 export default function BuyView({ showToast }: BuyViewProps) {
-  // Drive the shop from the same ~80-image feed the "For You" page uses, so the
-  // Buy page shows the exact same artworks (and stays just as fast to load).
-  const { feedArtworks, getArtist } = useCatalog();
+  // Drive the shop from the full interleaved feed pool; the grid reveals more
+  // canvases as the user scrolls (infinite scroll), so every artwork is shoppable.
+  const { feedPool, getArtist } = useCatalog();
   // Museum Art (public-domain) vs Freelance (artist-original) — matches the
   // client's Buy-page sketch.
   const [source, setSource] = useState<BuySource>("museum");
   // The artwork id whose purchase sheet is open (null = closed).
   const [activeId, setActiveId] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const products = useMemo(
     () =>
-      feedArtworks.map((artwork) => ({
+      feedPool.map((artwork) => ({
         id: `canvas-${artwork.id}`,
         artwork,
         priceFrom: priceFromId(artwork.id),
       })),
-    [feedArtworks],
+    [feedPool],
   );
 
-  const visibleProducts = useMemo(() => {
+  const filteredProducts = useMemo(() => {
     const isFreelance = source === "freelance";
     return products.filter(({ artwork }) =>
       isFreelance
@@ -42,11 +44,20 @@ export default function BuyView({ showToast }: BuyViewProps) {
     );
   }, [products, source]);
 
+  const {
+    visible: visibleProducts,
+    sentinelRef,
+    hasMore,
+  } = useInfiniteScroll(filteredProducts, {
+    resetKey: source,
+    rootRef: scrollRef,
+  });
+
   const activeArtwork =
     products.find((p) => p.artwork.id === activeId)?.artwork ?? null;
 
   return (
-    <div className={screenScrollClass}>
+    <div ref={scrollRef} className={screenScrollClass}>
       <div className={screenContentClass}>
         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
           Canvas Shop
@@ -128,6 +139,15 @@ export default function BuyView({ showToast }: BuyViewProps) {
             );
           })}
         </div>
+
+        {hasMore && (
+          <div
+            ref={sentinelRef}
+            className="mt-6 flex justify-center py-4 text-xs text-white/40"
+          >
+            Loading more…
+          </div>
+        )}
       </div>
 
       <CanvasPurchaseSheet

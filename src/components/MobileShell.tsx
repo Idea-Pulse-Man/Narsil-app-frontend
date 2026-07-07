@@ -355,6 +355,7 @@ export default function MobileShell() {
               <SearchView
                 initialCategory={searchCategory}
                 onOpenArtwork={openArtwork}
+                showToast={showToast}
               />
             )}
 

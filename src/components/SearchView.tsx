@@ -1,14 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { categoryMap, type CategoryId } from "@/data";
-import { useCatalog, FEED_LIMIT } from "@/data/catalog";
+import { useCatalog } from "@/data/catalog";
 import { screenScrollClass, screenContentClass } from "./artwork-layout";
 import { SearchIcon, CloseIcon, ChevronDownIcon } from "./Icons";
 import ArtworkTile from "./ArtworkTile";
+import CanvasPurchaseSheet from "./CanvasPurchaseSheet";
+import { useInfiniteScroll } from "./useInfiniteScroll";
+import type { ToastState } from "./Toast";
 
 interface SearchViewProps {
   initialCategory?: CategoryId | null;
   onOpenArtwork: (artworkId: string) => void;
+  showToast: (message: string, variant?: ToastState["variant"]) => void;
 }
 
 /** Every facet supports multiple selections; an artwork matches ANY value
@@ -30,12 +34,16 @@ const EMPTY_SELECTION: Selection = {
 export default function SearchView({
   initialCategory,
   onOpenArtwork,
+  showToast,
 }: SearchViewProps) {
   const { artists, searchArtworks, searchFacets } = useCatalog();
   const [text, setText] = useState("");
   const [sel, setSel] = useState<Selection>(EMPTY_SELECTION);
   // Filters live in a collapsible dropdown so the art results stay visible.
   const [filtersOpen, setFiltersOpen] = useState(false);
+  // The artwork id whose canvas purchase sheet is open (null = closed).
+  const [canvasId, setCanvasId] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
   // When arriving from a Discover category card, pre-select that category.
   useEffect(() => {
@@ -44,8 +52,8 @@ export default function SearchView({
     }
   }, [initialCategory]);
 
-  // Show every match, but never render more than 80 images at once so the
-  // results grid stays fast even for very broad searches.
+  // Every match across the full catalog — the visible window grows as the user
+  // scrolls (infinite scroll below), so nothing is capped away.
   const results = useMemo(
     () =>
       searchArtworks({
@@ -54,9 +62,17 @@ export default function SearchView({
         periods: sel.periods.length ? sel.periods : undefined,
         empires: sel.empires.length ? sel.empires : undefined,
         artistIds: sel.artistIds.length ? sel.artistIds : undefined,
-      }).slice(0, FEED_LIMIT),
+      }),
     [text, sel, searchArtworks]
   );
+
+  // Reveal more results as the user scrolls to the bottom of the grid.
+  const { visible, sentinelRef, hasMore } = useInfiniteScroll(results, {
+    resetKey: `${text}|${JSON.stringify(sel)}`,
+    rootRef: scrollRef,
+  });
+
+  const activeArtwork = results.find((a) => a.id === canvasId) ?? null;
 
   // Toggle any value in/out of its facet (keeps the panel open for multi-pick).
   const toggle = (kind: keyof Selection, value: string) => {
@@ -101,7 +117,7 @@ export default function SearchView({
   })();
 
   return (
-    <div className={screenScrollClass}>
+    <div ref={scrollRef} className={screenScrollClass}>
       <div className={screenContentClass}>
         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
           Search
@@ -237,18 +253,35 @@ export default function SearchView({
             No artworks match your search. Try a different term or filter.
           </p>
         ) : (
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            {results.map((art, i) => (
-              <ArtworkTile
-                key={art.id}
-                artwork={art}
-                index={i}
-                onOpen={onOpenArtwork}
-              />
-            ))}
-          </div>
+          <>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              {visible.map((art, i) => (
+                <ArtworkTile
+                  key={art.id}
+                  artwork={art}
+                  index={i}
+                  onOpen={onOpenArtwork}
+                  onOrderCanvas={setCanvasId}
+                />
+              ))}
+            </div>
+            {hasMore && (
+              <div
+                ref={sentinelRef}
+                className="mt-6 flex justify-center py-4 text-xs text-white/40"
+              >
+                Loading more…
+              </div>
+            )}
+          </>
         )}
       </div>
+
+      <CanvasPurchaseSheet
+        artwork={activeArtwork}
+        onClose={() => setCanvasId(null)}
+        showToast={showToast}
+      />
     </div>
   );
 }
