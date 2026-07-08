@@ -343,9 +343,9 @@ export default function ArtworkCard({
                 </button>
               </div>
 
-              {/* Origin tag under the metadata block */}
+              {/* Origin tag to the right so it doesn't collide with the Narsil mark */}
               {!placardTutorial && (
-                <div className="mt-2.5 flex w-full items-center">
+                <div className="mt-2.5 flex w-full items-center justify-end pr-14">
                   <span
                     className={`pointer-events-none shrink-0 whitespace-nowrap rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] ${
                       artwork.origin === "artist-original"
