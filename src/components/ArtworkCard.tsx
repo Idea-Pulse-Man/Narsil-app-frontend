@@ -293,13 +293,37 @@ export default function ArtworkCard({
                   )}
                 </h2>
 
+                {/* Description sits directly under the title */}
+                <motion.button
+                  type="button"
+                  data-tutorial="placard-trigger"
+                  onClick={openPlacard}
+                  whileTap={{ scale: 0.96 }}
+                  animate={
+                    placardTutorial ? { scale: [1, 1.04, 1] } : undefined
+                  }
+                  transition={
+                    placardTutorial
+                      ? { duration: 1.6, repeat: Infinity, ease: "easeInOut" }
+                      : undefined
+                  }
+                  className={`pointer-events-auto mt-1.5 inline-flex items-center gap-1 rounded-full border backdrop-blur-md ${
+                    placardTutorial
+                      ? "min-h-[40px] border-white/40 bg-white/20 px-3.5 py-1.5 text-[11px] text-white ring-2 ring-white/25"
+                      : "border-white/12 bg-black/25 px-2.5 py-1 text-[10px] text-white/85"
+                  } font-medium`}
+                >
+                  <ChevronUpIcon className="h-3 w-3" />
+                  Description
+                </motion.button>
+
                 <button
                   onClick={() => {
                     if (gestureBlocked("artist")) return;
                     onOpenArtist(artist.id);
                     tutorial?.report("artist");
                   }}
-                  className="pointer-events-auto mt-1.5 inline-flex max-w-full items-center gap-2 text-[15px] text-white/85 transition-colors hover:text-white"
+                  className="pointer-events-auto mt-2 inline-flex max-w-full items-center gap-2 text-[15px] text-white/85 transition-colors hover:text-white"
                 >
                   <ArtistAvatar
                     src={getArtistAvatar(artist.id)}
@@ -319,11 +343,11 @@ export default function ArtworkCard({
                 </button>
               </div>
 
-              {/* Description trigger — centered, with the origin tag pinned left. */}
-              <div className="relative mt-3.5 flex w-full items-center justify-center">
-                {!placardTutorial && (
+              {/* Origin tag under the metadata block */}
+              {!placardTutorial && (
+                <div className="mt-2.5 flex w-full items-center">
                   <span
-                    className={`pointer-events-none absolute left-0 shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${
+                    className={`pointer-events-none shrink-0 whitespace-nowrap rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] ${
                       artwork.origin === "artist-original"
                         ? "border-sky-300/30 bg-sky-400/15 text-sky-200"
                         : "border-emerald-300/30 bg-emerald-400/15 text-emerald-200"
@@ -331,35 +355,8 @@ export default function ArtworkCard({
                   >
                     {originLabel(artwork.origin)}
                   </span>
-                )}
-                <motion.button
-                  type="button"
-                  data-tutorial="placard-trigger"
-                  onClick={openPlacard}
-                  whileTap={{ scale: 0.96 }}
-                  animate={
-                    placardTutorial ? { scale: [1, 1.05, 1] } : undefined
-                  }
-                  transition={
-                    placardTutorial
-                      ? { duration: 1.6, repeat: Infinity, ease: "easeInOut" }
-                      : undefined
-                  }
-                  className={`pointer-events-auto inline-flex items-center justify-center gap-2 rounded-full border backdrop-blur-md ${
-                    placardTutorial
-                      ? "min-h-[52px] w-full max-w-[17rem] border-white/40 bg-white/20 px-5 py-3.5 text-sm text-white ring-2 ring-white/25"
-                      : "border-white/15 bg-black/30 px-4 py-2 text-xs text-white/90"
-                  } font-medium`}
-                >
-                  <motion.span
-                    animate={{ y: [0, -3, 0] }}
-                    transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
-                  >
-                    <ChevronUpIcon className="h-4 w-4" />
-                  </motion.span>
-                  Description
-                </motion.button>
-              </div>
+                </div>
+              )}
             </footer>
           </motion.div>
         )}

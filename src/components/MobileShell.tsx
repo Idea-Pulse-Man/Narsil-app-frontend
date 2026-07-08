@@ -274,25 +274,6 @@ export default function MobileShell() {
             : "sm:h-[844px] sm:w-[390px] sm:rounded-[44px] sm:border-[10px] sm:border-neutral-800 sm:shadow-2xl"
         }`}
       >
-        {/* Brand mark — feed only */}
-        <AnimatePresence>
-          {showChrome && isFeedScreen(screen) && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="pointer-events-none absolute left-1/2 top-[calc(env(safe-area-inset-top)+1.5rem)] z-40 flex -translate-x-1/2 items-center gap-1.5"
-            >
-              <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-white text-[11px] font-bold text-ink">
-                N
-              </span>
-              <span className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white">
-                Narsil
-              </span>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         {/* Top tabs — shared across every screen so the active pill animates */}
         <AnimatePresence>
           {showChrome && (
@@ -313,7 +294,7 @@ export default function MobileShell() {
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
-              className="absolute inset-x-0 top-[calc(env(safe-area-inset-top)+6.6rem)] z-30 flex justify-center"
+              className="absolute inset-x-0 top-[calc(env(safe-area-inset-top)+3.25rem)] z-30 flex justify-center"
             >
               <div className="flex items-center rounded-full border border-white/25 bg-black/40 p-1 backdrop-blur-xl">
                 {(
@@ -430,6 +411,25 @@ export default function MobileShell() {
               />
             )}
           </motion.div>
+        </AnimatePresence>
+
+        {/* Brand mark — feed only, bottom-left above the nav */}
+        <AnimatePresence>
+          {showChrome && isFeedScreen(screen) && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="pointer-events-none absolute bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] left-4 z-40 flex items-center gap-1.5"
+            >
+              <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-white text-[11px] font-bold text-ink">
+                N
+              </span>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white">
+                Narsil
+              </span>
+            </motion.div>
+          )}
         </AnimatePresence>
 
         {/* Bottom navigation */}

@@ -66,6 +66,12 @@ export default function BuyView({ showToast }: BuyViewProps) {
           Own the art
         </h1>
 
+        <p className="mt-3 max-w-[22rem] text-[13px] leading-relaxed text-white/55">
+          Narsil is free to browse. If a piece moves you, buying a canvas print
+          helps support the museum and the living artists who share their work
+          here.
+        </p>
+
         {/* Museum Art / Freelance toggle */}
         <div className="mt-6 flex gap-2">
           {(

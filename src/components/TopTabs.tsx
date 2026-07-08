@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { TOP_TABS, type Screen } from "./navigation";
+import { SearchIcon } from "./Icons";
 
 export default function TopTabs({
   active,
@@ -10,13 +11,15 @@ export default function TopTabs({
 }) {
   return (
     <div className="pointer-events-none absolute inset-x-0 top-0 z-30 pt-[env(safe-area-inset-top)]">
-      <div className="pointer-events-auto flex items-center justify-center gap-0.5 px-3 pt-[calc(env(safe-area-inset-top)+3.6rem)]">
+      <div className="pointer-events-auto flex items-center justify-center gap-0.5 px-3 pt-3">
         {TOP_TABS.map((tab) => {
           const isActive = tab.id === active;
+          const isSearch = tab.id === "search";
           return (
             <button
               key={tab.id}
               onClick={() => onChange?.(tab.id)}
+              aria-label={isSearch ? "Search" : undefined}
               className={`relative rounded-full px-4 py-1.5 text-[13px] font-medium transition-colors ${
                 isActive ? "text-white" : "text-white/50 hover:text-white/75"
               }`}
@@ -28,7 +31,13 @@ export default function TopTabs({
                   className="absolute inset-0 rounded-full border border-white/20 bg-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-xl"
                 />
               )}
-              <span className="relative">{tab.label}</span>
+              <span className="relative flex items-center justify-center">
+                {isSearch ? (
+                  <SearchIcon className="h-[15px] w-[15px]" />
+                ) : (
+                  tab.label
+                )}
+              </span>
             </button>
           );
         })}
