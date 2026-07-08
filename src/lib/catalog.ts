@@ -5,14 +5,12 @@
  * the rows are populated once a day by the EC2 ingestion job (which stores the
  * images in S3 and writes the S3 URLs here). Reading straight from Supabase
  * (PostgREST, CDN-fronted) keeps the browse screens fast with no backend hop;
- * the `<img>` bytes load through the backend asset proxy (S3 has no browser
- * CORS headers, so direct fetches fail in production).
+ * the `<img>` bytes load directly from S3.
  *
  * Public catalog tables are world-readable (RLS `using(true)`), so the app's
  * anon key is enough — no secret ever reaches the client.
  */
 import { supabase } from "./supabase";
-import { museumImageUrl } from "./imageUrl";
 import type { Artwork, Artist, CategoryId, ArtworkOrigin } from "@/data";
 
 export interface RemoteCatalog {
@@ -70,7 +68,7 @@ function mapArtwork(row: ArtworkRow): Artwork {
     period: row.period ?? "—",
     medium: row.medium ?? "—",
     source: row.source ?? "",
-    image: museumImageUrl(row.image_url),
+    image: row.image_url ?? "",
     accent: row.accent ?? "#22242b",
     description: row.description ?? "",
     tags: row.tags ?? [],
@@ -96,7 +94,7 @@ function mapArtist(row: ArtistRow): Artist {
     likes: row.likes ?? 0,
     saves: row.saves ?? 0,
     ...(row.accent ? { accent: row.accent } : {}),
-    ...(row.avatar_url ? { avatar: museumImageUrl(row.avatar_url) } : {}),
+    ...(row.avatar_url ? { avatar: row.avatar_url } : {}),
   };
 }
 

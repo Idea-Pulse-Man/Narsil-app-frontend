@@ -1,6 +1,5 @@
 import type { Artwork } from "@/data";
 import type { ToastState } from "@/components/Toast";
-import { fetchableImageUrl } from "@/lib/imageUrl";
 
 type ShowToast = (message: string, variant?: ToastState["variant"]) => void;
 
@@ -45,6 +44,19 @@ export async function shareArtwork(
   } catch {
     // User dismissed the native share sheet — no toast needed.
   }
+}
+
+/**
+ * Return the largest available version of the image. Wikimedia's
+ * `Special:FilePath` serves the full original when no `?width=` is present, so
+ * we strip any sizing param we added for display. Other hosts (S3, etc.) are
+ * already full-size, so they're returned unchanged.
+ */
+function fullResUrl(src: string): string {
+  if (src.includes("commons.wikimedia.org/wiki/Special:FilePath")) {
+    return src.replace(/([?&])width=\d+/g, "$1").replace(/[?&]$/, "");
+  }
+  return src;
 }
 
 /** Turn a title into a filesystem-friendly base name. */
@@ -111,7 +123,7 @@ export async function downloadArtwork(
     return;
   }
 
-  const url = fetchableImageUrl(artwork.image);
+  const url = fullResUrl(artwork.image);
 
   let blob: Blob;
   try {
