@@ -316,7 +316,7 @@ export default function ArtworkCard({
                   Description
                 </motion.button>
 
-                <div className="mt-2 flex items-center justify-between gap-2 pr-2">
+                <div className="mt-2 flex flex-wrap items-center gap-2">
                   <button
                     onClick={() => {
                       if (gestureBlocked("artist")) return;

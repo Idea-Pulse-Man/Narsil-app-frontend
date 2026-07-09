@@ -2,11 +2,11 @@
 export const ARTWORK_FOOTER_HEIGHT = "15rem";
 
 export const artworkFooterClass =
-  "min-h-[15rem] px-5 pt-4 pb-[calc(env(safe-area-inset-bottom)+5rem)]";
+  "min-h-[15rem] px-5 pt-4 pb-[calc(env(safe-area-inset-bottom)+6.5rem)]";
 
 /** Positions the step-2 tap cue over the Description button (under the title). */
 export const tutorialFooterHintClass =
-  "bottom-[calc(env(safe-area-inset-bottom)+7.25rem)]";
+  "bottom-[calc(env(safe-area-inset-bottom)+8.75rem)]";
 
 /**
  * Standard padding for scrollable content screens so content clears the top

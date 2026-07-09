@@ -286,18 +286,21 @@ export default function MobileShell() {
             : "sm:h-[844px] sm:w-[390px] sm:rounded-[44px] sm:border-[10px] sm:border-neutral-800 sm:shadow-2xl"
         }`}
       >
-        {/* Brand mark — feed only, top-left corner. Icon-only so it never
-            collides with the centered tab row or feed toggle above it. */}
+        {/* Brand mark — feed only, top-left corner. Icon with the wordmark
+            stacked underneath so it never widens into the tab row above. */}
         <AnimatePresence>
           {showChrome && isFeedScreen(screen) && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="pointer-events-none absolute left-4 top-[calc(env(safe-area-inset-top)+1.5rem)] z-40 flex h-6 items-center"
+              className="pointer-events-none absolute left-4 top-[calc(env(safe-area-inset-top)+1.5rem)] z-40 flex flex-col items-center gap-1"
             >
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-[11px] font-bold text-ink shadow-md">
                 N
+              </span>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white drop-shadow-md">
+                Narsil
               </span>
             </motion.div>
           )}
