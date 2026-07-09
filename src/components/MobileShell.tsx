@@ -286,14 +286,14 @@ export default function MobileShell() {
             : "sm:h-[844px] sm:w-[390px] sm:rounded-[44px] sm:border-[10px] sm:border-neutral-800 sm:shadow-2xl"
         }`}
       >
-        {/* Brand mark — feed only, top-left */}
+        {/* Brand mark — feed only, top-left below tab row (aligns with Mix/Museum row) */}
         <AnimatePresence>
           {showChrome && isFeedScreen(screen) && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="pointer-events-none absolute left-4 top-[calc(env(safe-area-inset-top)+1.5rem)] z-40 flex items-center gap-1.5"
+              className="pointer-events-none absolute left-4 top-[calc(env(safe-area-inset-top)+3.25rem)] z-40 flex h-9 items-center gap-1.5"
             >
               <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-white text-[11px] font-bold text-ink">
                 N
