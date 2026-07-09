@@ -316,14 +316,14 @@ export default function ArtworkCard({
                   Description
                 </motion.button>
 
-                <div className="mt-2 flex flex-wrap items-center gap-2">
+                <div className="mt-2 flex items-center gap-2 pr-10">
                   <button
                     onClick={() => {
                       if (gestureBlocked("artist")) return;
                       onOpenArtist(artist.id);
                       tutorial?.report("artist");
                     }}
-                    className="pointer-events-auto inline-flex min-w-0 items-center gap-2 text-[15px] text-white/85 transition-colors hover:text-white"
+                    className="pointer-events-auto inline-flex min-w-0 flex-1 items-center gap-2 text-[15px] text-white/85 transition-colors hover:text-white"
                   >
                     <ArtistAvatar
                       src={getArtistAvatar(artist.id)}
