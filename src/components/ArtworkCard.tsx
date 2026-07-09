@@ -341,22 +341,20 @@ export default function ArtworkCard({
                   </span>
                 </button>
               </div>
-
-              {/* Origin tag to the right so it doesn't collide with the Narsil mark */}
-              {!placardTutorial && (
-                <div className="mt-2.5 flex w-full items-center justify-end pr-14">
-                  <span
-                    className={`pointer-events-none shrink-0 whitespace-nowrap rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] ${
-                      artwork.origin === "artist-original"
-                        ? "border-sky-300/30 bg-sky-400/15 text-sky-200"
-                        : "border-emerald-300/30 bg-emerald-400/15 text-emerald-200"
-                    }`}
-                  >
-                    {originLabel(artwork.origin)}
-                  </span>
-                </div>
-              )}
             </footer>
+
+            {/* Origin badge — bottom-left (former Narsil mark position) */}
+            {!placardTutorial && (
+              <span
+                className={`pointer-events-none absolute bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] left-4 z-40 shrink-0 whitespace-nowrap rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] ${
+                  artwork.origin === "artist-original"
+                    ? "border-sky-300/30 bg-sky-400/15 text-sky-200"
+                    : "border-emerald-300/30 bg-emerald-400/15 text-emerald-200"
+                }`}
+              >
+                {originLabel(artwork.origin)}
+              </span>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
