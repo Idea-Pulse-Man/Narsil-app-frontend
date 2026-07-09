@@ -294,7 +294,7 @@ export default function MobileShell() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="pointer-events-none absolute left-4 top-[calc(env(safe-area-inset-top)+1.5rem)] z-40 flex flex-col items-center gap-1"
+              className="pointer-events-none absolute left-4 top-[calc(env(safe-area-inset-top)+2.25rem)] z-40 flex flex-col items-center gap-1"
             >
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-[11px] font-bold text-ink shadow-md">
                 N
@@ -326,7 +326,7 @@ export default function MobileShell() {
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
-              className="absolute inset-x-0 top-[calc(env(safe-area-inset-top)+3.25rem)] z-30 flex justify-center"
+              className="absolute inset-x-0 top-[calc(env(safe-area-inset-top)+4rem)] z-30 flex justify-center"
             >
               <div className="flex items-center rounded-full border border-white/25 bg-black/40 p-1 backdrop-blur-xl">
                 {(

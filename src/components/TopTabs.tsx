@@ -11,7 +11,7 @@ export default function TopTabs({
 }) {
   return (
     <div className="pointer-events-none absolute inset-x-0 top-0 z-30 pt-[env(safe-area-inset-top)]">
-      <div className="pointer-events-auto flex items-center justify-center gap-0.5 px-3 pt-3">
+      <div className="pointer-events-auto flex items-center justify-center gap-0.5 px-3 pt-6">
         {TOP_TABS.map((tab) => {
           const isActive = tab.id === active;
           const isSearch = tab.id === "search";
