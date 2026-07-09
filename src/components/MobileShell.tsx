@@ -1,9 +1,7 @@
 import { Capacitor } from "@capacitor/core";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { useAudio } from "@/lib/audio/AudioProvider";
 import TermsView from "./TermsView";
-import MusicPrompt from "./MusicPrompt";
 import AdminView from "./AdminView";
 import type { Artist, CategoryId } from "@/data";
 import { useCatalog } from "@/data/catalog";
@@ -55,7 +53,6 @@ export default function MobileShell() {
     isAdmin,
     isGuest,
   } = useAppState();
-  const { promptSeen, markPromptSeen, setEnabled } = useAudio();
 
   const [toast, setToast] = useState<ToastState | null>(null);
   const [screen, setScreen] = useState<Screen>("for-you");
@@ -73,7 +70,6 @@ export default function MobileShell() {
   const [authOpen, setAuthOpen] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
   const [termsReview, setTermsReview] = useState(false);
-  const [musicPromptOpen, setMusicPromptOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   // True when the app opened from an auth redirect (`?code=`) that's still being
   // completed — suppress the first-launch gate so it doesn't flash open.
@@ -105,19 +101,6 @@ export default function MobileShell() {
       setAuthOpen(true);
     }
   }, [ready, termsAccepted, authSeen, isGuest]);
-
-  // Music prompt after terms (and after auth dismissed or seen).
-  useEffect(() => {
-    if (
-      ready &&
-      termsAccepted &&
-      authSeen &&
-      !promptSeen &&
-      !musicPromptOpen
-    ) {
-      setMusicPromptOpen(true);
-    }
-  }, [ready, termsAccepted, authSeen, promptSeen, musicPromptOpen]);
 
   const showToast = useCallback(
     (message: string, variant: ToastState["variant"] = "default") => {
@@ -522,22 +505,6 @@ export default function MobileShell() {
               required={false}
               onClose={() => setTermsReview(false)}
               onAccept={() => setTermsReview(false)}
-            />
-          )}
-        </AnimatePresence>
-
-        <AnimatePresence>
-          {musicPromptOpen && (
-            <MusicPrompt
-              onEnable={() => {
-                setEnabled(true);
-                markPromptSeen();
-                setMusicPromptOpen(false);
-              }}
-              onDecline={() => {
-                markPromptSeen();
-                setMusicPromptOpen(false);
-              }}
             />
           )}
         </AnimatePresence>
