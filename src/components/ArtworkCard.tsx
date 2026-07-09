@@ -316,45 +316,46 @@ export default function ArtworkCard({
                   Description
                 </motion.button>
 
-                <button
-                  onClick={() => {
-                    if (gestureBlocked("artist")) return;
-                    onOpenArtist(artist.id);
-                    tutorial?.report("artist");
-                  }}
-                  className="pointer-events-auto mt-2 inline-flex max-w-full items-center gap-2 text-[15px] text-white/85 transition-colors hover:text-white"
-                >
-                  <ArtistAvatar
-                    src={getArtistAvatar(artist.id)}
-                    name={artist.name}
-                    initials={artist.initials}
-                    lookup={shouldResolvePortrait(artist)}
-                    size={24}
-                    className="h-6 w-6 shrink-0 rounded-full text-[10px] font-semibold backdrop-blur-md"
-                    fallbackClassName="bg-white/15 text-white"
-                  />
-                  <span className="truncate whitespace-nowrap underline-offset-4 hover:underline">
-                    {artist.name}
-                  </span>
-                  <span className="shrink-0 whitespace-nowrap text-white/45">
-                    · {artwork.year}
-                  </span>
-                </button>
+                <div className="mt-2 flex items-center justify-between gap-2 pr-2">
+                  <button
+                    onClick={() => {
+                      if (gestureBlocked("artist")) return;
+                      onOpenArtist(artist.id);
+                      tutorial?.report("artist");
+                    }}
+                    className="pointer-events-auto inline-flex min-w-0 items-center gap-2 text-[15px] text-white/85 transition-colors hover:text-white"
+                  >
+                    <ArtistAvatar
+                      src={getArtistAvatar(artist.id)}
+                      name={artist.name}
+                      initials={artist.initials}
+                      lookup={shouldResolvePortrait(artist)}
+                      size={24}
+                      className="h-6 w-6 shrink-0 rounded-full text-[10px] font-semibold backdrop-blur-md"
+                      fallbackClassName="bg-white/15 text-white"
+                    />
+                    <span className="truncate whitespace-nowrap underline-offset-4 hover:underline">
+                      {artist.name}
+                    </span>
+                    <span className="shrink-0 whitespace-nowrap text-white/45">
+                      · {artwork.year}
+                    </span>
+                  </button>
+
+                  {!placardTutorial && (
+                    <span
+                      className={`pointer-events-none shrink-0 whitespace-nowrap rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] ${
+                        artwork.origin === "artist-original"
+                          ? "border-sky-300/30 bg-sky-400/15 text-sky-200"
+                          : "border-emerald-300/30 bg-emerald-400/15 text-emerald-200"
+                      }`}
+                    >
+                      {originLabel(artwork.origin)}
+                    </span>
+                  )}
+                </div>
               </div>
             </footer>
-
-            {/* Origin badge — bottom-left (former Narsil mark position) */}
-            {!placardTutorial && (
-              <span
-                className={`pointer-events-none absolute bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] left-4 z-40 shrink-0 whitespace-nowrap rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] ${
-                  artwork.origin === "artist-original"
-                    ? "border-sky-300/30 bg-sky-400/15 text-sky-200"
-                    : "border-emerald-300/30 bg-emerald-400/15 text-emerald-200"
-                }`}
-              >
-                {originLabel(artwork.origin)}
-              </span>
-            )}
           </motion.div>
         )}
       </AnimatePresence>
