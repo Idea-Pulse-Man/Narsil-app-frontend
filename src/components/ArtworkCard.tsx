@@ -316,14 +316,26 @@ export default function ArtworkCard({
                   Description
                 </motion.button>
 
-                <div className="mt-2 flex items-center gap-2 pr-10">
+                <div className="mt-2 flex items-center justify-between gap-2 pr-2">
+                  {!placardTutorial && (
+                    <span
+                      className={`pointer-events-none shrink-0 whitespace-nowrap rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] ${
+                        artwork.origin === "artist-original"
+                          ? "border-sky-300/30 bg-sky-400/15 text-sky-200"
+                          : "border-emerald-300/30 bg-emerald-400/15 text-emerald-200"
+                      }`}
+                    >
+                      {originLabel(artwork.origin)}
+                    </span>
+                  )}
+
                   <button
                     onClick={() => {
                       if (gestureBlocked("artist")) return;
                       onOpenArtist(artist.id);
                       tutorial?.report("artist");
                     }}
-                    className="pointer-events-auto inline-flex min-w-0 flex-1 items-center gap-2 text-[15px] text-white/85 transition-colors hover:text-white"
+                    className="pointer-events-auto inline-flex min-w-0 items-center gap-2 text-[15px] text-white/85 transition-colors hover:text-white"
                   >
                     <ArtistAvatar
                       src={getArtistAvatar(artist.id)}
@@ -341,18 +353,6 @@ export default function ArtworkCard({
                       · {artwork.year}
                     </span>
                   </button>
-
-                  {!placardTutorial && (
-                    <span
-                      className={`pointer-events-none shrink-0 whitespace-nowrap rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] ${
-                        artwork.origin === "artist-original"
-                          ? "border-sky-300/30 bg-sky-400/15 text-sky-200"
-                          : "border-emerald-300/30 bg-emerald-400/15 text-emerald-200"
-                      }`}
-                    >
-                      {originLabel(artwork.origin)}
-                    </span>
-                  )}
                 </div>
               </div>
             </footer>
