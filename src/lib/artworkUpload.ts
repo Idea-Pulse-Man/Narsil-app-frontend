@@ -75,6 +75,8 @@ export interface NewArtworkInput {
   category: string;
   origin: string;
   artistId: string | null;
+  forSale?: boolean;
+  tags?: string[];
 }
 
 /** Insert a new artwork row owned by the current user. */
@@ -91,7 +93,26 @@ export async function createArtwork(input: NewArtworkInput) {
       origin: input.origin,
       artist_id: input.artistId,
       created_by: uid,
+      for_sale: input.forSale ?? false,
+      tags: input.tags ?? [],
     })
     .select("id")
     .single();
+}
+
+/** Opt the user's freelance artist profile into canvas print sales. */
+export async function setArtistSellOptIn(
+  artistId: string,
+  optIn: boolean,
+  revenueSharePct = 30,
+): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase
+    .from("artists")
+    .update({
+      sell_opt_in: optIn,
+      revenue_share_pct: revenueSharePct,
+    })
+    .eq("id", artistId);
+  if (error) console.warn("Supabase: sell opt-in update failed.", error.message);
 }

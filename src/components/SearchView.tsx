@@ -22,6 +22,7 @@ interface Selection {
   periods: string[];
   empires: string[];
   artistIds: string[];
+  portraitsOnly: boolean;
 }
 
 const EMPTY_SELECTION: Selection = {
@@ -29,6 +30,7 @@ const EMPTY_SELECTION: Selection = {
   periods: [],
   empires: [],
   artistIds: [],
+  portraitsOnly: false,
 };
 
 export default function SearchView({
@@ -62,6 +64,7 @@ export default function SearchView({
         periods: sel.periods.length ? sel.periods : undefined,
         empires: sel.empires.length ? sel.empires : undefined,
         artistIds: sel.artistIds.length ? sel.artistIds : undefined,
+        portraitsOnly: sel.portraitsOnly || undefined,
       }),
     [text, sel, searchArtworks]
   );
@@ -89,7 +92,8 @@ export default function SearchView({
     sel.categories.length +
     sel.periods.length +
     sel.empires.length +
-    sel.artistIds.length;
+    sel.artistIds.length +
+    (sel.portraitsOnly ? 1 : 0);
   const hasFilters = totalSelected > 0;
 
   const clearAll = () => setSel(EMPTY_SELECTION);
@@ -113,6 +117,7 @@ export default function SearchView({
       artists.find((a) => a.id === sel.artistIds[0])?.name ?? "",
       "artists"
     );
+    if (sel.portraitsOnly) parts.push("Portraits");
     return parts.length ? parts.join(" · ") : "All categories";
   })();
 
@@ -180,6 +185,20 @@ export default function SearchView({
                 className="overflow-hidden"
               >
                 <div className="mt-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 pb-4">
+                  <FacetRow title="Subject">
+                    <Chip
+                      active={sel.portraitsOnly}
+                      onClick={() =>
+                        setSel((prev) => ({
+                          ...prev,
+                          portraitsOnly: !prev.portraitsOnly,
+                        }))
+                      }
+                    >
+                      Portraits
+                    </Chip>
+                  </FacetRow>
+
                   <FacetRow title="Category">
                     {searchFacets.categories.map((id) => (
                       <Chip

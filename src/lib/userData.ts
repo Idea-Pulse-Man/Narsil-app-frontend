@@ -7,6 +7,7 @@
  * survives Supabase being unreachable.
  */
 
+import type { UserRole } from "@/data/types";
 import { supabase } from "./supabase";
 
 export type CollectionKind = "saved" | "liked";
@@ -22,6 +23,9 @@ export interface Profile {
   full_name: string | null;
   email: string | null;
   avatar_url: string | null;
+  role?: UserRole;
+  terms_accepted_at?: string | null;
+  terms_version?: string | null;
 }
 
 /** Load the signed-in user's profile row (name/avatar) from Supabase. */
@@ -33,7 +37,7 @@ export async function fetchProfile(): Promise<Profile | null> {
     if (!uid) return null;
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, full_name, email, avatar_url")
+      .select("id, full_name, email, avatar_url, role, terms_accepted_at, terms_version")
       .eq("id", uid)
       .maybeSingle();
     if (error) {
@@ -45,6 +49,23 @@ export async function fetchProfile(): Promise<Profile | null> {
     console.warn("Supabase: profile load error.", err);
     return null;
   }
+}
+
+/** Persist ToS acceptance on the signed-in user's profile. */
+export async function acceptTermsRemote(version: string): Promise<void> {
+  if (!supabase) return;
+  const { data: auth } = await supabase.auth.getUser();
+  const uid = auth.user?.id;
+  if (!uid) return;
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      terms_accepted_at: new Date().toISOString(),
+      terms_version: version,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", uid);
+  if (error) console.warn("Supabase: terms acceptance failed.", error.message);
 }
 
 /**

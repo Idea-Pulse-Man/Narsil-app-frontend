@@ -28,6 +28,11 @@ import {
 } from "./index";
 import type { Artwork, Artist, CategoryId, ArtworkSearchQuery } from "./index";
 import { fetchSupabaseCatalog } from "@/lib/catalog";
+import {
+  isDefaultFeedEligible,
+  isPortraitArtwork,
+  sortByPopularity,
+} from "@/lib/feed-utils";
 
 /** Where the currently-shown data came from. */
 type CatalogSource = "mock" | "supabase";
@@ -81,10 +86,11 @@ function mergeById<T extends { id: string }>(base: T[], extra: T[]): T[] {
  */
 export const FEED_LIMIT = 80;
 
-/** Interleave historical masters with freelance originals (same rule as v1). */
+/** Interleave historical masters with freelance originals after popularity sort. */
 function buildFeed(list: Artwork[]): Artwork[] {
-  const historical = list.filter((a) => a.origin !== "artist-original");
-  const freelance = list.filter((a) => a.origin === "artist-original");
+  const sorted = [...list].sort(sortByPopularity);
+  const historical = sorted.filter((a) => a.origin !== "artist-original");
+  const freelance = sorted.filter((a) => a.origin === "artist-original");
   const out: Artwork[] = [];
   let fi = 0;
   historical.forEach((art, i) => {
@@ -174,6 +180,7 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
       const categoryList = toSelectionList(query.category, query.categories);
       const artistList = toSelectionList(query.artistId, query.artistIds);
       return browseArtworks.filter((art) => {
+        if (query.portraitsOnly && !isPortraitArtwork(art)) return false;
         if (periodList.length && !periodList.includes(art.period)) return false;
         if (empireList.length && !(art.empire && empireList.includes(art.empire)))
           return false;
@@ -217,7 +224,9 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
       return !name || /^(unknown|anonymous|unidentified)/i.test(name);
     };
     const namedFeedFull = buildFeed(
-      browseArtworks.filter((a) => !isUnknownArtist(a.artistId)),
+      browseArtworks
+        .filter((a) => !isUnknownArtist(a.artistId))
+        .filter(isDefaultFeedEligible),
     );
     const namedFeed = namedFeedFull.slice(0, FEED_LIMIT);
 

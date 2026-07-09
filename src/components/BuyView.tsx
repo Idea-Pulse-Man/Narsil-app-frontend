@@ -37,11 +37,12 @@ export default function BuyView({ showToast }: BuyViewProps) {
 
   const filteredProducts = useMemo(() => {
     const isFreelance = source === "freelance";
-    return products.filter(({ artwork }) =>
-      isFreelance
-        ? artwork.origin === "artist-original"
-        : artwork.origin !== "artist-original",
-    );
+    return products.filter(({ artwork }) => {
+      if (isFreelance) {
+        return artwork.origin === "artist-original" && artwork.forSale === true;
+      }
+      return artwork.origin !== "artist-original";
+    });
   }, [products, source]);
 
   const {

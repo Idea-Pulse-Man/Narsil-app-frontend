@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { Artwork } from "@/data";
 import { useCatalog, FEED_LIMIT } from "@/data/catalog";
+import { partitionSeen, sortByPopularity } from "@/lib/feed-utils";
 import { useAppState } from "./AppState";
 import ArtworkCard from "./ArtworkCard";
 import type { ToastState } from "./Toast";
@@ -51,13 +52,11 @@ export default function ArtFeed({
       return true;
     });
     if (!seenSnapshot || seenSnapshot.size === 0) {
-      return filtered.slice(0, FEED_LIMIT);
+      return [...filtered].sort(sortByPopularity).slice(0, FEED_LIMIT);
     }
-    const unseen: Artwork[] = [];
-    const alreadySeen: Artwork[] = [];
-    for (const art of filtered) {
-      (seenSnapshot.has(art.id) ? alreadySeen : unseen).push(art);
-    }
+    const { unseen, alreadySeen } = partitionSeen(filtered, seenSnapshot);
+    unseen.sort(sortByPopularity);
+    alreadySeen.sort(sortByPopularity);
     return [...unseen, ...alreadySeen].slice(0, FEED_LIMIT);
   }, [feedPool, filter, seenSnapshot]);
 

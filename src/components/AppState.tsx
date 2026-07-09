@@ -15,6 +15,7 @@ import {
   completeAuthFromUrl,
   signOut as authSignOut,
 } from "@/lib/auth";
+import { TERMS_VERSION } from "@/lib/terms";
 import {
   ensureSession,
   fetchUserData,
@@ -23,6 +24,7 @@ import {
   markSeenRemote,
   setCollection,
   setFollow,
+  acceptTermsRemote,
   type Profile,
 } from "@/lib/userData";
 
@@ -77,6 +79,11 @@ interface AppStateValue {
   /** Mark the sign-in gate as handled so it won't auto-open again. */
   markAuthSeen: () => void;
 
+  /** True once the user accepted the current Terms of Service version. */
+  termsAccepted: boolean;
+  acceptTerms: () => void;
+  isAdmin: boolean;
+
   /** The current Supabase user (null when auth is disabled or not loaded). */
   user: User | null;
   /** The current user's profile row (name/avatar), when loaded. */
@@ -98,6 +105,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [preferences, setPreferences] = useState<Preferences>(EMPTY_PREFS);
   const [tutorialDone, setTutorialDone] = useState(false);
   const [authSeen, setAuthSeen] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
 
@@ -125,6 +133,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setPreferences(readJSON<Preferences>(STORAGE_KEYS.preferences, EMPTY_PREFS));
     setTutorialDone(readJSON<boolean>(STORAGE_KEYS.tutorialDone, false));
     setAuthSeen(readJSON<boolean>(STORAGE_KEYS.authSeen, false));
+    const localTermsVersion = readJSON<string | null>(STORAGE_KEYS.termsVersion, null);
+    const localTermsAccepted = readJSON<boolean>(STORAGE_KEYS.termsAccepted, false);
+    setTermsAccepted(localTermsAccepted && localTermsVersion === TERMS_VERSION);
     setReady(true);
 
     let cancelled = false;
@@ -186,7 +197,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         setUser(currentUser);
         if (currentUser && !currentUser.is_anonymous) {
           const p = await fetchProfile();
-          if (!cancelled) setProfile(p);
+          if (!cancelled) {
+            setProfile(p);
+            if (p?.terms_version === TERMS_VERSION && p.terms_accepted_at) {
+              setTermsAccepted(true);
+              writeJSON(STORAGE_KEYS.termsAccepted, true);
+              writeJSON(STORAGE_KEYS.termsVersion, TERMS_VERSION);
+            }
+          }
         }
       } catch (err) {
         // Never let an auth/network failure surface as an uncaught rejection —
@@ -238,6 +256,15 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setAuthSeen(true);
     writeJSON(STORAGE_KEYS.authSeen, true);
   }, []);
+
+  const acceptTerms = useCallback(() => {
+    setTermsAccepted(true);
+    writeJSON(STORAGE_KEYS.termsAccepted, true);
+    writeJSON(STORAGE_KEYS.termsVersion, TERMS_VERSION);
+    if (cloudReady.current) void acceptTermsRemote(TERMS_VERSION);
+  }, []);
+
+  const isAdmin = profile?.role === "admin";
 
   const markSeen = useCallback((id: string) => {
     setSeen((prev) => {
@@ -339,6 +366,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     restartTutorial,
     authSeen,
     markAuthSeen,
+    termsAccepted,
+    acceptTerms,
+    isAdmin,
     user,
     profile,
     isGuest: !user || user.is_anonymous === true,

@@ -113,11 +113,21 @@ export default function CanvasPurchaseSheet({
         });
         addressId = created?.id ?? null;
       }
+      const total = priceForSize(priceFrom, size);
+      let artistCut: number | undefined;
+      let platformCut: number | undefined;
+      if (artwork.origin === "artist-original" && artist?.sellOptIn) {
+        const pct = artist.revenueSharePct ?? 30;
+        artistCut = Math.round(total * (pct / 100) * 100) / 100;
+        platformCut = Math.round((total - artistCut) * 100) / 100;
+      }
       const { error } = await createCanvasOrder({
         artworkId: artwork.id,
         size,
-        price: priceForSize(priceFrom, size),
+        price: total,
         addressId,
+        artistCut,
+        platformCut,
       });
       if (error) {
         showToast(error.message, "error");

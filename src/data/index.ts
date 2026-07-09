@@ -125,6 +125,8 @@ export interface ArtworkSearchQuery {
   empires?: string[];
   categories?: CategoryId[];
   artistIds?: string[];
+  /** When true, only portrait-like works (Search facet). */
+  portraitsOnly?: boolean;
 }
 
 /** Merge a single value + a list into one list of selected values. */

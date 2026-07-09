@@ -11,6 +11,7 @@
  * anon key is enough — no secret ever reaches the client.
  */
 import { supabase } from "./supabase";
+import { fetchCommunityTags } from "./tags";
 import type { Artwork, Artist, CategoryId, ArtworkOrigin } from "@/data";
 
 export interface RemoteCatalog {
@@ -37,6 +38,12 @@ interface ArtworkRow {
   accent: string | null;
   tags: string[] | null;
   empire: string | null;
+  like_count: number | null;
+  save_count: number | null;
+  featured: boolean | null;
+  hidden: boolean | null;
+  for_sale: boolean | null;
+  ai_description: string | null;
 }
 
 interface ArtistRow {
@@ -55,11 +62,15 @@ interface ArtistRow {
   followers: number | null;
   likes: number | null;
   saves: number | null;
+  sell_opt_in: boolean | null;
+  revenue_share_pct: number | null;
 }
 
 // ── Mapping row → domain type ───────────────────────────────────────────────
 
-function mapArtwork(row: ArtworkRow): Artwork {
+function mapArtwork(row: ArtworkRow, communityTags: string[] = []): Artwork {
+  const catalogTags = row.tags ?? [];
+  const mergedTags = Array.from(new Set([...catalogTags, ...communityTags]));
   return {
     id: row.id,
     title: row.title,
@@ -71,10 +82,17 @@ function mapArtwork(row: ArtworkRow): Artwork {
     image: row.image_url ?? "",
     accent: row.accent ?? "#22242b",
     description: row.description ?? "",
-    tags: row.tags ?? [],
+    tags: mergedTags,
     category: (row.category ?? "paintings") as CategoryId,
     origin: (row.origin ?? "public-domain") as ArtworkOrigin,
     ...(row.empire ? { empire: row.empire } : {}),
+    likeCount: row.like_count ?? 0,
+    saveCount: row.save_count ?? 0,
+    featured: row.featured ?? false,
+    hidden: row.hidden ?? false,
+    forSale: row.for_sale ?? false,
+    ...(row.ai_description ? { aiDescription: row.ai_description } : {}),
+    ...(communityTags.length ? { communityTags } : {}),
   };
 }
 
@@ -95,6 +113,8 @@ function mapArtist(row: ArtistRow): Artist {
     saves: row.saves ?? 0,
     ...(row.accent ? { accent: row.accent } : {}),
     ...(row.avatar_url ? { avatar: row.avatar_url } : {}),
+    sellOptIn: row.sell_opt_in ?? false,
+    revenueSharePct: row.revenue_share_pct ?? 30,
   };
 }
 
@@ -133,13 +153,16 @@ export async function fetchSupabaseCatalog(
 ): Promise<RemoteCatalog> {
   if (!supabase) return { artworks: [], artists: [] };
 
-  const [artworkRows, artistRows] = await Promise.all([
+  const [artworkRows, artistRows, tagMap] = await Promise.all([
     fetchTable<ArtworkRow>("artworks", { column: "created_at", ascending: false }, signal),
     fetchTable<ArtistRow>("artists", { column: "name", ascending: true }, signal),
+    fetchCommunityTags(signal),
   ]);
 
   return {
-    artworks: artworkRows.filter((r) => r.image_url).map(mapArtwork),
+    artworks: artworkRows
+      .filter((r) => r.image_url)
+      .map((r) => mapArtwork(r, tagMap[r.id] ?? [])),
     artists: artistRows.map(mapArtist),
   };
 }

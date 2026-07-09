@@ -40,6 +40,10 @@ export interface Artist {
    * them up returns their artwork, not a face).
    */
   noLookup?: boolean;
+  /** Whether this artist opted in to selling prints on Narsil. */
+  sellOptIn?: boolean;
+  /** Artist revenue share percentage on print sales (default 30). */
+  revenueSharePct?: number;
 }
 
 /** How a piece entered the catalogue — drives the badge on the feed card. */
@@ -55,8 +59,11 @@ export type CategoryId =
   | "greek"
   | "egyptian"
   | "renaissance"
+  | "medieval"
   | "japanese-art"
   | "modern-art";
+
+export type UserRole = "user" | "admin";
 
 export interface Artwork {
   id: string;
@@ -77,4 +84,17 @@ export interface Artwork {
   origin: ArtworkOrigin;
   /** Ancient civilisation / empire, when applicable (Roman, Greek, Egyptian…). */
   empire?: string;
+  /** Engagement counters from Supabase (0 when unavailable). */
+  likeCount?: number;
+  saveCount?: number;
+  /** Admin-curated: always show in feed regardless of engagement. */
+  featured?: boolean;
+  /** Admin-hidden from default feed (still searchable). */
+  hidden?: boolean;
+  /** Freelance works opted in for canvas sales. Museum PD is always sellable. */
+  forSale?: boolean;
+  /** AI-generated placard copy when available (Phase 6). */
+  aiDescription?: string;
+  /** Community tags merged at read time. */
+  communityTags?: string[];
 }

@@ -8,7 +8,9 @@ import {
   uploadArtworkImage,
   ensureArtistForUser,
   createArtwork,
+  setArtistSellOptIn,
 } from "@/lib/artworkUpload";
+import { addCommunityTag } from "@/lib/tags";
 import type { ToastState } from "./Toast";
 
 interface CreateViewProps {
@@ -36,6 +38,9 @@ export default function CreateView({ showToast, onPublished }: CreateViewProps) 
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<CategoryId>("paintings");
   const [origin, setOrigin] = useState<ArtworkOrigin>("artist-original");
+  const [forSale, setForSale] = useState(false);
+  const [tagInput, setTagInput] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -60,6 +65,9 @@ export default function CreateView({ showToast, onPublished }: CreateViewProps) 
     setDescription("");
     setCategory("paintings");
     setOrigin("artist-original");
+    setForSale(false);
+    setTagInput("");
+    setTags([]);
     setImageFile(null);
     setPreviewUrl(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -77,17 +85,28 @@ export default function CreateView({ showToast, onPublished }: CreateViewProps) 
       const authorName =
         profile?.full_name ?? user?.email?.split("@")[0] ?? "Artist";
       const artistId = await ensureArtistForUser(authorName);
-      const { error } = await createArtwork({
+      if (artistId && forSale) {
+        await setArtistSellOptIn(artistId, true);
+      }
+      const { data, error } = await createArtwork({
         title: title.trim(),
         description: description.trim(),
         imageUrl,
         category,
         origin,
         artistId,
+        forSale: origin === "artist-original" ? forSale : false,
+        tags,
       });
       if (error) {
         showToast(error.message, "error");
         return;
+      }
+      const artworkId = data?.id as string | undefined;
+      if (artworkId) {
+        for (const tag of tags) {
+          await addCommunityTag(artworkId, tag);
+        }
       }
       showToast("Posted to Narsil");
       reset();
@@ -214,6 +233,56 @@ export default function CreateView({ showToast, onPublished }: CreateViewProps) 
               ))}
             </div>
           </div>
+
+          {origin === "artist-original" && (
+            <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+              <input
+                type="checkbox"
+                checked={forSale}
+                onChange={(e) => setForSale(e.target.checked)}
+                className="mt-1 h-4 w-4"
+              />
+              <span>
+                <span className="block text-sm font-medium text-white">
+                  Sell prints on Narsil
+                </span>
+                <span className="mt-0.5 block text-xs text-white/45">
+                  Opt in to offer canvas prints. You receive 30% of each sale.
+                </span>
+              </span>
+            </label>
+          )}
+
+          <Field label="Tags">
+            <div className="flex flex-wrap gap-2">
+              {tags.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => setTags((t) => t.filter((x) => x !== tag))}
+                  className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs text-white"
+                >
+                  {tag} ×
+                </button>
+              ))}
+            </div>
+            <div className="mt-2 flex gap-2">
+              <input
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    const t = tagInput.trim().toLowerCase();
+                    if (t && !tags.includes(t)) setTags([...tags, t]);
+                    setTagInput("");
+                  }
+                }}
+                placeholder="Add a tag and press Enter"
+                className="field-input flex-1"
+              />
+            </div>
+          </Field>
 
           <motion.button
             type="submit"

@@ -3,6 +3,7 @@ import { useCatalog } from "@/data/catalog";
 import { useAppState } from "./AppState";
 import { screenScrollClass, screenContentClass } from "./artwork-layout";
 import { SparkleIcon } from "./Icons";
+import { useAudio } from "@/lib/audio/AudioProvider";
 import ArtworkTile from "./ArtworkTile";
 import AddressManager from "./AddressManager";
 import type { ToastState } from "./Toast";
@@ -15,6 +16,9 @@ interface YouViewProps {
   onRestartTutorial: () => void;
   onNavigate: (screen: Screen) => void;
   onSignIn: () => void;
+  onOpenTerms: () => void;
+  onOpenAdmin: () => void;
+  isAdmin: boolean;
   showToast: (message: string, variant?: ToastState["variant"]) => void;
 }
 
@@ -25,10 +29,15 @@ export default function YouView({
   onRestartTutorial,
   onNavigate,
   onSignIn,
+  onOpenTerms,
+  onOpenAdmin,
+  isAdmin,
   showToast,
 }: YouViewProps) {
   const { saved, liked, following, preferences, user, profile, isGuest, signOut } =
     useAppState();
+  const { enabled: musicOn, setEnabled: setMusicOn, attributionUrl, unavailable } =
+    useAudio();
   const { getArtist, getArtwork } = useCatalog();
   const [addressOpen, setAddressOpen] = useState(false);
 
@@ -206,13 +215,38 @@ export default function YouView({
         {/* Settings */}
         <section className="mt-8 space-y-2">
           <h2 className="font-serif text-lg text-white">Settings</h2>
+          <Row
+            label="Background music"
+            hint={unavailable ? "Unavailable" : musicOn ? "On" : "Off"}
+            onClick={() => {
+              setMusicOn(!musicOn);
+              if (!musicOn && unavailable) {
+                showToast("Music unavailable right now", "error");
+              }
+            }}
+          />
+          <Row label="Terms of Service" onClick={onOpenTerms} />
           <Row label="Delivery addresses" onClick={openAddresses} />
           <Row label="Replay the tutorial" onClick={onRestartTutorial} />
           <Row label="About Narsil v1.0" onClick={() => onNavigate("discover")} />
+          {isAdmin && <Row label="Admin dashboard" onClick={onOpenAdmin} />}
           {!isGuest && (
             <Row label="Sign out" onClick={handleSignOut} destructive />
           )}
         </section>
+
+        <p className="mt-6 text-center text-[11px] leading-relaxed text-white/30">
+          Music from{" "}
+          <a
+            href={attributionUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline-offset-2 hover:underline"
+          >
+            Classicals.de
+          </a>{" "}
+          (royalty-free, CC).
+        </p>
 
         <p className="mt-8 text-center text-[11px] leading-relaxed text-white/30">
           Narsil v1.0 — a product preview.
@@ -253,10 +287,12 @@ function Stat({
 
 function Row({
   label,
+  hint,
   onClick,
   destructive = false,
 }: {
   label: string;
+  hint?: string;
   onClick: () => void;
   destructive?: boolean;
 }) {
@@ -267,8 +303,8 @@ function Row({
         destructive ? "text-red-400" : "text-white/85"
       }`}
     >
-      {label}
-      <span className="text-white/35">›</span>
+      <span>{label}</span>
+      <span className="text-white/35">{hint ? hint : "›"}</span>
     </button>
   );
 }

@@ -155,6 +155,8 @@ export interface NewCanvasOrder {
   size: "Small" | "Medium" | "Large";
   price: number;
   addressId: string | null;
+  artistCut?: number;
+  platformCut?: number;
 }
 
 /** Create a canvas-print order (status starts at 'registered'). */
@@ -167,6 +169,8 @@ export async function createCanvasOrder(input: NewCanvasOrder) {
       size: input.size,
       price: input.price,
       address_id: input.addressId,
+      ...(input.artistCut != null ? { artist_cut: input.artistCut } : {}),
+      ...(input.platformCut != null ? { platform_cut: input.platformCut } : {}),
     })
     .select("id")
     .single();

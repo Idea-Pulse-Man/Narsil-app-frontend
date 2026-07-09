@@ -28,6 +28,7 @@ export const categories: Category[] = [
   { id: "greek", label: "Greek", blurb: "Classical & Hellenistic", group: "empire", from: "#2f425a", to: "#161f2a" },
   { id: "egyptian", label: "Egyptian", blurb: "Pharaohs & the Nile", group: "empire", from: "#5a4a22", to: "#2a2210" },
   { id: "renaissance", label: "Renaissance", blurb: "Rebirth of the classical", group: "movement", from: "#3a3320", to: "#1c180e" },
+  { id: "medieval", label: "Medieval", blurb: "Gothic & the Middle Ages", group: "movement", from: "#2a2838", to: "#121018" },
   { id: "japanese-art", label: "Japanese Art", blurb: "Ukiyo-e & the Edo world", group: "movement", from: "#274a52", to: "#122226" },
   { id: "modern-art", label: "Modern Art", blurb: "Color, emotion & abstraction", group: "movement", from: "#3a2a4a", to: "#1a1424" },
 ];
@@ -64,6 +65,13 @@ export function artworkMatchesCategory(art: Artwork, id: CategoryId): boolean {
       return art.empire === "Japanese" || haystack.includes("ukiyo");
     case "renaissance":
       return haystack.includes("renaissance");
+    case "medieval":
+      return (
+        haystack.includes("medieval") ||
+        haystack.includes("gothic") ||
+        haystack.includes("middle ages") ||
+        haystack.includes("byzantine")
+      );
     case "modern-art":
       return (
         art.category === "modern-art" ||
