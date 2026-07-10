@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Artwork, Artist } from "@/data";
 import { isWellcomeCollection, wellcomeWorkUrl } from "@/lib/wellcome";
 import { addCommunityTag } from "@/lib/tags";
@@ -12,6 +12,8 @@ interface HistoryPlacardProps {
   artist: Artist;
   open: boolean;
   onClose: () => void;
+  /** Let swipes on the dimmed area reach the feed behind (For You). */
+  passThroughBackdrop?: boolean;
 }
 
 const CLOSE_OFFSET = 80;
@@ -59,14 +61,22 @@ export default function HistoryPlacard({
   artist,
   open,
   onClose,
+  passThroughBackdrop = false,
 }: HistoryPlacardProps) {
   const { isGuest } = useAppState();
   const { refresh } = useCatalog();
   const [tagDraft, setTagDraft] = useState("");
   const [tagBusy, setTagBusy] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const displayDescription =
     artwork.aiDescription?.trim() || artwork.description;
+
+  // Fresh placard content when the feed advances to another artwork.
+  useEffect(() => {
+    setTagDraft("");
+    scrollRef.current?.scrollTo({ top: 0 });
+  }, [artwork.id]);
 
   const submitTag = async () => {
     const tag = tagDraft.trim();
@@ -88,15 +98,17 @@ export default function HistoryPlacard({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
-            onClick={onClose}
-            className="absolute inset-0 z-40 bg-black/40"
+            onClick={passThroughBackdrop ? undefined : onClose}
+            className={`absolute inset-0 z-40 bg-black/40 ${
+              passThroughBackdrop ? "pointer-events-none" : ""
+            }`}
           />
           <motion.div
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", stiffness: 320, damping: 36 }}
-            className="absolute inset-x-0 bottom-0 z-50 flex max-h-[82%] flex-col rounded-t-[28px] border-t border-white/15 bg-canvas/95 text-ink shadow-placard backdrop-blur-2xl"
+            className="pointer-events-auto absolute inset-x-0 bottom-0 z-50 flex max-h-[82%] flex-col rounded-t-[28px] border-t border-white/15 bg-canvas/95 text-ink shadow-placard backdrop-blur-2xl"
           >
             {/* Top third — drag down to close */}
             <motion.div
@@ -128,15 +140,24 @@ export default function HistoryPlacard({
                 {artist.name} · {artwork.year}
               </p>
               <p className="mt-3 text-[11px] text-ink/40">
-                Swipe down here to close
+                {passThroughBackdrop
+                  ? "Swipe the artwork above for the next piece"
+                  : "Swipe down here to close"}
               </p>
             </motion.div>
 
             {/* Bottom two thirds — scrollable metadata */}
             <div
+              ref={scrollRef}
               className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-[calc(env(safe-area-inset-bottom)+2.75rem)]"
               style={{ touchAction: "pan-y" }}
             >
+              <motion.div
+                key={artwork.id}
+                initial={{ opacity: 0.4 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.2 }}
+              >
               <dl className="grid grid-cols-2 gap-x-4 gap-y-4 border-y border-ink/10 py-5">
                 <div>
                   <dt className="text-[10px] font-semibold uppercase tracking-[0.16em] text-ink/45">
@@ -214,6 +235,7 @@ export default function HistoryPlacard({
                 <ChevronDownIcon className="h-4 w-4" />
                 Close placard
               </button>
+              </motion.div>
             </div>
           </motion.div>
         </>

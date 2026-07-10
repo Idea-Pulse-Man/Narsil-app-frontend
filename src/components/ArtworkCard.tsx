@@ -6,7 +6,6 @@ import { useCatalog } from "@/data/catalog";
 import BlurImage from "./BlurImage";
 import ArtistAvatar from "./ArtistAvatar";
 import ActionRail from "./ActionRail";
-import HistoryPlacard from "./HistoryPlacard";
 import ArtDiscussion from "./ArtDiscussion";
 import { ChevronUpIcon } from "./Icons";
 import { artworkFooterClass } from "./artwork-layout";
@@ -21,6 +20,9 @@ interface ArtworkCardProps {
   onOpenArtist: (artistId: string) => void;
   onCleanChange: (clean: boolean) => void;
   tutorial?: TutorialBridge;
+  /** Shared feed placard — open state lives in ArtFeed. */
+  placardOpen?: boolean;
+  onOpenPlacard?: () => void;
 }
 
 const SWIPE_DISTANCE = 60;
@@ -36,9 +38,10 @@ export default function ArtworkCard({
   onOpenArtist,
   onCleanChange,
   tutorial,
+  placardOpen = false,
+  onOpenPlacard,
 }: ArtworkCardProps) {
   const { getArtistAvatar } = useCatalog();
-  const [placardOpen, setPlacardOpen] = useState(false);
   const [discussionOpen, setDiscussionOpen] = useState(false);
   const [clean, setClean] = useState(false);
   const [fit, setFit] = useState<"cover" | "contain">("contain");
@@ -68,7 +71,6 @@ export default function ArtworkCard({
   const resetToken = tutorial?.resetToken;
   useEffect(() => {
     if (resetToken === undefined) return;
-    setPlacardOpen(false);
     setDiscussionOpen(false);
     setClean(false);
     setFit("contain");
@@ -88,7 +90,7 @@ export default function ArtworkCard({
 
   const openPlacard = () => {
     if (gestureBlocked("placard")) return;
-    setPlacardOpen(true);
+    onOpenPlacard?.();
     tutorial?.report("placard");
   };
 
@@ -319,8 +321,8 @@ export default function ArtworkCard({
                 </button>
               </div>
 
-              {/* Description + origin tag on the same bottom row */}
-              <div className="mt-2.5 flex w-full items-center justify-between gap-2 pr-14">
+              {/* Description + origin tag side by side */}
+              <div className="mt-2.5 flex w-full items-center gap-2 pr-14">
                 <motion.button
                   type="button"
                   data-tutorial="placard-trigger"
@@ -360,13 +362,6 @@ export default function ArtworkCard({
           </motion.div>
         )}
       </AnimatePresence>
-
-      <HistoryPlacard
-        artwork={artwork}
-        artist={artist}
-        open={placardOpen}
-        onClose={() => setPlacardOpen(false)}
-      />
 
       <ArtDiscussion
         artwork={artwork}

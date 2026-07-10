@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Artwork } from "@/data";
 import { useCatalog, FEED_LIMIT } from "@/data/catalog";
 import { partitionSeen, sortByPopularity } from "@/lib/feed-utils";
 import { useAppState } from "./AppState";
 import ArtworkCard from "./ArtworkCard";
+import HistoryPlacard from "./HistoryPlacard";
 import type { ToastState } from "./Toast";
 import type { TutorialBridge } from "./tutorial";
 
@@ -33,6 +34,8 @@ export default function ArtFeed({
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastScrollTop = useRef(0);
   const lastIndex = useRef(0);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [placardOpen, setPlacardOpen] = useState(false);
 
   // Freeze the "seen" set once the catalog is ready, so cards marked seen while
   // scrolling don't reshuffle under the user mid-session. The snapshot refreshes
@@ -83,6 +86,7 @@ export default function ArtFeed({
     const index = Math.round(el.scrollTop / el.clientHeight);
     if (index !== lastIndex.current) {
       lastIndex.current = index;
+      setCurrentIndex(index);
       const artwork = items[index];
       if (artwork) {
         markSeen(artwork.id);
@@ -107,6 +111,17 @@ export default function ArtFeed({
       preload(items[2]);
     }
   }, [items, markSeen, preload]);
+
+  // Tutorial resets should close the shared placard.
+  useEffect(() => {
+    if (tutorial?.resetToken === undefined) return;
+    setPlacardOpen(false);
+  }, [tutorial?.resetToken]);
+
+  const currentArtwork = items[currentIndex];
+  const currentArtist = currentArtwork
+    ? getArtist(currentArtwork.artistId)
+    : undefined;
 
   // No real artworks yet: show a loading state while fetching, or a friendly
   // empty state if the gallery couldn't be reached. Never show mock/fake data.
@@ -133,29 +148,44 @@ export default function ArtFeed({
   }
 
   return (
-    <div
-      ref={scrollRef}
-      onScroll={handleScroll}
-      className={`h-full w-full snap-y snap-mandatory overscroll-contain scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
-        lockScroll ? "overflow-hidden" : "overflow-y-scroll"
-      }`}
-    >
-      {items.map((artwork, index) => {
-        const artist = getArtist(artwork.artistId);
-        if (!artist) return null;
-        return (
-          <ArtworkCard
-            key={artwork.id}
-            artwork={artwork}
-            artist={artist}
-            priority={index === 0}
-            showToast={showToast}
-            onOpenArtist={onOpenArtist}
-            onCleanChange={onCleanChange}
-            tutorial={tutorial}
-          />
-        );
-      })}
+    <div className="relative h-full w-full">
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className={`h-full w-full snap-y snap-mandatory overscroll-contain scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+          lockScroll ? "overflow-hidden" : "overflow-y-scroll"
+        }`}
+      >
+        {items.map((artwork, index) => {
+          const artist = getArtist(artwork.artistId);
+          if (!artist) return null;
+          return (
+            <ArtworkCard
+              key={artwork.id}
+              artwork={artwork}
+              artist={artist}
+              priority={index === 0}
+              showToast={showToast}
+              onOpenArtist={onOpenArtist}
+              onCleanChange={onCleanChange}
+              tutorial={tutorial}
+              placardOpen={placardOpen}
+              onOpenPlacard={() => setPlacardOpen(true)}
+            />
+          );
+        })}
+      </div>
+
+      {/* One placard for the whole feed — stays open while swiping artworks. */}
+      {currentArtwork && currentArtist && (
+        <HistoryPlacard
+          artwork={currentArtwork}
+          artist={currentArtist}
+          open={placardOpen}
+          onClose={() => setPlacardOpen(false)}
+          passThroughBackdrop
+        />
+      )}
     </div>
   );
 }
