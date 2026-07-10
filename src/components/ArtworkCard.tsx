@@ -342,7 +342,7 @@ export default function ArtworkCard({
                 </button>
               </div>
 
-              {/* Origin tag to the right, clear of the action rail */}
+              {/* Origin tag to the right so it doesn't collide with the Narsil mark */}
               {!placardTutorial && (
                 <div className="mt-2.5 flex w-full items-center justify-end pr-14">
                   <span
