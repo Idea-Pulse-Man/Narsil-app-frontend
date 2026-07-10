@@ -311,7 +311,11 @@ export default function MobileShell() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
             >
-              <TopTabs active={screen} onChange={navigate} />
+              <TopTabs
+                active={screen}
+                onChange={navigate}
+                showBrand={isFeedScreen(screen)}
+              />
             </motion.div>
           )}
         </AnimatePresence>
@@ -450,25 +454,6 @@ export default function MobileShell() {
               />
             )}
           </motion.div>
-        </AnimatePresence>
-
-        {/* Brand mark — feed only, bottom-left above the nav */}
-        <AnimatePresence>
-          {showChrome && isFeedScreen(screen) && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="pointer-events-none absolute bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] left-4 z-40 flex items-center gap-1.5"
-            >
-              <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-white text-[11px] font-bold text-ink">
-                N
-              </span>
-              <span className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white">
-                Narsil
-              </span>
-            </motion.div>
-          )}
         </AnimatePresence>
 
         {/* Bottom navigation */}
