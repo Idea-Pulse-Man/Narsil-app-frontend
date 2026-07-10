@@ -21,13 +21,13 @@ export default function TopTabs({
     <div className="pointer-events-none absolute inset-x-0 top-0 z-30 pt-[env(safe-area-inset-top)]">
       <div className="pointer-events-auto flex items-start justify-between gap-2 px-4 pt-3">
         {/* Brand lockup — N badge with NARSIL centered underneath */}
-        <div className="flex w-[52px] shrink-0 flex-col items-center gap-0.5 pt-0.5">
+        <div className="flex w-[48px] shrink-0 flex-col items-center gap-0.5 pt-2.5">
           {showBrand && (
             <>
-              <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-white text-[11px] font-bold text-ink">
+              <span className="flex h-[16px] w-[16px] items-center justify-center rounded-full bg-white text-[9px] font-bold text-ink">
                 N
               </span>
-              <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white">
+              <span className="text-[8px] font-semibold uppercase tracking-[0.14em] text-white">
                 Narsil
               </span>
             </>

@@ -293,29 +293,6 @@ export default function ArtworkCard({
                   )}
                 </h2>
 
-                <motion.button
-                  type="button"
-                  data-tutorial="placard-trigger"
-                  onClick={openPlacard}
-                  whileTap={{ scale: 0.96 }}
-                  animate={
-                    placardTutorial ? { scale: [1, 1.04, 1] } : undefined
-                  }
-                  transition={
-                    placardTutorial
-                      ? { duration: 1.6, repeat: Infinity, ease: "easeInOut" }
-                      : undefined
-                  }
-                  className={`pointer-events-auto mt-1.5 inline-flex items-center gap-1 rounded-full border backdrop-blur-md ${
-                    placardTutorial
-                      ? "min-h-[40px] border-white/40 bg-white/20 px-3.5 py-1.5 text-[11px] text-white ring-2 ring-white/25"
-                      : "border-white/12 bg-black/25 px-2.5 py-1 text-[10px] text-white/85"
-                  } font-medium`}
-                >
-                  <ChevronUpIcon className="h-3 w-3" />
-                  Description
-                </motion.button>
-
                 <button
                   onClick={() => {
                     if (gestureBlocked("artist")) return;
@@ -342,9 +319,32 @@ export default function ArtworkCard({
                 </button>
               </div>
 
-              {/* Origin tag to the right so it doesn't collide with the Narsil mark */}
-              {!placardTutorial && (
-                <div className="mt-2.5 flex w-full items-center justify-end pr-14">
+              {/* Description + origin tag on the same bottom row */}
+              <div className="mt-2.5 flex w-full items-center justify-between gap-2 pr-14">
+                <motion.button
+                  type="button"
+                  data-tutorial="placard-trigger"
+                  onClick={openPlacard}
+                  whileTap={{ scale: 0.96 }}
+                  animate={
+                    placardTutorial ? { scale: [1, 1.04, 1] } : undefined
+                  }
+                  transition={
+                    placardTutorial
+                      ? { duration: 1.6, repeat: Infinity, ease: "easeInOut" }
+                      : undefined
+                  }
+                  className={`pointer-events-auto inline-flex shrink-0 items-center gap-1 rounded-full border backdrop-blur-md ${
+                    placardTutorial
+                      ? "min-h-[40px] border-white/40 bg-white/20 px-3.5 py-1.5 text-[11px] text-white ring-2 ring-white/25"
+                      : "border-white/12 bg-black/25 px-2.5 py-1 text-[10px] text-white/85"
+                  } font-medium`}
+                >
+                  <ChevronUpIcon className="h-3 w-3" />
+                  Description
+                </motion.button>
+
+                {!placardTutorial && (
                   <span
                     className={`pointer-events-none shrink-0 whitespace-nowrap rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] ${
                       artwork.origin === "artist-original"
@@ -354,8 +354,8 @@ export default function ArtworkCard({
                   >
                     {originLabel(artwork.origin)}
                   </span>
-                </div>
-              )}
+                )}
+              </div>
             </footer>
           </motion.div>
         )}
