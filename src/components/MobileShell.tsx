@@ -1,7 +1,9 @@
 import { Capacitor } from "@capacitor/core";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useAudio } from "@/lib/audio/AudioProvider";
 import TermsView from "./TermsView";
+import MusicPrompt from "./MusicPrompt";
 import AdminView from "./AdminView";
 import type { Artist, CategoryId } from "@/data";
 import { useCatalog } from "@/data/catalog";
@@ -53,6 +55,7 @@ export default function MobileShell() {
     isAdmin,
     isGuest,
   } = useAppState();
+  const { promptSeen, markPromptSeen, setEnabled } = useAudio();
 
   const [toast, setToast] = useState<ToastState | null>(null);
   const [screen, setScreen] = useState<Screen>("for-you");
@@ -70,6 +73,7 @@ export default function MobileShell() {
   const [authOpen, setAuthOpen] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
   const [termsReview, setTermsReview] = useState(false);
+  const [musicPromptOpen, setMusicPromptOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   // True when the app opened from an auth redirect (`?code=`) that's still being
   // completed — suppress the first-launch gate so it doesn't flash open.
@@ -101,6 +105,19 @@ export default function MobileShell() {
       setAuthOpen(true);
     }
   }, [ready, termsAccepted, authSeen, isGuest]);
+
+  // Music prompt after terms (and after auth dismissed or seen).
+  useEffect(() => {
+    if (
+      ready &&
+      termsAccepted &&
+      authSeen &&
+      !promptSeen &&
+      !musicPromptOpen
+    ) {
+      setMusicPromptOpen(true);
+    }
+  }, [ready, termsAccepted, authSeen, promptSeen, musicPromptOpen]);
 
   const showToast = useCallback(
     (message: string, variant: ToastState["variant"] = "default") => {
@@ -286,26 +303,6 @@ export default function MobileShell() {
             : "sm:h-[844px] sm:w-[390px] sm:rounded-[44px] sm:border-[10px] sm:border-neutral-800 sm:shadow-2xl"
         }`}
       >
-        {/* Brand mark — feed only, top-left corner. Icon with the wordmark
-            stacked underneath so it never widens into the tab row above. */}
-        <AnimatePresence>
-          {showChrome && isFeedScreen(screen) && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="pointer-events-none absolute left-4 top-[calc(env(safe-area-inset-top)+2.25rem)] z-40 flex flex-col items-center gap-1"
-            >
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-[11px] font-bold text-ink shadow-md">
-                N
-              </span>
-              <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white drop-shadow-md">
-                Narsil
-              </span>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         {/* Top tabs — shared across every screen so the active pill animates */}
         <AnimatePresence>
           {showChrome && (
@@ -326,7 +323,7 @@ export default function MobileShell() {
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
-              className="absolute inset-x-0 top-[calc(env(safe-area-inset-top)+4rem)] z-30 flex justify-center"
+              className="absolute inset-x-0 top-[calc(env(safe-area-inset-top)+3.25rem)] z-30 flex justify-center"
             >
               <div className="flex items-center rounded-full border border-white/25 bg-black/40 p-1 backdrop-blur-xl">
                 {(
@@ -455,6 +452,25 @@ export default function MobileShell() {
           </motion.div>
         </AnimatePresence>
 
+        {/* Brand mark — feed only, bottom-left above the nav */}
+        <AnimatePresence>
+          {showChrome && isFeedScreen(screen) && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="pointer-events-none absolute bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] left-4 z-40 flex items-center gap-1.5"
+            >
+              <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-white text-[11px] font-bold text-ink">
+                N
+              </span>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white">
+                Narsil
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Bottom navigation */}
         <AnimatePresence>
           {showChrome && (
@@ -506,6 +522,22 @@ export default function MobileShell() {
               required={false}
               onClose={() => setTermsReview(false)}
               onAccept={() => setTermsReview(false)}
+            />
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {musicPromptOpen && (
+            <MusicPrompt
+              onEnable={() => {
+                setEnabled(true);
+                markPromptSeen();
+                setMusicPromptOpen(false);
+              }}
+              onDecline={() => {
+                markPromptSeen();
+                setMusicPromptOpen(false);
+              }}
             />
           )}
         </AnimatePresence>

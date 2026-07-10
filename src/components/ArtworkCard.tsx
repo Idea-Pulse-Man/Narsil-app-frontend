@@ -293,59 +293,60 @@ export default function ArtworkCard({
                   )}
                 </h2>
 
-                <div className="mt-1.5 flex items-center gap-2 pr-14">
-                  <motion.button
-                    type="button"
-                    data-tutorial="placard-trigger"
-                    onClick={openPlacard}
-                    whileTap={{ scale: 0.96 }}
-                    animate={
-                      placardTutorial ? { scale: [1, 1.04, 1] } : undefined
-                    }
-                    transition={
-                      placardTutorial
-                        ? { duration: 1.6, repeat: Infinity, ease: "easeInOut" }
-                        : undefined
-                    }
-                    className={`pointer-events-auto inline-flex shrink-0 items-center gap-1 rounded-full border backdrop-blur-md ${
-                      placardTutorial
-                        ? "min-h-[40px] border-white/40 bg-white/20 px-3.5 py-1.5 text-[11px] text-white ring-2 ring-white/25"
-                        : "border-white/12 bg-black/25 px-2.5 py-1 text-[10px] text-white/85"
-                    } font-medium`}
-                  >
-                    <ChevronUpIcon className="h-3 w-3" />
-                    Description
-                  </motion.button>
+                <motion.button
+                  type="button"
+                  data-tutorial="placard-trigger"
+                  onClick={openPlacard}
+                  whileTap={{ scale: 0.96 }}
+                  animate={
+                    placardTutorial ? { scale: [1, 1.04, 1] } : undefined
+                  }
+                  transition={
+                    placardTutorial
+                      ? { duration: 1.6, repeat: Infinity, ease: "easeInOut" }
+                      : undefined
+                  }
+                  className={`pointer-events-auto mt-1.5 inline-flex items-center gap-1 rounded-full border backdrop-blur-md ${
+                    placardTutorial
+                      ? "min-h-[40px] border-white/40 bg-white/20 px-3.5 py-1.5 text-[11px] text-white ring-2 ring-white/25"
+                      : "border-white/12 bg-black/25 px-2.5 py-1 text-[10px] text-white/85"
+                  } font-medium`}
+                >
+                  <ChevronUpIcon className="h-3 w-3" />
+                  Description
+                </motion.button>
 
-                  <button
-                    onClick={() => {
-                      if (gestureBlocked("artist")) return;
-                      onOpenArtist(artist.id);
-                      tutorial?.report("artist");
-                    }}
-                    className="pointer-events-auto inline-flex min-w-0 items-center gap-2 text-[15px] text-white/85 transition-colors hover:text-white"
-                  >
-                    <ArtistAvatar
-                      src={getArtistAvatar(artist.id)}
-                      name={artist.name}
-                      initials={artist.initials}
-                      lookup={shouldResolvePortrait(artist)}
-                      size={24}
-                      className="h-6 w-6 shrink-0 rounded-full text-[10px] font-semibold backdrop-blur-md"
-                      fallbackClassName="bg-white/15 text-white"
-                    />
-                    <span className="truncate whitespace-nowrap underline-offset-4 hover:underline">
-                      {artist.name}
-                    </span>
-                    <span className="shrink-0 whitespace-nowrap text-white/45">
-                      · {artwork.year}
-                    </span>
-                  </button>
-                </div>
+                <button
+                  onClick={() => {
+                    if (gestureBlocked("artist")) return;
+                    onOpenArtist(artist.id);
+                    tutorial?.report("artist");
+                  }}
+                  className="pointer-events-auto mt-2 inline-flex max-w-full items-center gap-2 text-[15px] text-white/85 transition-colors hover:text-white"
+                >
+                  <ArtistAvatar
+                    src={getArtistAvatar(artist.id)}
+                    name={artist.name}
+                    initials={artist.initials}
+                    lookup={shouldResolvePortrait(artist)}
+                    size={24}
+                    className="h-6 w-6 shrink-0 rounded-full text-[10px] font-semibold backdrop-blur-md"
+                    fallbackClassName="bg-white/15 text-white"
+                  />
+                  <span className="truncate whitespace-nowrap underline-offset-4 hover:underline">
+                    {artist.name}
+                  </span>
+                  <span className="shrink-0 whitespace-nowrap text-white/45">
+                    · {artwork.year}
+                  </span>
+                </button>
+              </div>
 
-                {!placardTutorial && (
+              {/* Origin tag to the right so it doesn't collide with the Narsil mark */}
+              {!placardTutorial && (
+                <div className="mt-2.5 flex w-full items-center justify-end pr-14">
                   <span
-                    className={`pointer-events-none mt-2 inline-flex shrink-0 whitespace-nowrap self-start rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] ${
+                    className={`pointer-events-none shrink-0 whitespace-nowrap rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] ${
                       artwork.origin === "artist-original"
                         ? "border-sky-300/30 bg-sky-400/15 text-sky-200"
                         : "border-emerald-300/30 bg-emerald-400/15 text-emerald-200"
@@ -353,8 +354,8 @@ export default function ArtworkCard({
                   >
                     {originLabel(artwork.origin)}
                   </span>
-                )}
-              </div>
+                </div>
+              )}
             </footer>
           </motion.div>
         )}
