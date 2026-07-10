@@ -9,7 +9,8 @@ import {
 } from "react";
 import { readJSON, STORAGE_KEYS, writeJSON } from "@/lib/storage";
 import {
-  CLASSICALS_ATTRIBUTION_URL,
+  MUSIC_ATTRIBUTION_LABEL,
+  MUSIC_ATTRIBUTION_URL,
   MUSIC_VOLUME,
   pickRandomTrack,
 } from "./tracks";
@@ -21,6 +22,7 @@ interface AudioContextValue {
   setEnabled: (on: boolean) => void;
   markPromptSeen: () => void;
   attributionUrl: string;
+  attributionLabel: string;
 }
 
 const AudioCtx = createContext<AudioContextValue | null>(null);
@@ -94,7 +96,8 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       unavailable,
       setEnabled,
       markPromptSeen,
-      attributionUrl: CLASSICALS_ATTRIBUTION_URL,
+      attributionUrl: MUSIC_ATTRIBUTION_URL,
+      attributionLabel: MUSIC_ATTRIBUTION_LABEL,
     }),
     [enabled, promptSeen, unavailable, setEnabled, markPromptSeen],
   );

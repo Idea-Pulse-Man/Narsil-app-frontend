@@ -26,16 +26,8 @@ export default function MusicPrompt({ onEnable, onDecline }: MusicPromptProps) {
           Play soft classical music?
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-white/55">
-          Gentle background music from{" "}
-          <a
-            href="https://www.classicals.de/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-white/75 underline-offset-2 hover:underline"
-          >
-            Classicals.de
-          </a>{" "}
-          (royalty-free). You can turn it off anytime in Settings.
+          Soft public-domain classical music — calm piano and strings suited
+          for browsing art. You can turn it off anytime in Settings.
         </p>
         <div className="mt-5 flex gap-2">
           <button

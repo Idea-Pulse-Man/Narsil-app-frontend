@@ -1,27 +1,39 @@
-/** Royalty-free classical tracks streamed from Classicals.de (CC). */
+/**
+ * Calm public-domain classical recordings for museum-style background
+ * ambience. Sourced from the Internet Archive — compositions and recordings
+ * are in the public domain, so they are safe for commercial use.
+ */
 export const CLASSICAL_TRACKS = [
   {
-    id: "bach-air",
+    id: "bach-air-g-string",
     title: "Bach — Air on the G String",
-    url: "https://www.classicals.de/files/audio/Bach%20-%20Air%20on%20the%20G%20String%20-%20BWV%201068%20-%20Arranged%20for%20Woodwinds%20and%20Strings.mp3",
-    attribution: "Bach — Air on the G String (classicals.de, CC)",
+    url: "https://archive.org/download/Bach-airOnTheGString/LaMusicaClasicaMasRelajanteDelMundo-Bach-AirOnTheGString.mp3",
+    attribution: "Bach — Air on the G String (public domain, Internet Archive)",
   },
   {
-    id: "brahms-waltz-1",
-    title: "Brahms — Waltz No. 01",
-    url: "https://www.classicals.de/files/audio/Brahms%20-%20Waltz%20No.%2001%20in%20B%20major,%20Tempo%20giusto.mp3",
-    attribution: "Brahms — Waltz No. 01 (classicals.de, CC)",
+    id: "bach-goldberg-aria",
+    title: "Bach — Goldberg Variations, Aria",
+    url: "https://archive.org/download/Bachs_Aria_Goldberg_Variations_BWV_988-2809/Aaron_Dunn_-_Goldberg_Variations_BWV_988_-_Aria.mp3",
+    attribution: "Bach — Goldberg Variations Aria (Musopen, public domain)",
   },
   {
-    id: "chopin-waltz",
-    title: "Chopin — Grande Valse Brillante",
-    url: "https://www.classicals.de/files/audio/Chopin%20-%20Grande%20Valse%20Brillante,%20Opus%2018.mp3",
-    attribution: "Chopin — Grande Valse Brillante (classicals.de, CC)",
+    id: "debussy-clair-de-lune",
+    title: "Debussy — Clair de Lune",
+    url: "https://archive.org/download/01-debussey-clair-de-lune/01%20-%20Debussey%20-%20Clair%20de%20Lune.mp3",
+    attribution: "Debussy — Clair de Lune (public domain, Internet Archive)",
+  },
+  {
+    id: "chopin-nocturne-e-flat",
+    title: "Chopin — Nocturne in E-flat, Op. 9 No. 2",
+    url: "https://archive.org/download/NocturneInE-flat/NocturneInE-flat.mp3",
+    attribution: "Chopin — Nocturne in E-flat (public domain, Internet Archive)",
   },
 ] as const;
 
-export const CLASSICALS_ATTRIBUTION_URL = "https://www.classicals.de/";
-export const MUSIC_VOLUME = 0.22;
+/** Public-domain source; shown as attribution in the music prompt/settings. */
+export const MUSIC_ATTRIBUTION_URL = "https://archive.org/details/opensource_audio";
+export const MUSIC_ATTRIBUTION_LABEL = "Internet Archive (public domain)";
+export const MUSIC_VOLUME = 0.2;
 
 export function pickRandomTrack() {
   return CLASSICAL_TRACKS[Math.floor(Math.random() * CLASSICAL_TRACKS.length)];

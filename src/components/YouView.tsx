@@ -36,8 +36,13 @@ export default function YouView({
 }: YouViewProps) {
   const { saved, liked, following, preferences, user, profile, isGuest, signOut } =
     useAppState();
-  const { enabled: musicOn, setEnabled: setMusicOn, attributionUrl, unavailable } =
-    useAudio();
+  const {
+    enabled: musicOn,
+    setEnabled: setMusicOn,
+    attributionUrl,
+    attributionLabel,
+    unavailable,
+  } = useAudio();
   const { getArtist, getArtwork } = useCatalog();
   const [addressOpen, setAddressOpen] = useState(false);
 
@@ -243,9 +248,9 @@ export default function YouView({
             rel="noopener noreferrer"
             className="underline-offset-2 hover:underline"
           >
-            Classicals.de
-          </a>{" "}
-          (royalty-free, CC).
+            {attributionLabel}
+          </a>
+          .
         </p>
 
         <p className="mt-8 text-center text-[11px] leading-relaxed text-white/30">
