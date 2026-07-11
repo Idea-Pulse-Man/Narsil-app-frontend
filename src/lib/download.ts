@@ -1,5 +1,7 @@
 import type { Artwork } from "@/data";
 import type { ToastState } from "@/components/Toast";
+import { API_URL } from "@/lib/api";
+import { ngrokFetch } from "@/lib/ngrok";
 
 type ShowToast = (message: string, variant?: ToastState["variant"]) => void;
 
@@ -107,12 +109,10 @@ function anchorDownload(blob: Blob, filename: string): void {
 }
 
 /**
- * Download an artwork image to the user's device. In browsers that support the
- * File System Access API the user gets a "Save As" dialog where they choose the
- * folder and name; elsewhere it falls back to a standard download. Freelance
- * originals require the artist's permission and are blocked. If the image can't
- * be fetched (e.g. CORS), the original opens in a new tab so the user can save
- * it manually.
+ * Download an artwork image to the user's device via the backend proxy so S3
+ * CORS does not block the fetch. In browsers that support the File System Access
+ * API the user gets a "Save As" dialog; elsewhere it falls back to a standard
+ * download. Freelance originals require the artist's permission and are blocked.
  */
 export async function downloadArtwork(
   artwork: Artwork,
@@ -123,16 +123,21 @@ export async function downloadArtwork(
     return;
   }
 
-  const url = fullResUrl(artwork.image);
+  const downloadUrl = `${API_URL}/api/artworks/${encodeURIComponent(artwork.id)}/download`;
 
   let blob: Blob;
   try {
-    const res = await fetch(url, { mode: "cors" });
+    const res = await ngrokFetch(downloadUrl, { mode: "cors" });
+    if (res.status === 403) {
+      showToast("Download needs the artist's permission");
+      return;
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     blob = await res.blob();
   } catch {
-    // Cross-origin or network failure — let the user save from a new tab.
-    if (typeof window !== "undefined") window.open(url, "_blank", "noopener");
+    // Last resort — open the display image so the user can save manually.
+    const fallback = fullResUrl(artwork.image);
+    if (typeof window !== "undefined") window.open(fallback, "_blank", "noopener");
     showToast("Opened image in a new tab to save");
     return;
   }
