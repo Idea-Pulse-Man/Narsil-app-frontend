@@ -1,7 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import type { Artwork, Artist } from "@/data";
-import { isWellcomeCollection, wellcomeWorkUrl } from "@/lib/wellcome";
 import { addCommunityTag } from "@/lib/tags";
 import { useAppState } from "./AppState";
 import { useCatalog } from "@/data/catalog";
@@ -19,41 +18,22 @@ interface HistoryPlacardProps {
 const CLOSE_OFFSET = 80;
 const CLOSE_VELOCITY = 400;
 
-function CollectionField({ artwork }: { artwork: Artwork }) {
-  const wellcomeUrl = wellcomeWorkUrl(artwork.id);
-  const isWellcome = isWellcomeCollection(artwork.source);
+/** Museum name shown in the placard — uses the artwork's source field. */
+function museumName(artwork: Artwork): string {
+  return artwork.source?.trim() || "—";
+}
 
-  if (isWellcome && wellcomeUrl) {
-    return (
-      <div>
-        <dt className="text-[10px] font-semibold uppercase tracking-[0.16em] text-ink/45">
-          Collection
-        </dt>
-        <dd className="mt-1 text-sm text-ink/85">
-          <a
-            href={wellcomeUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium text-ink underline-offset-2 hover:underline"
-          >
-            Wellcome Collection
-          </a>
-          <p className="mt-1 text-xs leading-relaxed text-ink/55">
-            A London museum of art, science, and human stories.
-          </p>
-        </dd>
-      </div>
-    );
-  }
+/** Drop redundant "From the …" lines when the museum is already listed above. */
+function placardDescription(artwork: Artwork): string {
+  const raw = artwork.aiDescription?.trim() || artwork.description;
+  const museum = museumName(artwork);
+  if (museum === "—") return raw;
 
-  return (
-    <div>
-      <dt className="text-[10px] font-semibold uppercase tracking-[0.16em] text-ink/45">
-        Collection
-      </dt>
-      <dd className="mt-1 text-sm text-ink/85">{artwork.source || "—"}</dd>
-    </div>
-  );
+  const escaped = museum.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return raw
+    .replace(new RegExp(`\\s*From the ${escaped}\\.?\\s*`, "gi"), " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export default function HistoryPlacard({
@@ -68,9 +48,9 @@ export default function HistoryPlacard({
   const [tagDraft, setTagDraft] = useState("");
   const [tagBusy, setTagBusy] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const headerDragStart = useRef<{ y: number; t: number } | null>(null);
 
-  const displayDescription =
-    artwork.aiDescription?.trim() || artwork.description;
+  const displayDescription = placardDescription(artwork);
 
   // Fresh placard content when the feed advances to another artwork.
   useEffect(() => {
@@ -108,20 +88,28 @@ export default function HistoryPlacard({
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", stiffness: 320, damping: 36 }}
-            className="pointer-events-auto absolute inset-x-0 bottom-0 z-50 flex max-h-[82%] flex-col rounded-t-[28px] border-t border-white/15 bg-canvas/95 text-ink shadow-placard backdrop-blur-2xl"
+            className="pointer-events-auto absolute inset-x-0 bottom-0 z-50 flex max-h-[82%] flex-col overflow-hidden rounded-t-[28px] border-t border-white/15 bg-canvas/95 text-ink shadow-placard backdrop-blur-2xl"
           >
-            {/* Top third — drag down to close */}
-            <motion.div
-              drag="y"
-              dragConstraints={{ top: 0, bottom: 0 }}
-              dragElastic={{ top: 0, bottom: 0.4 }}
-              onDragEnd={(_, info) => {
-                if (info.offset.y > CLOSE_OFFSET || info.velocity.y > CLOSE_VELOCITY) {
+            {/* Top third — fixed; swipe down here closes without shifting layout */}
+            <div
+              className="flex-[0_0_33%] shrink-0 touch-none px-6 pb-3 pt-3"
+              onPointerDown={(e) => {
+                headerDragStart.current = { y: e.clientY, t: Date.now() };
+              }}
+              onPointerUp={(e) => {
+                const start = headerDragStart.current;
+                headerDragStart.current = null;
+                if (!start) return;
+                const dy = e.clientY - start.y;
+                const dt = Date.now() - start.t;
+                const velocity = dy / Math.max(dt, 1);
+                if (dy > CLOSE_OFFSET || velocity > CLOSE_VELOCITY / 1000) {
                   onClose();
                 }
               }}
-              className="shrink-0 touch-none px-6 pb-3 pt-3"
-              style={{ minHeight: "33%" }}
+              onPointerCancel={() => {
+                headerDragStart.current = null;
+              }}
             >
               <div className="flex flex-col items-center">
                 <div className="h-1.5 w-11 rounded-full bg-ink/15" />
@@ -144,7 +132,7 @@ export default function HistoryPlacard({
                   ? "Swipe the artwork above for the next piece"
                   : "Swipe down here to close"}
               </p>
-            </motion.div>
+            </div>
 
             {/* Bottom two thirds — scrollable metadata */}
             <div
@@ -177,7 +165,12 @@ export default function HistoryPlacard({
                   </dt>
                   <dd className="mt-1 text-sm text-ink/85">{artist.name}</dd>
                 </div>
-                <CollectionField artwork={artwork} />
+                <div>
+                  <dt className="text-[10px] font-semibold uppercase tracking-[0.16em] text-ink/45">
+                    Museum
+                  </dt>
+                  <dd className="mt-1 text-sm text-ink/85">{museumName(artwork)}</dd>
+                </div>
               </dl>
 
               <h3 className="mt-6 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink/45">
