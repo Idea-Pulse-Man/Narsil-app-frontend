@@ -18,22 +18,27 @@ interface HistoryPlacardProps {
 const CLOSE_OFFSET = 80;
 const CLOSE_VELOCITY = 400;
 
-/** Museum name shown in the placard — uses the artwork's source field. */
+/** Museum name shown in the placard — uses the artwork's credit/source field. */
 function museumName(artwork: Artwork): string {
-  return artwork.source?.trim() || "—";
+  const source = artwork.source?.trim();
+  if (source) return source;
+  // Legacy rows ingested before `source` was stored.
+  if (/^wc-/i.test(artwork.id)) return "Wellcome Collection";
+  if (/^aic-/i.test(artwork.id)) return "Art Institute of Chicago";
+  return "—";
 }
 
 /** Drop redundant "From the …" lines when the museum is already listed above. */
 function placardDescription(artwork: Artwork): string {
-  const raw = artwork.aiDescription?.trim() || artwork.description;
+  let raw = artwork.aiDescription?.trim() || artwork.description;
   const museum = museumName(artwork);
-  if (museum === "—") return raw;
-
-  const escaped = museum.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return raw
-    .replace(new RegExp(`\\s*From the ${escaped}\\.?\\s*`, "gi"), " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  if (museum !== "—") {
+    const escaped = museum.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    raw = raw.replace(new RegExp(`\\s*From the ${escaped}\\.?\\s*`, "gi"), " ");
+  }
+  // Older ingest copy that repeated the default Wellcome credit in prose.
+  raw = raw.replace(/\s*From the Wellcome Collection\.?\s*$/i, " ");
+  return raw.replace(/\s+/g, " ").trim();
 }
 
 export default function HistoryPlacard({
