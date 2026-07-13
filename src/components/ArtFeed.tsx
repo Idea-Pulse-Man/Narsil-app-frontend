@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Artwork } from "@/data";
-import { useCatalog, FEED_LIMIT } from "@/data/catalog";
-import { partitionSeen, sortByPopularity } from "@/lib/feed-utils";
+import { FEED_LIMIT, useCatalog } from "@/data/catalog";
+import { buildSessionFeed } from "@/lib/feed-utils";
 import { useAppState } from "./AppState";
 import ArtworkCard from "./ArtworkCard";
 import HistoryPlacard from "./HistoryPlacard";
@@ -29,7 +29,7 @@ export default function ArtFeed({
   filter = "all",
   tutorial,
 }: ArtFeedProps) {
-  const { feedPool, getArtist, loading } = useCatalog();
+  const { feedPool, getArtist, loading, artistMap } = useCatalog();
   const { seen, markSeen } = useAppState();
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastScrollTop = useRef(0);
@@ -46,22 +46,20 @@ export default function ArtFeed({
   }
   const seenSnapshot = frozenSeen.current;
 
-  // Build the feed: filter by source, then show unseen works first and let seen
-  // ones follow so the feed never runs dry. Capped to FEED_LIMIT images.
+  // Build the feed: filter by source, rank by popularity, and promote unseen works
+  // (with a gentle rotation as the user views more over time). Capped to FEED_LIMIT.
   const items = useMemo<Artwork[]>(() => {
     const filtered = feedPool.filter((art) => {
       if (filter === "museum") return art.origin !== "artist-original";
       if (filter === "freelance") return art.origin === "artist-original";
       return true;
     });
-    if (!seenSnapshot || seenSnapshot.size === 0) {
-      return [...filtered].sort(sortByPopularity).slice(0, FEED_LIMIT);
-    }
-    const { unseen, alreadySeen } = partitionSeen(filtered, seenSnapshot);
-    unseen.sort(sortByPopularity);
-    alreadySeen.sort(sortByPopularity);
-    return [...unseen, ...alreadySeen].slice(0, FEED_LIMIT);
-  }, [feedPool, filter, seenSnapshot]);
+    return buildSessionFeed(filtered, {
+      limit: FEED_LIMIT,
+      seen: seenSnapshot ?? undefined,
+      artistMap,
+    });
+  }, [feedPool, filter, seenSnapshot, artistMap]);
 
   // Warm the browser cache for images just ahead of the user so swiping to the
   // next artwork shows it instantly instead of popping in (applies equally to

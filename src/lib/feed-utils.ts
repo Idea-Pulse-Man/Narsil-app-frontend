@@ -1,11 +1,23 @@
-import type { Artwork } from "@/data";
+import type { Artwork, Artist } from "@/data";
 
-/** Popularity score for feed ranking. */
-export function popularityScore(art: Artwork): number {
+/** Secondary signal from the artist record when artwork engagement is still low. */
+export function artistPopularityBoost(artist?: Artist): number {
+  if (!artist) return 0;
+  const followers = artist.followers ?? 0;
+  const likes = artist.likes ?? 0;
+  return Math.floor(followers / 10_000 + likes / 50_000);
+}
+
+/** Popularity score for feed ranking (artwork engagement + artist social proof). */
+export function popularityScore(
+  art: Artwork,
+  artistMap?: Record<string, Artist>,
+): number {
   const likes = art.likeCount ?? 0;
   const saves = art.saveCount ?? 0;
   const featuredBoost = art.featured ? 1000 : 0;
-  return likes + saves + featuredBoost;
+  const artistBoost = artistPopularityBoost(artistMap?.[art.artistId]);
+  return likes + saves + featuredBoost + artistBoost;
 }
 
 const PORTRAIT_PATTERN =
@@ -33,11 +45,64 @@ export function isDefaultFeedEligible(art: Artwork): boolean {
   return true;
 }
 
-export function sortByPopularity(a: Artwork, b: Artwork): number {
+/** Stable tie-breaker so equal scores don't reshuffle between sessions. */
+function tieBreakById(a: Artwork, b: Artwork): number {
+  return a.id.localeCompare(b.id);
+}
+
+export function compareByPopularity(
+  a: Artwork,
+  b: Artwork,
+  artistMap?: Record<string, Artist>,
+): number {
   const aLow = isLowAttentionArtwork(a) ? 1 : 0;
   const bLow = isLowAttentionArtwork(b) ? 1 : 0;
   if (aLow !== bLow) return aLow - bLow;
-  return popularityScore(b) - popularityScore(a);
+  const scoreDiff = popularityScore(b, artistMap) - popularityScore(a, artistMap);
+  if (scoreDiff !== 0) return scoreDiff;
+  return tieBreakById(a, b);
+}
+
+export function sortByPopularity(
+  list: Artwork[],
+  artistMap?: Record<string, Artist>,
+): Artwork[] {
+  return [...list].sort((a, b) => compareByPopularity(a, b, artistMap));
+}
+
+/** Rotate a popularity-sorted list so returning users start further down the queue. */
+export function rotateForDiscovery<T>(list: T[], offset: number): T[] {
+  if (list.length <= 1 || offset <= 0) return list;
+  const start = offset % list.length;
+  if (start === 0) return list;
+  return [...list.slice(start), ...list.slice(0, start)];
+}
+
+export interface SessionFeedOptions {
+  limit: number;
+  seen?: Set<string>;
+  artistMap?: Record<string, Artist>;
+}
+
+/**
+ * Build the For You feed: unseen works first (popularity order, rotated as the
+ * user views more over time), then already-seen works so the feed never runs dry.
+ */
+export function buildSessionFeed(
+  pool: Artwork[],
+  { limit, seen, artistMap }: SessionFeedOptions,
+): Artwork[] {
+  if (!seen || seen.size === 0) {
+    return sortByPopularity(pool, artistMap).slice(0, limit);
+  }
+
+  const { unseen, alreadySeen } = partitionSeen(pool, seen);
+  const rankedUnseen = sortByPopularity(unseen, artistMap);
+  const discoveryOffset = seen.size % Math.max(rankedUnseen.length, 1);
+  const rotatedUnseen = rotateForDiscovery(rankedUnseen, discoveryOffset);
+  const rankedSeen = sortByPopularity(alreadySeen, artistMap);
+
+  return [...rotatedUnseen, ...rankedSeen].slice(0, limit);
 }
 
 export function partitionSeen(

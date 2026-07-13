@@ -42,7 +42,6 @@ interface CatalogValue {
   artists: Artist[];
   artworkMap: Record<string, Artwork>;
   artistMap: Record<string, Artist>;
-  /** Capped browse window (kept for Buy / History / Search — see FEED_LIMIT). */
   feedArtworks: Artwork[];
   /** Full named + interleaved feed order (uncapped) — used by the For You feed
    *  so it can pick unseen works from the whole pool, not just the first window. */
@@ -86,9 +85,12 @@ function mergeById<T extends { id: string }>(base: T[], extra: T[]): T[] {
  */
 export const FEED_LIMIT = 80;
 
-/** Interleave historical masters with freelance originals after popularity sort. */
-function buildFeed(list: Artwork[]): Artwork[] {
-  const sorted = [...list].sort(sortByPopularity);
+/** Popularity-ranked pool with freelance originals woven in every few items. */
+function buildFeed(
+  list: Artwork[],
+  artistMap: Record<string, Artist>,
+): Artwork[] {
+  const sorted = sortByPopularity(list, artistMap);
   const historical = sorted.filter((a) => a.origin !== "artist-original");
   const freelance = sorted.filter((a) => a.origin === "artist-original");
   const out: Artwork[] = [];
@@ -227,6 +229,7 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
       browseArtworks
         .filter((a) => !isUnknownArtist(a.artistId))
         .filter(isDefaultFeedEligible),
+      artistMap,
     );
     const namedFeed = namedFeedFull.slice(0, FEED_LIMIT);
 
