@@ -52,6 +52,21 @@ export function isPortraitArtwork(art: Artwork): boolean {
   return PORTRAIT_PATTERN.test(haystack);
 }
 
+/**
+ * Monochrome sketches — pencil/graphite/chalk studies and similar working
+ * drawings. Kept rare in the For You feed (see SKETCH_MIN_GAP): they read as
+ * repetitive filler next to finished paintings when several appear close
+ * together.
+ */
+const SKETCH_PATTERN =
+  /\b(pencil|graphite|charcoal|chalk|crayon|sanguine|silverpoint|metalpoint)\b|\bsketch(?:es|book)?\b|\bstud(?:y|ies)\b|\bdrawings?\b/i;
+
+/** Whether an artwork is a pencil/chalk-style sketch or study drawing. */
+export function isSketchArtwork(art: Artwork): boolean {
+  const haystack = [art.title, art.medium, ...art.tags].join(" ");
+  return SKETCH_PATTERN.test(haystack);
+}
+
 const LOW_ATTENTION_THRESHOLD = 0;
 
 /** True when engagement is below threshold (used to deprioritize, not hard-hide). */
@@ -152,6 +167,110 @@ export function batchShuffleByPopularity(
   return out;
 }
 
+/** Minimum number of other cards between two works by the same artist. */
+export const ARTIST_MIN_GAP = 50;
+
+/** Minimum number of other cards between two sketch/pencil drawings. */
+export const SKETCH_MIN_GAP = 50;
+
+export interface SpacingRule<T> {
+  /** Group key for this rule; null means the item is unconstrained by it. */
+  keyOf: (item: T) => string | null;
+  /** Minimum number of other items between two items sharing a key. */
+  gap: number;
+}
+
+/**
+ * Reorder so that items sharing a key stay at least `gap` positions apart
+ * (across all rules at once), disturbing the incoming order as little as
+ * possible. An item that would violate a gap is deferred and re-inserted at
+ * the first legal slot; if the tail of the list leaves no legal slot, the
+ * gaps relax rather than dropping works.
+ */
+export function spaceOutBy<T>(list: T[], rules: SpacingRule<T>[]): T[] {
+  const active = rules.filter((r) => r.gap > 0);
+  if (active.length === 0) return [...list];
+  const out: T[] = [];
+  const lastPos = active.map(() => new Map<string, number>());
+  const pending: T[] = [];
+
+  const canPlace = (item: T) =>
+    active.every((rule, r) => {
+      const key = rule.keyOf(item);
+      if (key === null) return true;
+      const pos = lastPos[r].get(key);
+      return pos === undefined || out.length - pos > rule.gap;
+    });
+  const place = (item: T) => {
+    active.forEach((rule, r) => {
+      const key = rule.keyOf(item);
+      if (key !== null) lastPos[r].set(key, out.length);
+    });
+    out.push(item);
+  };
+  const flushPending = () => {
+    let i = 0;
+    while (i < pending.length) {
+      if (canPlace(pending[i])) place(pending.splice(i, 1)[0]);
+      else i += 1;
+    }
+  };
+
+  for (const item of list) {
+    flushPending();
+    if (canPlace(item)) place(item);
+    else pending.push(item);
+  }
+  // How far the item currently is from its nearest gap conflict — used to
+  // degrade gracefully when the pool can't satisfy the gaps: picking the item
+  // with the most breathing room yields an even rotation instead of a cluster.
+  const slackOf = (item: T) => {
+    let slack = Infinity;
+    active.forEach((rule, r) => {
+      const key = rule.keyOf(item);
+      if (key === null) return;
+      const pos = lastPos[r].get(key);
+      if (pos !== undefined) slack = Math.min(slack, out.length - pos);
+    });
+    return slack;
+  };
+
+  while (pending.length > 0) {
+    let i = pending.findIndex(canPlace);
+    if (i === -1) {
+      // No legal slot left — relax the gaps for the deferred item whose
+      // keys were seen the longest ago (ties keep the earliest/most popular).
+      let bestSlack = -1;
+      i = 0;
+      pending.forEach((item, j) => {
+        const slack = slackOf(item);
+        if (slack > bestSlack) {
+          bestSlack = slack;
+          i = j;
+        }
+      });
+    }
+    place(pending.splice(i, 1)[0]);
+  }
+  return out;
+}
+
+/**
+ * Variety pass for the For You feed: the same artist never shows up twice in
+ * quick succession, and pencil/chalk sketches stay an occasional accent
+ * rather than a run. Both constraints are enforced in a single pass so one
+ * can't undo the other.
+ */
+export function diversifyFeed(list: Artwork[]): Artwork[] {
+  return spaceOutBy(list, [
+    { keyOf: (art) => art.artistId, gap: ARTIST_MIN_GAP },
+    {
+      keyOf: (art) => (isSketchArtwork(art) ? "sketch" : null),
+      gap: SKETCH_MIN_GAP,
+    },
+  ]);
+}
+
 export interface SessionFeedOptions {
   limit: number;
   seen?: Set<string>;
@@ -166,6 +285,7 @@ export interface SessionFeedOptions {
 /**
  * Build the For You feed: unseen works first (popularity-batched, shuffled
  * within each batch), then already-seen works so the feed never runs dry.
+ * A final variety pass spaces out same-artist works and sketch drawings.
  */
 export function buildSessionFeed(
   pool: Artwork[],
@@ -174,12 +294,14 @@ export function buildSessionFeed(
   const batched = (list: Artwork[]) =>
     batchShuffleByPopularity(list, { seed, artistMap, batchSizes });
 
+  let ordered: Artwork[];
   if (!seen || seen.size === 0) {
-    return batched(pool).slice(0, limit);
+    ordered = batched(pool);
+  } else {
+    const { unseen, alreadySeen } = partitionSeen(pool, seen);
+    ordered = [...batched(unseen), ...batched(alreadySeen)];
   }
-
-  const { unseen, alreadySeen } = partitionSeen(pool, seen);
-  return [...batched(unseen), ...batched(alreadySeen)].slice(0, limit);
+  return diversifyFeed(ordered).slice(0, limit);
 }
 
 export function partitionSeen(
