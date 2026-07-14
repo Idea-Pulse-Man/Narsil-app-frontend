@@ -70,39 +70,93 @@ export function sortByPopularity(
   return [...list].sort((a, b) => compareByPopularity(a, b, artistMap));
 }
 
-/** Rotate a popularity-sorted list so returning users start further down the queue. */
-export function rotateForDiscovery<T>(list: T[], offset: number): T[] {
-  if (list.length <= 1 || offset <= 0) return list;
-  const start = offset % list.length;
-  if (start === 0) return list;
-  return [...list.slice(start), ...list.slice(0, start)];
+/** Small deterministic PRNG — same seed always yields the same sequence. */
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Deterministic Fisher–Yates shuffle: the same (list, seed) reshuffles the
+ *  same way, so a per-session seed keeps order stable while the user scrolls. */
+export function seededShuffle<T>(list: T[], seed: number): T[] {
+  const arr = [...list];
+  const rand = mulberry32(seed);
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+/** Default For You batches: the top 100 most-popular works, then 50 at a time. */
+export const DEFAULT_FEED_BATCH_SIZES = [100, 50];
+
+export interface BatchShuffleOptions {
+  seed?: number;
+  artistMap?: Record<string, Artist>;
+  batchSizes?: number[];
+}
+
+/**
+ * Rank by popularity, then randomize order *within* descending batches: the top
+ * `batchSizes[0]` most-popular works come first (in a random order), then the
+ * next `batchSizes[1]`, and so on — the last size repeats for the remainder.
+ * The most-loved art always surfaces early, but the exact sequence feels fresh
+ * each session instead of a fixed leaderboard.
+ */
+export function batchShuffleByPopularity(
+  list: Artwork[],
+  { seed = 0, artistMap, batchSizes = DEFAULT_FEED_BATCH_SIZES }: BatchShuffleOptions = {},
+): Artwork[] {
+  const sorted = sortByPopularity(list, artistMap);
+  const out: Artwork[] = [];
+  let i = 0;
+  let batch = 0;
+  while (i < sorted.length) {
+    const raw = batchSizes[Math.min(batch, batchSizes.length - 1)];
+    const size = Math.max(1, raw ?? 1);
+    const slice = sorted.slice(i, i + size);
+    // Offset the seed per batch so batches don't all shuffle in lockstep.
+    out.push(...seededShuffle(slice, (seed + batch * 0x9e3779b1) | 0));
+    i += size;
+    batch += 1;
+  }
+  return out;
 }
 
 export interface SessionFeedOptions {
   limit: number;
   seen?: Set<string>;
   artistMap?: Record<string, Artist>;
+  /** Per-session seed for the within-batch shuffle (stable while scrolling,
+   *  fresh on the next app open). */
+  seed?: number;
+  /** Popularity batch sizes; order is randomized within each batch. */
+  batchSizes?: number[];
 }
 
 /**
- * Build the For You feed: unseen works first (popularity order, rotated as the
- * user views more over time), then already-seen works so the feed never runs dry.
+ * Build the For You feed: unseen works first (popularity-batched, shuffled
+ * within each batch), then already-seen works so the feed never runs dry.
  */
 export function buildSessionFeed(
   pool: Artwork[],
-  { limit, seen, artistMap }: SessionFeedOptions,
+  { limit, seen, artistMap, seed = 0, batchSizes }: SessionFeedOptions,
 ): Artwork[] {
+  const batched = (list: Artwork[]) =>
+    batchShuffleByPopularity(list, { seed, artistMap, batchSizes });
+
   if (!seen || seen.size === 0) {
-    return sortByPopularity(pool, artistMap).slice(0, limit);
+    return batched(pool).slice(0, limit);
   }
 
   const { unseen, alreadySeen } = partitionSeen(pool, seen);
-  const rankedUnseen = sortByPopularity(unseen, artistMap);
-  const discoveryOffset = seen.size % Math.max(rankedUnseen.length, 1);
-  const rotatedUnseen = rotateForDiscovery(rankedUnseen, discoveryOffset);
-  const rankedSeen = sortByPopularity(alreadySeen, artistMap);
-
-  return [...rotatedUnseen, ...rankedSeen].slice(0, limit);
+  return [...batched(unseen), ...batched(alreadySeen)].slice(0, limit);
 }
 
 export function partitionSeen(

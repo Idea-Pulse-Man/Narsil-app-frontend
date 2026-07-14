@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Artwork } from "@/data";
-import { FEED_LIMIT, useCatalog } from "@/data/catalog";
+import { useCatalog } from "@/data/catalog";
 import { buildSessionFeed } from "@/lib/feed-utils";
 import { useAppState } from "./AppState";
 import ArtworkCard from "./ArtworkCard";
@@ -9,6 +9,11 @@ import type { ToastState } from "./Toast";
 import type { TutorialBridge } from "./tutorial";
 
 export type FeedFilter = "all" | "museum" | "freelance";
+
+/** How many more cards to mount each time the user nears the end of the feed. */
+const FEED_PAGE = 12;
+/** Grow the window this many cards before the user reaches the last mounted one. */
+const FEED_LOOKAHEAD = 4;
 
 interface ArtFeedProps {
   showToast: (message: string, variant?: ToastState["variant"]) => void;
@@ -37,6 +42,11 @@ export default function ArtFeed({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [placardOpen, setPlacardOpen] = useState(false);
 
+  // One shuffle seed per mount: keeps the within-batch order stable while the
+  // user scrolls, but a fresh order every time the feed remounts (new session,
+  // or a source-filter switch, since MobileShell keys ArtFeed by filter).
+  const sessionSeed = useRef(Math.floor(Math.random() * 0x7fffffff)).current;
+
   // Freeze the "seen" set once the catalog is ready, so cards marked seen while
   // scrolling don't reshuffle under the user mid-session. The snapshot refreshes
   // on the next app load — that's when unseen art gets promoted to the top.
@@ -46,8 +56,8 @@ export default function ArtFeed({
   }
   const seenSnapshot = frozenSeen.current;
 
-  // Build the feed: filter by source, rank by popularity, and promote unseen works
-  // (with a gentle rotation as the user views more over time). Capped to FEED_LIMIT.
+  // Build the feed: filter by source, then rank into popularity batches shuffled
+  // within each batch, with unseen works promoted ahead of already-seen ones.
   const items = useMemo<Artwork[]>(() => {
     const filtered = feedPool.filter((art) => {
       if (filter === "museum") return art.origin !== "artist-original";
@@ -55,11 +65,33 @@ export default function ArtFeed({
       return true;
     });
     return buildSessionFeed(filtered, {
-      limit: FEED_LIMIT,
+      // Uncapped: the whole ranked pool is the feed. Progressive rendering
+      // (below) keeps only a growing window mounted so it stays fast.
+      limit: filtered.length,
       seen: seenSnapshot ?? undefined,
       artistMap,
+      seed: sessionSeed,
     });
-  }, [feedPool, filter, seenSnapshot, artistMap]);
+  }, [feedPool, filter, seenSnapshot, artistMap, sessionSeed]);
+
+  // Infinite scroll: mount a small window of cards and grow it as the user
+  // swipes toward the end, so a long feed doesn't decode hundreds of images up
+  // front. Full-screen snap cards make an index threshold simpler (and snap-
+  // safe) than a sentinel element inside the scroll container.
+  const [renderCount, setRenderCount] = useState(FEED_PAGE);
+
+  // Collapse back to the first window whenever the feed itself changes.
+  useEffect(() => {
+    setRenderCount(FEED_PAGE);
+  }, [items]);
+
+  useEffect(() => {
+    if (currentIndex >= renderCount - FEED_LOOKAHEAD && renderCount < items.length) {
+      setRenderCount((c) => Math.min(c + FEED_PAGE, items.length));
+    }
+  }, [currentIndex, renderCount, items.length]);
+
+  const visibleItems = items.slice(0, renderCount);
 
   // Warm the browser cache for images just ahead of the user so swiping to the
   // next artwork shows it instantly instead of popping in (applies equally to
@@ -154,7 +186,7 @@ export default function ArtFeed({
           lockScroll ? "overflow-hidden" : "overflow-y-scroll"
         }`}
       >
-        {items.map((artwork, index) => {
+        {visibleItems.map((artwork, index) => {
           const artist = getArtist(artwork.artistId);
           if (!artist) return null;
           return (
