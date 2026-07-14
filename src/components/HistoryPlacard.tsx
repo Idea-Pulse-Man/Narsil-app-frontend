@@ -18,13 +18,16 @@ interface HistoryPlacardProps {
 const CLOSE_OFFSET = 80;
 const CLOSE_VELOCITY = 400;
 
-/** Museum name shown in the placard — uses the artwork's credit/source field. */
+/** Museum name shown in the placard — the artwork's holding institution. */
 function museumName(artwork: Artwork): string {
   const source = artwork.source?.trim();
   if (source) return source;
   // Legacy rows ingested before `source` was stored.
   if (/^wc-/i.test(artwork.id)) return "Wellcome Collection";
-  if (/^aic-/i.test(artwork.id)) return "Art Institute of Chicago";
+  if (/^aic-/i.test(artwork.id)) return "The Art Institute of Chicago";
+  if (/^met-/i.test(artwork.id)) return "The Met";
+  if (/^cma-/i.test(artwork.id)) return "The Cleveland Museum of Art";
+  if (/^rijks-/i.test(artwork.id)) return "The Rijksmuseum";
   return "—";
 }
 

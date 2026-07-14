@@ -18,7 +18,7 @@
 alter table public.artworks add column if not exists year   text;
 alter table public.artworks add column if not exists period text;
 alter table public.artworks add column if not exists medium text;
-alter table public.artworks add column if not exists source text;   -- credit line / museum
+alter table public.artworks add column if not exists source text;   -- holding museum (placard MUSEUM line)
 alter table public.artworks add column if not exists accent text;   -- blur-up placeholder color
 alter table public.artworks add column if not exists tags   text[] not null default '{}';
 alter table public.artworks add column if not exists empire text;   -- Roman / Greek / Egyptian…
