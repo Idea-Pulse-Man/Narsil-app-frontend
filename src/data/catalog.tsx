@@ -30,6 +30,7 @@ import type { Artwork, Artist, CategoryId, ArtworkSearchQuery } from "./index";
 import { fetchSupabaseCatalog } from "@/lib/catalog";
 import {
   isDefaultFeedEligible,
+  isGenericMakerName,
   isPortraitArtwork,
   sortByPopularity,
 } from "@/lib/feed-utils";
@@ -249,7 +250,14 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
       // Profiles resolve works from the full pool (real + curated).
       getArtworksByArtist: (artistId) =>
         allArtworks.filter((a) => a.artistId === artistId),
-      getArtistAvatar: (artistId) => artistMap[artistId]?.avatar,
+      // Suppress portrait photos for anonymous/generic makers ("a Chinese
+      // artist", "British School", workshops…) — they have no personal likeness,
+      // so fall back to the monogram even if a stale avatar is stored upstream.
+      getArtistAvatar: (artistId) => {
+        const artist = artistMap[artistId];
+        if (!artist || isGenericMakerName(artist.name)) return undefined;
+        return artist.avatar;
+      },
       getArtworksByCategory: (id) =>
         browseArtworks.filter((a) => artworkMatchesCategory(a, id)),
       searchArtworks,

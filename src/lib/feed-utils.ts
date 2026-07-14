@@ -20,6 +20,29 @@ export function popularityScore(
   return likes + saves + featuredBoost + artistBoost;
 }
 
+/**
+ * Anonymous or generic maker attributions that don't name a single real person
+ * — e.g. "a Chinese artist" / "an English painter" (Wellcome-style descriptors),
+ * "British School", "Workshop of Rubens", "Circle of Rembrandt", "Unknown".
+ * These have no personal likeness, so the app never shows a portrait avatar for
+ * them (it falls back to the initials monogram) even if a stale photo is stored.
+ */
+const GENERIC_MAKER_PATTERNS: RegExp[] = [
+  /^\s*(unknown|anonymous|unidentified|various|not known)\b/i,
+  /^after\s+/i,
+  /\b(workshop|atelier|manufactory|studio of|master of|circle of|follower of|manner of|attributed to|imitator of)\b/i,
+  /\bschool\b/i,
+  // Indefinite-article descriptors: "a Chinese artist", "an English painter".
+  /^an?\s+.*\b(artist|painter|sculptor|engraver|printmaker|illustrator|dra[uf]ghtsman|photographer|architect|designer|potter|goldsmith|ceramicist|muralist|caricaturist|etcher|maker|master|craftsman|calligrapher|scribe)s?\b/i,
+];
+
+/** True when a name is an anonymous/generic attribution rather than a real person. */
+export function isGenericMakerName(name?: string | null): boolean {
+  const key = (name ?? "").trim();
+  if (!key) return true;
+  return GENERIC_MAKER_PATTERNS.some((re) => re.test(key));
+}
+
 const PORTRAIT_PATTERN =
   /\bportrait\b|portrait photograph|self-portrait|depicts [a-z]/i;
 
