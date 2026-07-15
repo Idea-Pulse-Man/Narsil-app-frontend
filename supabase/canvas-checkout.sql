@@ -19,6 +19,12 @@ alter table public.canvas_orders add column if not exists currency text not null
 alter table public.canvas_orders add column if not exists paid_at timestamptz;
 alter table public.canvas_orders add column if not exists fulfillment_error text;
 
+-- Shipment tracking, filled in by the Printful status webhook
+-- (package_shipped → carrier tracking number + link).
+alter table public.canvas_orders add column if not exists tracking_number text;
+alter table public.canvas_orders add column if not exists tracking_url text;
+alter table public.canvas_orders add column if not exists shipped_at timestamptz;
+
 -- One order per PaymentIntent (idempotency guard for webhook replays).
 create unique index if not exists canvas_orders_payment_intent_idx
   on public.canvas_orders (stripe_payment_intent_id)

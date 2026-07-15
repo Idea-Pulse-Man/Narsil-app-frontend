@@ -6,6 +6,7 @@ import { SparkleIcon } from "./Icons";
 import { useAudio } from "@/lib/audio/AudioProvider";
 import ArtworkTile from "./ArtworkTile";
 import AddressManager from "./AddressManager";
+import OrdersSheet from "./OrdersSheet";
 import type { ToastState } from "./Toast";
 import type { Screen } from "./navigation";
 
@@ -45,6 +46,7 @@ export default function YouView({
   } = useAudio();
   const { getArtist, getArtwork } = useCatalog();
   const [addressOpen, setAddressOpen] = useState(false);
+  const [ordersOpen, setOrdersOpen] = useState(false);
 
   const openAddresses = () => {
     if (isGuest) {
@@ -52,6 +54,14 @@ export default function YouView({
       return;
     }
     setAddressOpen(true);
+  };
+
+  const openOrders = () => {
+    if (isGuest) {
+      onSignIn();
+      return;
+    }
+    setOrdersOpen(true);
   };
 
   const email = profile?.email ?? user?.email ?? null;
@@ -231,6 +241,7 @@ export default function YouView({
             }}
           />
           <Row label="Terms of Service" onClick={onOpenTerms} />
+          <Row label="Canvas orders" onClick={openOrders} />
           <Row label="Delivery addresses" onClick={openAddresses} />
           <Row label="Replay the tutorial" onClick={onRestartTutorial} />
           {isAdmin && <Row label="Admin dashboard" onClick={onOpenAdmin} />}
@@ -262,6 +273,7 @@ export default function YouView({
         onClose={() => setAddressOpen(false)}
         showToast={showToast}
       />
+      <OrdersSheet open={ordersOpen} onClose={() => setOrdersOpen(false)} />
     </div>
   );
 }

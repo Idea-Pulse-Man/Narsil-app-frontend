@@ -1,9 +1,10 @@
 /**
- * Delivery addresses (canvas-print delivery targets).
+ * Delivery addresses (canvas-print delivery targets) + canvas order history.
  * Requires the v2 schema (addresses). All writes rely on the table defaults
  * (`user_id default auth.uid()`) and RLS to scope rows to the signed-in user.
  * Canvas ORDERS are no longer written from the client — the backend creates
- * them during Stripe checkout (see lib/checkout.ts).
+ * them during Stripe checkout (see lib/checkout.ts) and the Printful webhook
+ * advances them; the client only READS them (order tracking).
  */
 
 import { supabase } from "./supabase";
@@ -122,6 +123,50 @@ export async function deleteAddress(id: string): Promise<void> {
   if (error) {
     console.warn("Supabase: address delete failed.", error.message);
     throw error;
+  }
+}
+
+export type CanvasOrderStatus =
+  | "registered"
+  | "pending_payment"
+  | "paid"
+  | "submitted"
+  | "fulfillment_failed"
+  | "completed"
+  | "shipped"
+  | "cancelled";
+
+export interface CanvasOrder {
+  id: string;
+  artwork_id: string;
+  size: "Small" | "Medium" | "Large";
+  price: number | null;
+  status: CanvasOrderStatus;
+  tracking_number: string | null;
+  tracking_url: string | null;
+  shipped_at: string | null;
+  created_at: string;
+}
+
+const ORDER_COLUMNS =
+  "id, artwork_id, size, price, status, tracking_number, tracking_url, shipped_at, created_at";
+
+/** The current user's canvas orders, newest first (RLS scopes the rows). */
+export async function fetchCanvasOrders(): Promise<CanvasOrder[]> {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase
+      .from("canvas_orders")
+      .select(ORDER_COLUMNS)
+      .order("created_at", { ascending: false });
+    if (error) {
+      console.warn("Supabase: order load failed.", error.message);
+      return [];
+    }
+    return (data as CanvasOrder[]) ?? [];
+  } catch (err) {
+    console.warn("Supabase: order load error.", err);
+    return [];
   }
 }
 

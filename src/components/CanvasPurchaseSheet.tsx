@@ -467,8 +467,8 @@ export default function CanvasPurchaseSheet({
                   <p className="font-medium text-emerald-200">Order placed</p>
                   <p className="mt-1 text-sm text-white/60">
                     Payment received — your {size.toLowerCase()} canvas of{" "}
-                    {artwork.title} is being prepared for printing. We&apos;ll
-                    email you when it ships.
+                    {artwork.title} is being prepared for printing. Track it
+                    any time under You → Canvas orders.
                   </p>
                 </div>
               </div>

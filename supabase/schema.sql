@@ -314,6 +314,9 @@ create table public.canvas_orders (
   printful_order_id        text,
   paid_at                  timestamptz,
   fulfillment_error        text,
+  tracking_number          text,   -- set by the Printful package_shipped webhook
+  tracking_url             text,
+  shipped_at               timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
