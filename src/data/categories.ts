@@ -1,23 +1,22 @@
 import type { Artwork, CategoryId } from "./types";
 
-/** Discover groups the categories into sections (per the client's sketch). */
+/** Thematic grouping of the categories (medium / empire / movement). */
 export type CategoryGroup = "medium" | "empire" | "movement";
 
 export interface Category {
   id: CategoryId;
   label: string;
   blurb: string;
-  /** Which Discover section this category belongs to. */
+  /** Thematic group this category belongs to. */
   group: CategoryGroup;
-  /** Gradient accents for the Discover card. */
+  /** Gradient accents for category cards. */
   from: string;
   to: string;
 }
 
 /**
- * Discover browse categories. Per the client's sketch these are laid out as a
- * grouped vertical list — mediums first, then "by empire", then movements — and
- * double as the filter keys used on Search.
+ * Browse categories — the filter keys used on Search and the category picker
+ * on Create. The blurb/group/gradient fields are kept for future browse UIs.
  */
 export const categories: Category[] = [
   { id: "paintings", label: "Paintings", blurb: "Oil, tempera & canvas", group: "medium", from: "#3a2f5a", to: "#1a1530" },
@@ -39,7 +38,7 @@ export const categoryMap: Record<CategoryId, Category> = Object.fromEntries(
 
 /**
  * Whether an artwork belongs to a category. We match generously — by primary
- * category, empire, period, or tags — so every Discover card resolves to a
+ * category, empire, period, or tags — so every category resolves to a
  * meaningful set (e.g. "Renaissance" finds works tagged or dated Renaissance,
  * "Greek" finds Greek-empire pieces).
  */

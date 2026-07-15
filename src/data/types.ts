@@ -49,7 +49,7 @@ export interface Artist {
 /** How a piece entered the catalogue — drives the badge on the feed card. */
 export type ArtworkOrigin = "public-domain" | "artist-original" | "fan-study";
 
-/** Top-level browse categories surfaced on the Discover page. */
+/** Top-level browse categories — the Search filter keys and Create's category picker. */
 export type CategoryId =
   | "paintings"
   | "sculptures"

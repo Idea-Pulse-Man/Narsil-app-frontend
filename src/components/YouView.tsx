@@ -233,7 +233,6 @@ export default function YouView({
           <Row label="Terms of Service" onClick={onOpenTerms} />
           <Row label="Delivery addresses" onClick={openAddresses} />
           <Row label="Replay the tutorial" onClick={onRestartTutorial} />
-          <Row label="About Narsil v1.0" onClick={() => onNavigate("discover")} />
           {isAdmin && <Row label="Admin dashboard" onClick={onOpenAdmin} />}
           {!isGuest && (
             <Row label="Sign out" onClick={handleSignOut} destructive />

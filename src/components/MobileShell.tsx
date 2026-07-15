@@ -5,13 +5,12 @@ import { useAudio } from "@/lib/audio/AudioProvider";
 import TermsView from "./TermsView";
 import MusicPrompt from "./MusicPrompt";
 import AdminView from "./AdminView";
-import type { Artist, CategoryId } from "@/data";
+import type { Artist } from "@/data";
 import { useCatalog } from "@/data/catalog";
 import TopTabs from "./TopTabs";
 import BottomNav from "./BottomNav";
 import { isFeedScreen, type Screen } from "./navigation";
 import ArtFeed, { type FeedFilter } from "./ArtFeed";
-import HistoryView from "./HistoryView";
 import BuyView from "./BuyView";
 import CreateView from "./CreateView";
 import DiscoverView from "./DiscoverView";
@@ -65,7 +64,6 @@ export default function MobileShell() {
   const [showFeedToggle, setShowFeedToggle] = useState(true);
   const [activeArtist, setActiveArtist] = useState<Artist | null>(null);
   const [activeArtworkId, setActiveArtworkId] = useState<string | null>(null);
-  const [searchCategory, setSearchCategory] = useState<CategoryId | null>(null);
   const [clean, setClean] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -173,17 +171,8 @@ export default function MobileShell() {
       setScreen(next);
       setClean(false);
       if (next === "for-you") setShowFeedToggle(true);
-      if (next !== "search") setSearchCategory(null);
     },
     [tutorialActive]
-  );
-
-  const openCategory = useCallback(
-    (id: CategoryId) => {
-      setSearchCategory(id);
-      setScreen("search");
-    },
-    []
   );
 
   // ── Preference modal triggers ──────────────────────────────────────
@@ -384,8 +373,8 @@ export default function MobileShell() {
               </div>
             )}
 
-            {screen === "history" && (
-              <HistoryView
+            {screen === "discover" && (
+              <DiscoverView
                 onOpenArtist={openArtist}
                 onOpenArtwork={openArtwork}
               />
@@ -395,14 +384,9 @@ export default function MobileShell() {
 
             {screen === "search" && (
               <SearchView
-                initialCategory={searchCategory}
                 onOpenArtwork={openArtwork}
                 showToast={showToast}
               />
-            )}
-
-            {screen === "discover" && (
-              <DiscoverView onOpenCategory={openCategory} />
             )}
 
             {screen === "create" && (

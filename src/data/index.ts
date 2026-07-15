@@ -1,6 +1,6 @@
 import { artworks, artworkMap } from "./artworks";
 import { artists, artistMap, shouldResolvePortrait } from "./artists";
-import { historyEras, featuredArtistIds } from "./history";
+import { historyEras, featuredArtistIds, eraForArtwork } from "./history";
 import { categories, categoryMap, artworkMatchesCategory } from "./categories";
 import {
   canvasProducts,
@@ -27,6 +27,7 @@ export {
   shouldResolvePortrait,
   historyEras,
   featuredArtistIds,
+  eraForArtwork,
   categories,
   categoryMap,
   artworkMatchesCategory,

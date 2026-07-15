@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { categoryMap, type CategoryId } from "@/data";
 import { useCatalog } from "@/data/catalog";
@@ -10,7 +10,6 @@ import { useInfiniteScroll } from "./useInfiniteScroll";
 import type { ToastState } from "./Toast";
 
 interface SearchViewProps {
-  initialCategory?: CategoryId | null;
   onOpenArtwork: (artworkId: string) => void;
   showToast: (message: string, variant?: ToastState["variant"]) => void;
 }
@@ -34,7 +33,6 @@ const EMPTY_SELECTION: Selection = {
 };
 
 export default function SearchView({
-  initialCategory,
   onOpenArtwork,
   showToast,
 }: SearchViewProps) {
@@ -46,13 +44,6 @@ export default function SearchView({
   // The artwork id whose canvas purchase sheet is open (null = closed).
   const [canvasId, setCanvasId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
-
-  // When arriving from a Discover category card, pre-select that category.
-  useEffect(() => {
-    if (initialCategory) {
-      setSel({ ...EMPTY_SELECTION, categories: [initialCategory] });
-    }
-  }, [initialCategory]);
 
   // Every match across the full catalog — the visible window grows as the user
   // scrolls (infinite scroll below), so nothing is capped away.

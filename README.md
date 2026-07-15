@@ -55,7 +55,7 @@ npm run cap:ios
 
 All mockup modules were carried over:
 
-- Views: For You feed, History, Buy, Search, Discover, Create, Saved, You
+- Views: For You feed, Discover (art-history timeline), Buy, Search, Create, Saved, You
 - Shared: `AppState`, navigation, tutorial coach, preference modal, toasts
 - Data layer: unchanged local JSON-style modules
 
