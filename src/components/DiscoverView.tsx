@@ -149,25 +149,39 @@ export default function DiscoverView({
         .filter((a): a is Artist => !!a)
     : [];
 
-  // ── Lens 3: Artists ── show the famous featured masters first, then the whole
-  // live museum catalog of named artists. Anonymous/"Unknown" makers are skipped
-  // (no real portrait), and we cap the grid so we don't render a huge number of
-  // avatars at once.
+  // ── Lens 3: Artists ── every named artist in the catalog, ranked by
+  // popularity: real engagement on their works (likes + saves from Supabase)
+  // first, profile followers as the tiebreak. Anonymous/"Unknown" makers and
+  // garbled catalog names (not starting with a letter, e.g. "? a lithograph")
+  // are skipped. No cap — the grid pages in via infinite scroll.
   const browseArtists = useMemo(() => {
+    const engagement = new Map<string, number>();
+    for (const art of liveArtworks) {
+      const score = (art.likeCount ?? 0) + (art.saveCount ?? 0);
+      if (score > 0) {
+        engagement.set(
+          art.artistId,
+          (engagement.get(art.artistId) ?? 0) + score,
+        );
+      }
+    }
     const list: Artist[] = [];
     const seen = new Set<string>();
     const push = (artist: Artist | undefined) => {
       if (!artist || seen.has(artist.id)) return;
       if (!artist.name || /^unknown/i.test(artist.name)) return;
+      if (!/^\p{L}/u.test(artist.name)) return;
       seen.add(artist.id);
       list.push(artist);
     };
-    // Famous artists first.
     for (const id of featuredArtistIds) push(getArtist(id));
-    // Then every named artist from the live museum catalog.
     for (const artist of liveArtists) push(artist);
-    return list.slice(0, 120);
-  }, [liveArtists, getArtist]);
+    return list.sort(
+      (a, b) =>
+        (engagement.get(b.id) ?? 0) - (engagement.get(a.id) ?? 0) ||
+        b.followers - a.followers,
+    );
+  }, [liveArtworks, liveArtists, getArtist]);
 
   const shownArtists = browseArtists.slice(0, visibleArtists);
   const hasMoreArtists = visibleArtists < browseArtists.length;
@@ -436,8 +450,13 @@ export default function DiscoverView({
                             : undefined
                         }
                       />
-                      <span className="line-clamp-2 text-center text-[11px] leading-tight text-white/65">
-                        {artist.name}
+                      <span className="flex flex-col items-center">
+                        <span className="line-clamp-2 text-center text-[11px] leading-tight text-white/65">
+                          {artist.name}
+                        </span>
+                        <span className="mt-0.5 text-[10px] text-white/40">
+                          {formatFollowers(artist.followers)} followers
+                        </span>
                       </span>
                     </button>
                   ))}
@@ -529,4 +548,12 @@ function ArtworkRow({
 
 function EmptyNote({ text }: { text: string }) {
   return <p className="mt-10 text-center text-sm text-white/45">{text}</p>;
+}
+
+/** Compact follower count for the ranked artist grid — 2.1M, 184k, 840. */
+function formatFollowers(n: number): string {
+  if (n >= 1_000_000)
+    return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  if (n >= 1_000) return `${Math.round(n / 1_000)}k`;
+  return String(n);
 }
