@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useState, type RefObject } from "react";
 
 interface Options {
   /** How many more items to reveal each time the sentinel scrolls into view. */
@@ -13,11 +13,17 @@ interface Options {
  * Progressive "infinite scroll" over an in-memory list. Renders a growing
  * window of `items` and hands back a `sentinelRef` to place at the bottom of
  * the grid — when it scrolls near view, the window grows by `pageSize`.
+ *
+ * `sentinelRef` is a callback ref on purpose: grids inside AnimatePresence
+ * mount only after the previous panel's exit animation, so a plain RefObject
+ * would still be null when the observer effect runs and the observer would
+ * never attach. The callback re-renders when the node appears, re-running the
+ * effect with the real element.
  */
 export function useInfiniteScroll<T>(items: T[], options: Options = {}) {
   const { pageSize = 24, resetKey, rootRef } = options;
   const [count, setCount] = useState(pageSize);
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const [sentinel, setSentinel] = useState<HTMLElement | null>(null);
 
   // Collapse back to the first page whenever the source query changes.
   useEffect(() => {
@@ -27,9 +33,7 @@ export function useInfiniteScroll<T>(items: T[], options: Options = {}) {
   const hasMore = count < items.length;
 
   useEffect(() => {
-    if (!hasMore) return;
-    const el = sentinelRef.current;
-    if (!el) return;
+    if (!hasMore || !sentinel) return;
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
@@ -39,9 +43,9 @@ export function useInfiniteScroll<T>(items: T[], options: Options = {}) {
       // Prefetch ahead of the fold so growth feels seamless while scrolling.
       { root: rootRef?.current ?? null, rootMargin: "800px 0px" },
     );
-    observer.observe(el);
+    observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [hasMore, pageSize, items.length, rootRef]);
+  }, [hasMore, pageSize, items.length, rootRef, sentinel]);
 
-  return { visible: items.slice(0, count), sentinelRef, hasMore };
+  return { visible: items.slice(0, count), sentinelRef: setSentinel, hasMore };
 }

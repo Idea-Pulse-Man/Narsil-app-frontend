@@ -15,6 +15,7 @@ import BlurImage from "./BlurImage";
 import ArtistAvatar from "./ArtistAvatar";
 import ArtworkTile from "./ArtworkTile";
 import { screenScrollClass, screenContentClass } from "./artwork-layout";
+import { useInfiniteScroll } from "./useInfiniteScroll";
 
 interface DiscoverViewProps {
   onOpenArtist: (artistId: string) => void;
@@ -55,8 +56,7 @@ export default function DiscoverView({
   } = useCatalog();
   const [lens, setLens] = useState<Lens>("age");
   const [activeEmpire, setActiveEmpire] = useState<string | null>(null);
-  const [visibleArtists, setVisibleArtists] = useState(ARTIST_PAGE);
-  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const featured = featuredArtistIds
     .map((id) => getArtist(id))
@@ -71,11 +71,6 @@ export default function DiscoverView({
       img.src = sizedAvatarUrl(url, 64);
     }
   }, [featured, getArtistAvatar]);
-
-  // Reset pagination when switching to the artist lens.
-  useEffect(() => {
-    if (lens === "artist") setVisibleArtists(ARTIST_PAGE);
-  }, [lens]);
 
   // Explore across BOTH the curated timeline and the live museum catalog, so the
   // famous set pieces always appear and the real collection fills everything in.
@@ -150,10 +145,12 @@ export default function DiscoverView({
     : [];
 
   // ── Lens 3: Artists ── every named artist in the catalog, ranked by
-  // popularity: real engagement on their works (likes + saves from Supabase)
-  // first, profile followers as the tiebreak. Anonymous/"Unknown" makers and
-  // garbled catalog names (not starting with a letter, e.g. "? a lithograph")
-  // are skipped. No cap — the grid pages in via infinite scroll.
+  // popularity. Real engagement on their works (likes + saves from Supabase)
+  // counts heavily — one like ≈ 1k of the mock profile followers — but blends
+  // into a single score with followers so the grid still reads as sorted by
+  // the follower counts it displays. Anonymous/"Unknown" makers and garbled
+  // catalog names ("? a lithograph", "a painting", "[N") are skipped.
+  // No cap — the grid pages in via infinite scroll.
   const browseArtists = useMemo(() => {
     const engagement = new Map<string, number>();
     for (const art of liveArtworks) {
@@ -165,48 +162,37 @@ export default function DiscoverView({
         );
       }
     }
+    const popularity = (artist: Artist) =>
+      artist.followers + 1_000 * (engagement.get(artist.id) ?? 0);
+
     const list: Artist[] = [];
     const seen = new Set<string>();
     const push = (artist: Artist | undefined) => {
       if (!artist || seen.has(artist.id)) return;
       if (!artist.name || /^unknown/i.test(artist.name)) return;
       if (!/^\p{L}/u.test(artist.name)) return;
+      if (/^(a|an|the)\s/i.test(artist.name)) return;
       seen.add(artist.id);
       list.push(artist);
     };
     for (const id of featuredArtistIds) push(getArtist(id));
     for (const artist of liveArtists) push(artist);
-    return list.sort(
-      (a, b) =>
-        (engagement.get(b.id) ?? 0) - (engagement.get(a.id) ?? 0) ||
-        b.followers - a.followers,
-    );
+    return list.sort((a, b) => popularity(b) - popularity(a));
   }, [liveArtworks, liveArtists, getArtist]);
 
-  const shownArtists = browseArtists.slice(0, visibleArtists);
-  const hasMoreArtists = visibleArtists < browseArtists.length;
-
-  // Load the next page of artists as the user scrolls near the grid bottom.
-  useEffect(() => {
-    const el = loadMoreRef.current;
-    if (!el || lens !== "artist" || !hasMoreArtists) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setVisibleArtists((n) =>
-            Math.min(n + ARTIST_PAGE, browseArtists.length),
-          );
-        }
-      },
-      { rootMargin: "400px" },
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [lens, hasMoreArtists, browseArtists.length, visibleArtists]);
+  // Page the ranked grid in as the user scrolls (resets on lens switch).
+  const {
+    visible: shownArtists,
+    sentinelRef,
+    hasMore: hasMoreArtists,
+  } = useInfiniteScroll(browseArtists, {
+    pageSize: ARTIST_PAGE,
+    resetKey: lens,
+    rootRef: scrollRef,
+  });
 
   return (
-    <div className={screenScrollClass}>
+    <div ref={scrollRef} className={screenScrollClass}>
       <div className={screenContentClass}>
         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
           Discover
@@ -462,7 +448,7 @@ export default function DiscoverView({
                   ))}
                 </div>
                 {hasMoreArtists && (
-                  <div ref={loadMoreRef} className="h-1" aria-hidden />
+                  <div ref={sentinelRef} className="h-1" aria-hidden />
                 )}
                 </>
               )}
