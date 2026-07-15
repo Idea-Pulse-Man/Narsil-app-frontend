@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useDragControls } from "framer-motion";
 import {
+  Elements,
+  PaymentElement,
+  useElements,
+  useStripe,
+} from "@stripe/react-stripe-js";
+import type { Appearance } from "@stripe/stripe-js";
+import {
   CANVAS_SIZES,
   priceForSize,
   priceFromId,
@@ -9,12 +16,14 @@ import {
 } from "@/data";
 import { useCatalog } from "@/data/catalog";
 import { useAppState } from "./AppState";
+import { fetchAddresses, createAddress, type Address } from "@/lib/orders";
 import {
-  fetchAddresses,
-  createAddress,
-  createCanvasOrder,
-  type Address,
-} from "@/lib/orders";
+  PAYMENTS_ENABLED,
+  getStripe,
+  createPaymentIntent,
+  finalizeOrder,
+  type CheckoutIntent,
+} from "@/lib/checkout";
 import BlurImage from "./BlurImage";
 import { CloseIcon, CheckIcon } from "./Icons";
 import type { ToastState } from "./Toast";
@@ -30,6 +39,20 @@ const EMPTY_FORM = {
   country: "",
 };
 
+/** Dark PaymentElement styling to match the sheet. */
+const STRIPE_APPEARANCE: Appearance = {
+  theme: "night",
+  variables: {
+    colorPrimary: "#ffffff",
+    colorBackground: "#26262a",
+    colorText: "#ffffff",
+    colorTextPlaceholder: "rgba(255,255,255,0.35)",
+    borderRadius: "16px",
+  },
+};
+
+type Step = "details" | "payment" | "placed";
+
 interface CanvasPurchaseSheetProps {
   /** The artwork to order a canvas of. `null` keeps the sheet closed. */
   artwork: Artwork | null;
@@ -38,9 +61,12 @@ interface CanvasPurchaseSheetProps {
 }
 
 /**
- * Bottom-sheet for ordering a canvas print of an artwork — size selection plus a
- * "register interest" capture (checkout is not wired in v1). Shared by the Buy
- * grid and the Saved collection so both flows stay identical.
+ * Bottom-sheet for ordering a canvas print of an artwork.
+ * Three steps: size + delivery address → Stripe payment (PaymentElement,
+ * PaymentIntent created by the backend) → confirmation. After the payment
+ * succeeds the backend submits the print order to Printful — see
+ * lib/checkout.ts for the full flow. Shared by the Buy grid and the Saved
+ * collection so both flows stay identical.
  */
 export default function CanvasPurchaseSheet({
   artwork,
@@ -51,7 +77,8 @@ export default function CanvasPurchaseSheet({
   const { getArtist } = useCatalog();
   const { isGuest } = useAppState();
   const [size, setSize] = useState<CanvasSize>("Medium");
-  const [placed, setPlaced] = useState(false);
+  const [step, setStep] = useState<Step>("details");
+  const [intent, setIntent] = useState<CheckoutIntent | null>(null);
   const [placing, setPlacing] = useState(false);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
@@ -63,7 +90,8 @@ export default function CanvasPurchaseSheet({
   useEffect(() => {
     if (!artwork) return;
     setSize("Medium");
-    setPlaced(false);
+    setStep("details");
+    setIntent(null);
     setPlacing(false);
     setForm({ ...EMPTY_FORM });
 
@@ -92,10 +120,16 @@ export default function CanvasPurchaseSheet({
   const setField = (key: keyof typeof EMPTY_FORM, value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
-  const handleBuy = async () => {
+  /** Step 1 → 2: save the address if needed, then ask the backend for a
+   *  PaymentIntent (the price is computed server-side). */
+  const handleContinue = async () => {
     if (!artwork) return;
     if (isGuest) {
       showToast("Sign in from the You tab to order", "error");
+      return;
+    }
+    if (!PAYMENTS_ENABLED) {
+      showToast("Payments aren't available yet", "error");
       return;
     }
     setPlacing(true);
@@ -112,36 +146,36 @@ export default function CanvasPurchaseSheet({
           is_default: addresses.length === 0,
         });
         addressId = created?.id ?? null;
+        if (!addressId) throw new Error("Could not save the address");
       }
-      const total = priceForSize(priceFrom, size);
-      let artistCut: number | undefined;
-      let platformCut: number | undefined;
-      if (artwork.origin === "artist-original" && artist?.sellOptIn) {
-        const pct = artist.revenueSharePct ?? 30;
-        artistCut = Math.round(total * (pct / 100) * 100) / 100;
-        platformCut = Math.round((total - artistCut) * 100) / 100;
-      }
-      const { error } = await createCanvasOrder({
+      const checkout = await createPaymentIntent({
         artworkId: artwork.id,
         size,
-        price: total,
         addressId,
-        artistCut,
-        platformCut,
       });
-      if (error) {
-        showToast(error.message, "error");
-        return;
-      }
-      setPlaced(true);
-      showToast("Order placed");
+      setIntent(checkout);
+      setStep("payment");
     } catch (err) {
       showToast(
-        err instanceof Error ? err.message : "Could not place order",
+        err instanceof Error ? err.message : "Could not start checkout",
         "error",
       );
     } finally {
       setPlacing(false);
+    }
+  };
+
+  /** Step 2 → 3: the card was charged — hand the order to the backend, which
+   *  verifies the payment with Stripe and creates the Printful order. */
+  const handlePaid = async () => {
+    setStep("placed");
+    showToast("Order placed");
+    if (!intent) return;
+    try {
+      await finalizeOrder(intent.orderId);
+    } catch {
+      // Payment is captured; the backend's Stripe webhook retries fulfillment,
+      // so the customer still sees success.
     }
   };
 
@@ -212,6 +246,8 @@ export default function CanvasPurchaseSheet({
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {step === "details" && (
+              <>
             {/* Size selection */}
             <div className="px-6 pt-5">
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45">
@@ -258,7 +294,7 @@ export default function CanvasPurchaseSheet({
             </div>
 
             {/* Delivery address */}
-            {!placed && !isGuest && (
+            {!isGuest && (
               <div className="px-6 pt-5">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45">
                   Deliver to
@@ -333,23 +369,28 @@ export default function CanvasPurchaseSheet({
                         onChange={(v) => setField("city", v)}
                       />
                       <AddressInput
-                        placeholder="Postal code"
-                        value={form.postal_code}
-                        onChange={(v) => setField("postal_code", v)}
+                        placeholder="State (e.g. NY)"
+                        value={form.region}
+                        onChange={(v) => setField("region", v)}
                       />
                     </div>
                     <div className="flex gap-2">
                       <AddressInput
-                        placeholder="Country"
+                        placeholder="Postal code"
+                        value={form.postal_code}
+                        onChange={(v) => setField("postal_code", v)}
+                      />
+                      <AddressInput
+                        placeholder="Country (e.g. US)"
                         value={form.country}
                         onChange={(v) => setField("country", v)}
                       />
-                      <AddressInput
-                        placeholder="Phone"
-                        value={form.phone}
-                        onChange={(v) => setField("phone", v)}
-                      />
                     </div>
+                    <AddressInput
+                      placeholder="Phone"
+                      value={form.phone}
+                      onChange={(v) => setField("phone", v)}
+                    />
                     {addresses.length > 0 && (
                       <button
                         onClick={() => setShowForm(false)}
@@ -363,38 +404,153 @@ export default function CanvasPurchaseSheet({
               </div>
             )}
 
-            {/* Buy */}
+            {/* Continue to payment */}
             <div className="px-6 pb-8 pt-5">
-              {placed ? (
-                <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/10 p-4 text-center">
-                  <p className="font-medium text-emerald-200">Order placed</p>
-                  <p className="mt-1 text-sm text-white/60">
-                    Your {size.toLowerCase()} canvas of {artwork.title} is
-                    registered. We&apos;ll email you when it ships.
-                  </p>
-                </div>
-              ) : (
-                <button
-                  onClick={handleBuy}
-                  disabled={placing}
-                  className="flex w-full items-center justify-center rounded-full bg-white py-3.5 text-sm font-semibold text-ink transition-transform active:scale-[0.98] disabled:opacity-50"
-                >
-                  {placing
-                    ? "Placing order…"
-                    : `Buy Canvas · $${priceForSize(priceFrom, size)}`}
-                </button>
-              )}
-              {isGuest && !placed && (
+              <button
+                onClick={handleContinue}
+                disabled={placing}
+                className="flex w-full items-center justify-center rounded-full bg-white py-3.5 text-sm font-semibold text-ink transition-transform active:scale-[0.98] disabled:opacity-50"
+              >
+                {placing
+                  ? "Preparing checkout…"
+                  : `Continue to payment · $${priceForSize(priceFrom, size)}`}
+              </button>
+              {isGuest && (
                 <p className="mt-3 text-center text-[11px] text-white/35">
                   Sign in from the You tab to order a canvas.
                 </p>
               )}
             </div>
+              </>
+            )}
+
+            {step === "payment" && intent && (
+              <div className="px-6 pb-8 pt-5">
+                <div className="flex items-center justify-between rounded-2xl border border-white/12 bg-white/[0.03] px-4 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-white">
+                      {size} canvas
+                    </p>
+                    <p className="text-xs text-white/45">
+                      {CANVAS_SIZES.find((s) => s.size === size)?.dimensions}
+                    </p>
+                  </div>
+                  <span className="text-sm font-semibold text-white">
+                    ${intent.price}
+                  </span>
+                </div>
+                <div className="mt-4">
+                  <Elements
+                    stripe={getStripe()}
+                    options={{
+                      clientSecret: intent.clientSecret,
+                      appearance: STRIPE_APPEARANCE,
+                    }}
+                  >
+                    <PaymentForm
+                      price={intent.price}
+                      onPaid={handlePaid}
+                      onBack={() => {
+                        setIntent(null);
+                        setStep("details");
+                      }}
+                      showToast={showToast}
+                    />
+                  </Elements>
+                </div>
+              </div>
+            )}
+
+            {step === "placed" && (
+              <div className="px-6 pb-8 pt-5">
+                <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/10 p-4 text-center">
+                  <p className="font-medium text-emerald-200">Order placed</p>
+                  <p className="mt-1 text-sm text-white/60">
+                    Payment received — your {size.toLowerCase()} canvas of{" "}
+                    {artwork.title} is being prepared for printing. We&apos;ll
+                    email you when it ships.
+                  </p>
+                </div>
+              </div>
+            )}
             </div>
           </motion.div>
         </>
       )}
     </AnimatePresence>
+  );
+}
+
+/**
+ * Inner payment step — must be a child of <Elements> to reach the Stripe
+ * hooks. Confirms the PaymentIntent without leaving the sheet (no redirect for
+ * card payments).
+ */
+function PaymentForm({
+  price,
+  onPaid,
+  onBack,
+  showToast,
+}: {
+  price: number;
+  onPaid: () => void;
+  onBack: () => void;
+  showToast: (message: string, variant?: ToastState["variant"]) => void;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [ready, setReady] = useState(false);
+  const [paying, setPaying] = useState(false);
+
+  const handlePay = async () => {
+    if (!stripe || !elements) return;
+    setPaying(true);
+    try {
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        redirect: "if_required",
+        confirmParams: { return_url: window.location.href },
+      });
+      if (error) {
+        showToast(error.message ?? "Payment failed", "error");
+        return;
+      }
+      if (
+        paymentIntent?.status === "succeeded" ||
+        paymentIntent?.status === "processing"
+      ) {
+        onPaid();
+      } else {
+        showToast("Payment was not completed", "error");
+      }
+    } catch (err) {
+      showToast(
+        err instanceof Error ? err.message : "Payment failed",
+        "error",
+      );
+    } finally {
+      setPaying(false);
+    }
+  };
+
+  return (
+    <div>
+      <PaymentElement onReady={() => setReady(true)} />
+      <button
+        onClick={handlePay}
+        disabled={!ready || paying}
+        className="mt-4 flex w-full items-center justify-center rounded-full bg-white py-3.5 text-sm font-semibold text-ink transition-transform active:scale-[0.98] disabled:opacity-50"
+      >
+        {paying ? "Processing…" : `Pay $${price}`}
+      </button>
+      <button
+        onClick={onBack}
+        disabled={paying}
+        className="mt-3 w-full text-center text-sm text-white/60 transition-colors hover:text-white disabled:opacity-50"
+      >
+        Back to size &amp; address
+      </button>
+    </div>
   );
 }
 

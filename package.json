@@ -22,6 +22,8 @@
     "@capacitor/keyboard": "^8.0.5",
     "@capacitor/status-bar": "^8.0.2",
     "@ionic/react": "^8.8.12",
+    "@stripe/react-stripe-js": "^6.7.0",
+    "@stripe/stripe-js": "^9.10.0",
     "@supabase/supabase-js": "^2.110.0",
     "framer-motion": "^12.42.0",
     "ionicons": "^8.0.13",

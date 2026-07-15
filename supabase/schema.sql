@@ -292,7 +292,12 @@ create policy "Users manage their own addresses"
   with check (auth.uid() = user_id);
 
 -- ===========================================================================
--- 7. CANVAS ORDERS  — canvas-print order lifecycle (register → complete).
+-- 7. CANVAS ORDERS  — canvas-print order lifecycle.
+-- Rows are created by the BACKEND (service role) during checkout:
+--   pending_payment → paid → submitted (Printful) → shipped → completed
+--   fulfillment_failed = payment captured but Printful rejected (retryable);
+--   'registered' kept for legacy pre-checkout rows.
+-- See canvas-checkout.sql for the equivalent in-place migration.
 -- ===========================================================================
 create table public.canvas_orders (
   id         uuid primary key default gen_random_uuid(),
@@ -300,22 +305,33 @@ create table public.canvas_orders (
   artwork_id text not null,
   size       text not null check (size in ('Small', 'Medium', 'Large')),
   price      numeric(10, 2),
+  currency   text not null default 'usd',
   status     text not null default 'registered'
-               check (status in ('registered', 'completed', 'shipped', 'cancelled')),
+               check (status in ('registered', 'pending_payment', 'paid', 'submitted',
+                                 'fulfillment_failed', 'completed', 'shipped', 'cancelled')),
   address_id uuid references public.addresses(id) on delete set null,
+  stripe_payment_intent_id text,
+  printful_order_id        text,
+  paid_at                  timestamptz,
+  fulfillment_error        text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
 create index on public.canvas_orders (user_id);
 
+-- One order per PaymentIntent (idempotency guard for webhook replays).
+create unique index canvas_orders_payment_intent_idx
+  on public.canvas_orders (stripe_payment_intent_id)
+  where stripe_payment_intent_id is not null;
+
 alter table public.canvas_orders enable row level security;
 
-create policy "Users manage their own canvas orders"
-  on public.canvas_orders for all
+-- Writes go through the backend's service role; users only read their history.
+create policy "Users read their own canvas orders"
+  on public.canvas_orders for select
   to authenticated
-  using (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
+  using (auth.uid() = user_id);
 
 -- ===========================================================================
 -- COUNTER TRIGGERS  — keep denormalised counts accurate.

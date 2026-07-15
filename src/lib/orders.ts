@@ -1,8 +1,9 @@
 /**
- * Delivery addresses + canvas-print orders.
- * Requires the v2 schema (addresses, canvas_orders). All writes rely on the
- * table defaults (`user_id default auth.uid()`) and RLS to scope rows to the
- * signed-in user.
+ * Delivery addresses (canvas-print delivery targets).
+ * Requires the v2 schema (addresses). All writes rely on the table defaults
+ * (`user_id default auth.uid()`) and RLS to scope rows to the signed-in user.
+ * Canvas ORDERS are no longer written from the client — the backend creates
+ * them during Stripe checkout (see lib/checkout.ts).
  */
 
 import { supabase } from "./supabase";
@@ -148,30 +149,4 @@ export async function setDefaultAddress(id: string): Promise<void> {
     console.warn("Supabase: set default failed.", error.message);
     throw error;
   }
-}
-
-export interface NewCanvasOrder {
-  artworkId: string;
-  size: "Small" | "Medium" | "Large";
-  price: number;
-  addressId: string | null;
-  artistCut?: number;
-  platformCut?: number;
-}
-
-/** Create a canvas-print order (status starts at 'registered'). */
-export async function createCanvasOrder(input: NewCanvasOrder) {
-  if (!supabase) throw new Error("Supabase is not configured.");
-  return supabase
-    .from("canvas_orders")
-    .insert({
-      artwork_id: input.artworkId,
-      size: input.size,
-      price: input.price,
-      address_id: input.addressId,
-      ...(input.artistCut != null ? { artist_cut: input.artistCut } : {}),
-      ...(input.platformCut != null ? { platform_cut: input.platformCut } : {}),
-    })
-    .select("id")
-    .single();
 }
