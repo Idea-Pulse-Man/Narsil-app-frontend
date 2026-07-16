@@ -19,15 +19,16 @@ export default function TopTabs({
 
   return (
     <div className="pointer-events-none absolute inset-x-0 top-0 z-30 pt-[env(safe-area-inset-top)]">
-      <div className="pointer-events-auto flex items-start justify-between gap-2 px-4 pt-3">
-        {/* Brand lockup — N badge with NARSIL centered underneath */}
-        <div className="flex w-[52px] shrink-0 flex-col items-center gap-0.5 pt-5">
+      <div className="pointer-events-auto flex items-center justify-between gap-2 px-4 pt-3">
+        {/* Brand lockup — N badge with NARSIL inline, aligned with the tabs */}
+        <div className="flex w-[76px] shrink-0 items-center gap-1.5">
           {showBrand && (
             <>
               <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-white text-[10px] font-bold text-ink">
                 N
               </span>
-              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white">
+              {/* Same size as the tab buttons, sitting on the same line */}
+              <span className="text-[13px] font-semibold uppercase tracking-[0.14em] text-white">
                 Narsil
               </span>
             </>
@@ -42,7 +43,7 @@ export default function TopTabs({
                 key={tab.id}
                 onClick={() => onChange?.(tab.id)}
                 className={`relative rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors ${
-                  isActive ? "text-white" : "text-white/50 hover:text-white/75"
+                  isActive ? "text-white" : "text-white/80 hover:text-white"
                 }`}
               >
                 {isActive && (
@@ -64,7 +65,7 @@ export default function TopTabs({
             className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors ${
               isSearchActive
                 ? "text-white"
-                : "text-white/50 hover:text-white/75"
+                : "text-white/80 hover:text-white"
             }`}
           >
             <SearchIcon className="h-[15px] w-[15px]" />
@@ -72,7 +73,7 @@ export default function TopTabs({
         </div>
 
         {/* Right spacer to keep the tab cluster visually centered */}
-        <div className="w-[52px] shrink-0" />
+        <div className="w-[76px] shrink-0" />
       </div>
     </div>
   );
