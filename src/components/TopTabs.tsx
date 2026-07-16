@@ -5,17 +5,34 @@ import { SearchIcon } from "./Icons";
 interface TopTabsProps {
   active: Screen;
   onChange?: (screen: Screen) => void;
+  /** Stacked N + NARSIL lockup in the top-left corner (feed screens). */
+  showBrand?: boolean;
 }
 
-export default function TopTabs({ active, onChange }: TopTabsProps) {
+export default function TopTabs({
+  active,
+  onChange,
+  showBrand = false,
+}: TopTabsProps) {
   const navTabs = TOP_TABS.filter((tab) => tab.id !== "search");
   const isSearchActive = active === "search";
 
   return (
     <div className="pointer-events-none absolute inset-x-0 top-0 z-30 pt-[env(safe-area-inset-top)]">
       <div className="pointer-events-auto flex items-center justify-between gap-2 px-4 pt-3">
-        {/* Left spacer — mirrors the right one so the tab cluster stays centered */}
-        <div className="w-[76px] shrink-0" />
+        {/* Brand lockup — stacked N over NARSIL in the top-left corner */}
+        <div className="flex w-[56px] shrink-0 flex-col items-center gap-1">
+          {showBrand && (
+            <>
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-[13px] font-bold text-ink shadow-sm">
+                N
+              </span>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white">
+                Narsil
+              </span>
+            </>
+          )}
+        </div>
 
         <div className="flex flex-1 items-center justify-center gap-0">
           {navTabs.map((tab) => {
@@ -26,7 +43,7 @@ export default function TopTabs({ active, onChange }: TopTabsProps) {
                 onClick={() => onChange?.(tab.id)}
                 whileTap={{ scale: 0.94 }}
                 aria-current={isActive ? "page" : undefined}
-                className="relative rounded-full px-3 py-1.5 text-[13px] font-medium text-white"
+                className="relative rounded-full px-5 py-1.5 text-[13px] font-medium text-white"
               >
                 {isActive && (
                   <motion.span
@@ -62,7 +79,7 @@ export default function TopTabs({ active, onChange }: TopTabsProps) {
         </div>
 
         {/* Right spacer to keep the tab cluster visually centered */}
-        <div className="w-[76px] shrink-0" />
+        <div className="w-[56px] shrink-0" />
       </div>
     </div>
   );
