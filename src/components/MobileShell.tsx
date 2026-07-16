@@ -300,11 +300,7 @@ export default function MobileShell() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
             >
-              <TopTabs
-                active={screen}
-                onChange={navigate}
-                showBrand={isFeedScreen(screen)}
-              />
+              <TopTabs active={screen} onChange={navigate} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -342,6 +338,31 @@ export default function MobileShell() {
                   </button>
                 ))}
               </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Brand lockup — stacked N over NARSIL, centered over the artwork.
+            Sits below the source toggle, and slides up to take its place when
+            the toggle hides. */}
+        <AnimatePresence>
+          {showChrome && isFeedScreen(screen) && (
+            <motion.div
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              className={`pointer-events-none absolute inset-x-0 z-30 flex flex-col items-center gap-1.5 transition-[top] duration-300 ${
+                showFeedToggle
+                  ? "top-[calc(env(safe-area-inset-top)+6.5rem)]"
+                  : "top-[calc(env(safe-area-inset-top)+3.5rem)]"
+              }`}
+            >
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[15px] font-bold text-ink shadow-sm">
+                N
+              </span>
+              <span className="text-[13px] font-semibold uppercase tracking-[0.22em] text-white">
+                Narsil
+              </span>
             </motion.div>
           )}
         </AnimatePresence>

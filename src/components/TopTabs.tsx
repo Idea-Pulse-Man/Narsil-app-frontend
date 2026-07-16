@@ -5,35 +5,17 @@ import { SearchIcon } from "./Icons";
 interface TopTabsProps {
   active: Screen;
   onChange?: (screen: Screen) => void;
-  /** Stacked N + NARSIL lockup on the left (feed screens). */
-  showBrand?: boolean;
 }
 
-export default function TopTabs({
-  active,
-  onChange,
-  showBrand = false,
-}: TopTabsProps) {
+export default function TopTabs({ active, onChange }: TopTabsProps) {
   const navTabs = TOP_TABS.filter((tab) => tab.id !== "search");
   const isSearchActive = active === "search";
 
   return (
     <div className="pointer-events-none absolute inset-x-0 top-0 z-30 pt-[env(safe-area-inset-top)]">
       <div className="pointer-events-auto flex items-center justify-between gap-2 px-4 pt-3">
-        {/* Brand lockup — N badge with NARSIL inline, aligned with the tabs */}
-        <div className="flex w-[76px] shrink-0 items-center gap-1.5">
-          {showBrand && (
-            <>
-              <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-white text-[10px] font-bold text-ink">
-                N
-              </span>
-              {/* Same size as the tab buttons, sitting on the same line */}
-              <span className="text-[13px] font-semibold uppercase tracking-[0.14em] text-white">
-                Narsil
-              </span>
-            </>
-          )}
-        </div>
+        {/* Left spacer — mirrors the right one so the tab cluster stays centered */}
+        <div className="w-[76px] shrink-0" />
 
         <div className="flex flex-1 items-center justify-center gap-0">
           {navTabs.map((tab) => {
