@@ -83,8 +83,10 @@ export default function ActionRail({
 
   return (
     <div
-      className={`absolute bottom-24 right-3 z-40 flex flex-col items-center gap-4 rounded-full p-1 transition-shadow ${
-        highlight ? "ring-2 ring-white/60 shadow-[0_0_30px_rgba(255,255,255,0.35)]" : ""
+      className={`absolute bottom-24 right-3 flex flex-col items-center gap-4 rounded-full p-1 transition-shadow ${
+        highlight
+          ? "z-[85] ring-2 ring-white/60 shadow-[0_0_30px_rgba(255,255,255,0.35)]"
+          : "z-40"
       }`}
     >
       {/* 1. Artist profile — tap to open the artist's profile. */}

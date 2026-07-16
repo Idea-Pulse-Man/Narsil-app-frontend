@@ -63,7 +63,7 @@ const STEPS: CoachStep[] = [
   {
     label: "Use quick actions",
     instruction:
-      "On the right rail you can open the artist's profile, like, save, comment, download, share, and switch Fit / Fill — tap Got it to finish.",
+      "On the right rail you can open the artist's profile, like, save, comment, download, share, and hide the interface — tap Got it to finish.",
     hint: "actions",
     zone: "center",
     done: "All set",
@@ -248,16 +248,17 @@ function HoldHint() {
 }
 
 function FooterTapHint() {
+  // Compact cue that sits directly on the Description pill (bottom-left).
   return (
-    <div className="flex flex-col items-center">
-      <span className="mb-2 rounded-full bg-white px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-ink shadow-[0_4px_24px_rgba(0,0,0,0.45)]">
+    <div className="flex flex-col items-start">
+      <span className="mb-1.5 rounded-full bg-white px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-ink shadow-[0_4px_24px_rgba(0,0,0,0.45)]">
         Tap the button
       </span>
-      <div className="relative flex h-[4.5rem] w-32 items-center justify-center">
-        <div className="absolute inset-0 rounded-full bg-white/25 blur-xl" />
+      <div className="relative flex h-14 w-28 items-center justify-start pl-6">
+        <div className="absolute left-4 top-1/2 h-12 w-12 -translate-y-1/2 rounded-full bg-white/25 blur-xl" />
         <motion.span
-          className="absolute h-16 w-16 rounded-full border-2 border-white/60"
-          animate={{ scale: [1, 1.2, 1], opacity: [0.7, 0.25, 0.7] }}
+          className="absolute left-3 top-1/2 h-14 w-14 -translate-y-1/2 rounded-full border-2 border-white/60"
+          animate={{ scale: [1, 1.18, 1], opacity: [0.7, 0.25, 0.7] }}
           transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
         />
         <motion.div
@@ -271,6 +272,7 @@ function FooterTapHint() {
   );
 }
 
+// Labels match the live ActionRail order (Hide interface replaced Fit / Fill).
 const QUICK_ACTIONS = [
   "Artist profile",
   "Like",
@@ -278,16 +280,16 @@ const QUICK_ACTIONS = [
   "Comment",
   "Download",
   "Share",
-  "Fit / Fill view",
+  "Hide interface",
 ];
 
 function ActionsExplainer({ onAdvance }: { onAdvance?: () => void }) {
   return (
     <>
-      {/* Arrow + callout pointing at the right-side action rail. */}
-      <div className="pointer-events-none absolute right-4 top-1/2 flex -translate-y-1/2 flex-col items-end gap-3">
+      {/* Callout sits just left of the ActionRail (bottom-right). */}
+      <div className="pointer-events-none absolute bottom-28 right-[4.25rem] flex flex-col items-end">
         <motion.div
-          animate={{ x: [0, 8, 0] }}
+          animate={{ x: [0, 6, 0] }}
           transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
           className="rounded-2xl border border-white/15 bg-black/55 p-3 backdrop-blur-md"
         >
@@ -564,10 +566,10 @@ export default function TutorialCoach({
                       for a success confirmation during the post-gesture pause. */}
                   {!isActionsStep && (
                   <div
-                    className={`absolute left-1/2 -translate-x-1/2 ${
+                    className={`absolute ${
                       current.zone === "footer"
                         ? tutorialFooterHintClass
-                        : "top-1/2 -translate-y-1/2"
+                        : "left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
                     }`}
                   >
                     <AnimatePresence mode="wait" initial={false}>
