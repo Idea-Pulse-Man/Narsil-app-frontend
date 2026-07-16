@@ -455,8 +455,13 @@ export default function MobileShell() {
 
         <Toast toast={toast} />
 
-        {/* Shell-level artwork viewer (opened from tiles across screens):
-            a zoomable canvas + quick actions + the placard as an info layer. */}
+        <ArtistProfileModal
+          artist={activeArtist}
+          onClose={() => setActiveArtist(null)}
+          onOpenArtwork={openArtwork}
+        />
+
+        {/* Viewer after profile so works opened from the profile sit on top. */}
         {activeArtwork && activeArtworkArtist && (
           <ArtworkViewer
             artwork={activeArtwork}
@@ -467,12 +472,6 @@ export default function MobileShell() {
             onOpenArtist={openArtist}
           />
         )}
-
-        <ArtistProfileModal
-          artist={activeArtist}
-          onClose={() => setActiveArtist(null)}
-          onOpenArtwork={openArtwork}
-        />
 
         <AnimatePresence>
           {termsOpen && (

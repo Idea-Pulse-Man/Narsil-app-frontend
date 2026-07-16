@@ -120,7 +120,7 @@ export default function ArtworkViewer({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.22 }}
-          className="absolute inset-0 z-[60] bg-ink"
+          className="absolute inset-0 z-[70] bg-ink"
         >
           <ZoomableImage
             ref={zoomRef}

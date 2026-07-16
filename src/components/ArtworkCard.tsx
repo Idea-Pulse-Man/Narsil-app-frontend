@@ -25,7 +25,7 @@ interface ArtworkCardProps {
   onOpenPlacard?: () => void;
 }
 
-const SWIPE_DISTANCE = 60;
+const SWIPE_DISTANCE = 40;
 const LONG_PRESS_MS = 400;
 /** Feed heading shows only the first few words; the rest expands on tap. */
 const TITLE_WORDS = 4;
@@ -57,6 +57,8 @@ export default function ArtworkCard({
   const startTime = useRef(0);
   const startPos = useRef<{ x: number; y: number } | null>(null);
   const footerStart = useRef<{ x: number; y: number } | null>(null);
+  // After a horizontal swipe, ignore the synthetic click on buttons underneath.
+  const suppressClick = useRef(false);
 
   useEffect(() => {
     onCleanChange(clean);
@@ -125,9 +127,8 @@ export default function ArtworkCard({
     footerStart.current = null;
   };
 
-  // Long-press enters a persistent "clean art" mode; a single tap restores the
-  // UI. Horizontal flicks switch context (artist) or framing (fit/fill). The
-  // museum placard opens from the bottom description button only.
+  // Capture-phase handlers on the whole card so swipe-left works over chrome
+  // (rail, title, footer), not only the artwork image layer.
   const handlePointerDown = (e: React.PointerEvent) => {
     if (placardOpen || discussionOpen) return;
     startPos.current = { x: e.clientX, y: e.clientY };
@@ -163,16 +164,18 @@ export default function ArtworkCard({
     const ady = Math.abs(dy);
     const dt = Date.now() - startTime.current;
 
-    // Horizontal swipe (does not conflict with the vertical snap feed).
-    if (adx > SWIPE_DISTANCE && adx > ady * 1.3) {
+    // Horizontal swipe — still requires clear sideways motion vs vertical scroll.
+    if (adx > SWIPE_DISTANCE && adx > ady * 1.15) {
       if (dx < 0) {
         // swipe left → artist profile
         if (gestureBlocked("artist")) return;
+        suppressClick.current = true;
         onOpenArtist(artist.id);
         tutorial?.report("artist");
       } else {
         // swipe right → Fit / Fill
         if (gestureBlocked("fit")) return;
+        suppressClick.current = true;
         toggleFit();
         tutorial?.report("fit");
       }
@@ -190,21 +193,28 @@ export default function ArtworkCard({
     startPos.current = null;
   };
 
+  // Swallow the click that follows a successful horizontal swipe.
+  const handleClickCapture = (e: React.MouseEvent) => {
+    if (!suppressClick.current) return;
+    suppressClick.current = false;
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
   return (
-    <section className="relative h-full min-h-0 w-full snap-start snap-always overflow-hidden bg-ink">
-      {/* Artwork — no pointer handlers during scroll/placard tutorial. */}
-      <div
-        className="absolute inset-0 touch-pan-y"
-        {...(blockArtworkGestures
-          ? {}
-          : {
-              onPointerDown: handlePointerDown,
-              onPointerMove: handlePointerMove,
-              onPointerUp: handlePointerUp,
-              onPointerLeave: handlePointerCancel,
-              onPointerCancel: handlePointerCancel,
-            })}
-      >
+    <section
+      className="relative h-full min-h-0 w-full snap-start snap-always overflow-hidden bg-ink"
+      {...(blockArtworkGestures
+        ? {}
+        : {
+            onPointerDownCapture: handlePointerDown,
+            onPointerMoveCapture: handlePointerMove,
+            onPointerUpCapture: handlePointerUp,
+            onPointerCancelCapture: handlePointerCancel,
+            onClickCapture: handleClickCapture,
+          })}
+    >
+      <div className="absolute inset-0 touch-pan-y">
         <BlurImage
           src={artwork.image}
           alt={`${artwork.title} by ${artist.name}`}
