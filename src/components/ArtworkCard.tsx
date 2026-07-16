@@ -29,8 +29,6 @@ interface ArtworkCardProps {
 
 const SWIPE_DISTANCE = 40;
 const LONG_PRESS_MS = 400;
-/** Feed heading shows only the first few words; the rest expands on tap. */
-const TITLE_WORDS = 4;
 
 export default function ArtworkCard({
   artwork,
@@ -48,11 +46,9 @@ export default function ArtworkCard({
   const [discussionOpen, setDiscussionOpen] = useState(false);
   const [fit, setFit] = useState<"cover" | "contain">("contain");
   const [titleExpanded, setTitleExpanded] = useState(false);
-
-  // Split the title so the heading can show a short version with a tappable "…"
-  // that reveals the rest, like a "more" toggle.
-  const titleWords = artwork.title.replace(/…$/, "").trim().split(/\s+/);
-  const titleTruncated = titleWords.length > TITLE_WORDS;
+  // True only when the full title is wider than one line — then tap expands.
+  const [titleOverflows, setTitleOverflows] = useState(false);
+  const titleRef = useRef<HTMLElement | null>(null);
 
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressFired = useRef(false);
@@ -87,6 +83,20 @@ export default function ArtworkCard({
     setFit("contain");
     setTitleExpanded(false);
   }, [resetToken, onCleanChange]);
+
+  // Measure real overflow so short titles stay fully visible on one line.
+  useEffect(() => {
+    if (titleExpanded) return;
+    const el = titleRef.current;
+    if (!el) return;
+    const check = () => {
+      setTitleOverflows(el.scrollWidth > el.clientWidth + 1);
+    };
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [artwork.title, titleExpanded]);
 
   const setClean = (next: boolean) => {
     cleanRef.current = next;
@@ -317,28 +327,32 @@ export default function ArtworkCard({
             >
               <div className="pointer-events-none max-w-[90%]">
                 <h2 className="font-serif text-[26px] leading-[1.14] text-white drop-shadow">
-                  {!titleTruncated ? (
-                    artwork.title
-                  ) : titleExpanded ? (
+                  {/* Show full title on one line; expand only if it truly overflows. */}
+                  {titleOverflows || titleExpanded ? (
                     <button
                       type="button"
-                      onClick={() => setTitleExpanded(false)}
-                      aria-label="Collapse title"
-                      className="pointer-events-auto text-left"
+                      ref={(node) => {
+                        titleRef.current = node;
+                      }}
+                      onClick={() => setTitleExpanded((open) => !open)}
+                      aria-label={
+                        titleExpanded ? "Collapse title" : "Show full title"
+                      }
+                      className={`pointer-events-auto w-full text-left ${
+                        titleExpanded ? "whitespace-normal" : "block truncate"
+                      }`}
                     >
                       {artwork.title}
                     </button>
                   ) : (
-                    // Tap the short title or the "…" to reveal the full name
-                    <button
-                      type="button"
-                      onClick={() => setTitleExpanded(true)}
-                      aria-label="Show full title"
-                      className="pointer-events-auto text-left"
+                    <span
+                      ref={(node) => {
+                        titleRef.current = node;
+                      }}
+                      className="block truncate"
                     >
-                      {titleWords.slice(0, TITLE_WORDS).join(" ")}
-                      <span className="ml-1 text-white/60">…</span>
-                    </button>
+                      {artwork.title}
+                    </span>
                   )}
                 </h2>
 
