@@ -286,8 +286,8 @@ const QUICK_ACTIONS = [
 function ActionsExplainer({ onAdvance }: { onAdvance?: () => void }) {
   return (
     <>
-      {/* Callout sits just left of the ActionRail (bottom-right). */}
-      <div className="pointer-events-none absolute bottom-28 right-[4.25rem] flex flex-col items-end">
+      {/* Callout sits left of the ActionRail, raised so it clears Got it. */}
+      <div className="pointer-events-none absolute bottom-44 right-[4.25rem] flex flex-col items-end">
         <motion.div
           animate={{ x: [0, 6, 0] }}
           transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}

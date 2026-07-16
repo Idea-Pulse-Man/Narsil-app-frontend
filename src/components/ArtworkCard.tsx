@@ -329,17 +329,16 @@ export default function ArtworkCard({
                       {artwork.title}
                     </button>
                   ) : (
-                    <>
+                    // Tap the short title or the "…" to reveal the full name
+                    <button
+                      type="button"
+                      onClick={() => setTitleExpanded(true)}
+                      aria-label="Show full title"
+                      className="pointer-events-auto text-left"
+                    >
                       {titleWords.slice(0, TITLE_WORDS).join(" ")}
-                      <button
-                        type="button"
-                        onClick={() => setTitleExpanded(true)}
-                        aria-label="Show full title"
-                        className="pointer-events-auto ml-1 align-baseline text-white/60 transition-colors hover:text-white"
-                      >
-                        …
-                      </button>
-                    </>
+                      <span className="ml-1 text-white/60">…</span>
+                    </button>
                   )}
                 </h2>
 
