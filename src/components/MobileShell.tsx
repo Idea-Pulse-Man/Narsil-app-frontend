@@ -365,6 +365,7 @@ export default function MobileShell() {
                   key={`feed-${feedFilter}`}
                   showToast={showToast}
                   onOpenArtist={openArtist}
+                  clean={clean}
                   onCleanChange={setClean}
                   onViewIndex={handleViewIndex}
                   filter={feedFilter}

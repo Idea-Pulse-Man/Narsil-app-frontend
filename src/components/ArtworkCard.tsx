@@ -18,6 +18,8 @@ interface ArtworkCardProps {
   priority?: boolean;
   showToast: (message: string, variant?: ToastState["variant"]) => void;
   onOpenArtist: (artistId: string) => void;
+  /** Shared across the feed — stays on while swiping artworks. */
+  clean: boolean;
   onCleanChange: (clean: boolean) => void;
   tutorial?: TutorialBridge;
   /** Shared feed placard — open state lives in ArtFeed. */
@@ -36,6 +38,7 @@ export default function ArtworkCard({
   priority = false,
   showToast,
   onOpenArtist,
+  clean,
   onCleanChange,
   tutorial,
   placardOpen = false,
@@ -43,7 +46,6 @@ export default function ArtworkCard({
 }: ArtworkCardProps) {
   const { getArtistAvatar } = useCatalog();
   const [discussionOpen, setDiscussionOpen] = useState(false);
-  const [clean, setClean] = useState(false);
   const [fit, setFit] = useState<"cover" | "contain">("contain");
   const [titleExpanded, setTitleExpanded] = useState(false);
 
@@ -54,15 +56,13 @@ export default function ArtworkCard({
 
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressFired = useRef(false);
-  const startTime = useRef(0);
   const startPos = useRef<{ x: number; y: number } | null>(null);
   const footerStart = useRef<{ x: number; y: number } | null>(null);
   // After a horizontal swipe, ignore the synthetic click on buttons underneath.
   const suppressClick = useRef(false);
-
-  useEffect(() => {
-    onCleanChange(clean);
-  }, [clean, onCleanChange]);
+  // Ref keeps clean mode readable inside pointer handlers (avoids stale closures).
+  const cleanRef = useRef(clean);
+  cleanRef.current = clean;
 
   // During the tutorial, only the gesture being taught is permitted; this keeps
   // the user focused and prevents stray actions from firing out of order.
@@ -70,14 +70,28 @@ export default function ArtworkCard({
     !!tutorial?.active && tutorial.allow !== action;
 
   // When the tutorial advances, ask cards to return to a neutral state.
+  // Only react to resetToken *changes* — not mount — so infinite-scroll cards
+  // don't clear the shared clean mode while the user is swiping.
   const resetToken = tutorial?.resetToken;
+  const prevResetToken = useRef<number | undefined>(undefined);
   useEffect(() => {
     if (resetToken === undefined) return;
+    if (prevResetToken.current === undefined) {
+      prevResetToken.current = resetToken;
+      return;
+    }
+    if (prevResetToken.current === resetToken) return;
+    prevResetToken.current = resetToken;
     setDiscussionOpen(false);
-    setClean(false);
+    onCleanChange(false);
     setFit("contain");
     setTitleExpanded(false);
-  }, [resetToken]);
+  }, [resetToken, onCleanChange]);
+
+  const setClean = (next: boolean) => {
+    cleanRef.current = next;
+    onCleanChange(next);
+  };
 
   const clearHold = () => {
     if (holdTimer.current) {
@@ -132,12 +146,13 @@ export default function ArtworkCard({
   const handlePointerDown = (e: React.PointerEvent) => {
     if (placardOpen || discussionOpen) return;
     startPos.current = { x: e.clientX, y: e.clientY };
-    startTime.current = Date.now();
     longPressFired.current = false;
     clearHold();
-    if (!clean) {
+    // Only start a long-press when UI is visible; tap-to-exit uses pointerup/click.
+    if (!cleanRef.current) {
       holdTimer.current = setTimeout(() => {
         if (gestureBlocked("clean")) return;
+        cleanRef.current = true;
         setClean(true);
         longPressFired.current = true;
         tutorial?.report("clean");
@@ -156,13 +171,28 @@ export default function ArtworkCard({
     clearHold();
     const start = startPos.current;
     startPos.current = null;
-    if (!start || longPressFired.current) return;
+
+    // Release after long-press enters clean view — ignore this up; wait for a new tap.
+    // Also swallow the browser's follow-up click so it doesn't instantly exit clean.
+    if (longPressFired.current) {
+      longPressFired.current = false;
+      suppressClick.current = true;
+      return;
+    }
+
+    if (!start) return;
 
     const dx = e.clientX - start.x;
     const dy = e.clientY - start.y;
     const adx = Math.abs(dx);
     const ady = Math.abs(dy);
-    const dt = Date.now() - startTime.current;
+
+    // Tap while in clean view → restore the normal UI (no tight time limit).
+    if (cleanRef.current && adx < 12 && ady < 12) {
+      cleanRef.current = false;
+      setClean(false);
+      return;
+    }
 
     // Horizontal swipe — still requires clear sideways motion vs vertical scroll.
     if (adx > SWIPE_DISTANCE && adx > ady * 1.15) {
@@ -179,26 +209,31 @@ export default function ArtworkCard({
         toggleFit();
         tutorial?.report("fit");
       }
-      return;
-    }
-
-    // Tap → bring the UI back when in clean mode.
-    if (adx < 8 && ady < 8 && dt < 300 && clean) {
-      setClean(false);
     }
   };
 
   const handlePointerCancel = () => {
     clearHold();
     startPos.current = null;
+    // Don't leave long-press latched if the browser cancels mid-hold (e.g. image drag).
+    longPressFired.current = false;
   };
 
-  // Swallow the click that follows a successful horizontal swipe.
+  // Swallow the click after a horizontal swipe; otherwise click exits clean view
+  // (reliable mouse path, and blocks fading Eye-off from turning clean back on).
   const handleClickCapture = (e: React.MouseEvent) => {
-    if (!suppressClick.current) return;
-    suppressClick.current = false;
-    e.preventDefault();
-    e.stopPropagation();
+    if (suppressClick.current) {
+      suppressClick.current = false;
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    if (cleanRef.current) {
+      cleanRef.current = false;
+      setClean(false);
+      e.preventDefault();
+      e.stopPropagation();
+    }
   };
 
   return (
@@ -260,7 +295,10 @@ export default function ArtworkCard({
                 onOpenArtist={() => onOpenArtist(artist.id)}
                 onOpenComments={() => setDiscussionOpen(true)}
                 showToast={showToast}
-                onHideUi={() => setClean(true)}
+                onHideUi={() => {
+                  cleanRef.current = true;
+                  setClean(true);
+                }}
                 highlight={actionsTutorial}
               />
             </div>

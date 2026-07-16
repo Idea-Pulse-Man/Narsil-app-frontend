@@ -227,6 +227,7 @@ export default function BlurImage({
           ref={mainImgRef}
           src={attemptSrc}
           alt={alt}
+          draggable={false}
           loading={priority ? "eager" : "lazy"}
           decoding="async"
           onLoad={markLoaded}
@@ -253,6 +254,7 @@ export default function BlurImage({
         src={previewSrc ?? displaySrc}
         alt=""
         aria-hidden
+        draggable={false}
         className="absolute inset-0 h-full w-full scale-110 object-cover blur-2xl will-change-[opacity]"
         initial={false}
         animate={{ opacity: isContain ? 0.45 : 0 }}
@@ -287,6 +289,7 @@ export default function BlurImage({
         src={displaySrc}
         alt=""
         aria-hidden
+        draggable={false}
         loading={priority ? "eager" : "lazy"}
         decoding="async"
         onLoad={markLoaded}
@@ -304,6 +307,7 @@ export default function BlurImage({
         ref={coverRef}
         src={displaySrc}
         alt={alt}
+        draggable={false}
         loading={priority ? "eager" : "lazy"}
         decoding="async"
         onLoad={markLoaded}

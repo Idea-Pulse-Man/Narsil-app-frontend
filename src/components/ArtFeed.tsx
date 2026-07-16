@@ -18,6 +18,8 @@ const FEED_LOOKAHEAD = 4;
 interface ArtFeedProps {
   showToast: (message: string, variant?: ToastState["variant"]) => void;
   onOpenArtist: (artistId: string) => void;
+  /** Shared clean view for the whole feed (hides chrome while swiping). */
+  clean: boolean;
   onCleanChange: (clean: boolean) => void;
   /** Reports the index of the currently-visible artwork within the feed. */
   onViewIndex?: (index: number) => void;
@@ -29,6 +31,7 @@ interface ArtFeedProps {
 export default function ArtFeed({
   showToast,
   onOpenArtist,
+  clean,
   onCleanChange,
   onViewIndex,
   filter = "all",
@@ -197,6 +200,7 @@ export default function ArtFeed({
               priority={index === 0}
               showToast={showToast}
               onOpenArtist={onOpenArtist}
+              clean={clean}
               onCleanChange={onCleanChange}
               tutorial={tutorial}
               placardOpen={placardOpen}
