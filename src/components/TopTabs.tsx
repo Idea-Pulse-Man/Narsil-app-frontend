@@ -39,12 +39,12 @@ export default function TopTabs({
           {navTabs.map((tab) => {
             const isActive = tab.id === active;
             return (
-              <button
+              <motion.button
                 key={tab.id}
                 onClick={() => onChange?.(tab.id)}
-                className={`relative rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors ${
-                  isActive ? "text-white" : "text-white/80 hover:text-white"
-                }`}
+                whileTap={{ scale: 0.94 }}
+                aria-current={isActive ? "page" : undefined}
+                className="relative rounded-full px-3 py-1.5 text-[13px] font-medium text-white"
               >
                 {isActive && (
                   <motion.span
@@ -54,22 +54,29 @@ export default function TopTabs({
                   />
                 )}
                 <span className="relative whitespace-nowrap">{tab.label}</span>
-              </button>
+              </motion.button>
             );
           })}
 
           {/* Search sits inline, right after the Buy tab */}
-          <button
+          <motion.button
             onClick={() => onChange?.("search")}
+            whileTap={{ scale: 0.94 }}
             aria-label="Search"
-            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors ${
-              isSearchActive
-                ? "text-white"
-                : "text-white/80 hover:text-white"
-            }`}
+            aria-current={isSearchActive ? "page" : undefined}
+            className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white"
           >
-            <SearchIcon className="h-[15px] w-[15px]" />
-          </button>
+            {/* Same pill as the text tabs — with uniform white text it is the
+                only thing marking Search as the active screen. */}
+            {isSearchActive && (
+              <motion.span
+                layoutId="top-tab-pill"
+                transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                className="absolute inset-0 rounded-full border border-white/20 bg-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-xl"
+              />
+            )}
+            <SearchIcon className="relative h-[15px] w-[15px]" />
+          </motion.button>
         </div>
 
         {/* Right spacer to keep the tab cluster visually centered */}

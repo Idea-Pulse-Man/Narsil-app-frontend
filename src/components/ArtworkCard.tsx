@@ -335,10 +335,11 @@ export default function ArtworkCard({
                         titleRef.current = node;
                       }}
                       onClick={() => setTitleExpanded((open) => !open)}
+                      aria-expanded={titleExpanded}
                       aria-label={
                         titleExpanded ? "Collapse title" : "Show full title"
                       }
-                      className={`pointer-events-auto w-full text-left ${
+                      className={`pointer-events-auto -my-1 w-full py-1 text-left ${
                         titleExpanded ? "whitespace-normal" : "block truncate"
                       }`}
                     >
@@ -362,7 +363,7 @@ export default function ArtworkCard({
                     onOpenArtist(artist.id);
                     tutorial?.report("artist");
                   }}
-                  className="pointer-events-auto mt-2 inline-flex max-w-full items-center gap-2 text-[15px] text-white/85 transition-colors hover:text-white"
+                  className="pointer-events-auto mt-2 flex max-w-full items-center gap-2 text-left text-[15px] text-white/85 transition-colors hover:text-white"
                 >
                   <ArtistAvatar
                     src={getArtistAvatar(artist.id)}
@@ -373,7 +374,8 @@ export default function ArtworkCard({
                     className="h-6 w-6 shrink-0 rounded-full text-[10px] font-semibold backdrop-blur-md"
                     fallbackClassName="bg-white/15 text-white"
                   />
-                  <span className="truncate whitespace-nowrap underline-offset-4 hover:underline">
+                  {/* Wrap rather than truncate so a long name is never cut off. */}
+                  <span className="line-clamp-2 underline-offset-4 hover:underline">
                     {artist.name}
                   </span>
                   <span className="shrink-0 whitespace-nowrap text-white/45">
