@@ -194,10 +194,9 @@ export default function DiscoverView({
   return (
     <div ref={scrollRef} className={screenScrollClass}>
       <div className={screenContentClass}>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
-          Discover
-        </p>
-        <h1 className="mt-2 font-serif text-[28px] leading-tight text-white">
+        {/* No eyebrow label here — the active "Discover" tab above already
+            names the screen, so the title carries it alone. */}
+        <h1 className="font-serif text-[32px] leading-tight text-white">
           Art History
         </h1>
 
