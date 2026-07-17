@@ -24,10 +24,10 @@ export default function TopTabs({
         <div className="flex w-[56px] shrink-0 flex-col items-center gap-1">
           {showBrand && (
             <>
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-[13px] font-bold text-ink shadow-sm">
+              <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-white text-[9px] font-bold text-ink shadow-sm">
                 N
               </span>
-              <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white">
+              <span className="text-[8px] font-semibold uppercase tracking-[0.18em] text-white">
                 Narsil
               </span>
             </>
