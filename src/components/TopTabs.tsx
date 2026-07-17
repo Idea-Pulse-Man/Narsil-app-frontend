@@ -21,13 +21,13 @@ export default function TopTabs({
     <div className="pointer-events-none absolute inset-x-0 top-0 z-30 pt-[env(safe-area-inset-top)]">
       <div className="pointer-events-auto flex items-center justify-between gap-2 px-4 pt-3">
         {/* Brand lockup — stacked N over NARSIL in the top-left corner */}
-        <div className="mt-1 flex w-[56px] shrink-0 flex-col items-center gap-1">
+        <div className="mt-1 flex w-[76px] shrink-0 flex-col items-center gap-1">
           {showBrand && (
             <>
               <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-white text-[9px] font-bold text-ink shadow-sm">
                 N
               </span>
-              <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white">
+              <span className="whitespace-nowrap text-[13px] font-semibold uppercase tracking-[0.14em] text-white">
                 Narsil
               </span>
             </>
@@ -79,7 +79,7 @@ export default function TopTabs({
         </div>
 
         {/* Right spacer to keep the tab cluster visually centered */}
-        <div className="w-[56px] shrink-0" />
+        <div className="w-[76px] shrink-0" />
       </div>
     </div>
   );
