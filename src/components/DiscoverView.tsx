@@ -3,7 +3,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   historyEras,
   featuredArtistIds,
-  eraForArtwork,
   artworks as curatedArtworks,
   shouldResolvePortrait,
   type Artwork,
@@ -11,16 +10,19 @@ import {
 } from "@/data";
 import { useCatalog } from "@/data/catalog";
 import { sizedAvatarUrl } from "@/lib/imageUrl";
-import BlurImage from "./BlurImage";
 import ArtistAvatar from "./ArtistAvatar";
 import ArtworkTile from "./ArtworkTile";
-import { ChevronDownIcon } from "./Icons";
+import ArtworkRow from "./ArtworkRow";
+import ArtistRail from "./ArtistRail";
+import { ArrowRightIcon } from "./Icons";
 import { screenScrollClass, screenContentClass } from "./artwork-layout";
+import { useEraWorks, useArtistsForWorks } from "./era-works";
 import { useInfiniteScroll } from "./useInfiniteScroll";
 
 interface DiscoverViewProps {
   onOpenArtist: (artistId: string) => void;
   onOpenArtwork: (artworkId: string) => void;
+  onOpenEra: (eraId: string) => void;
 }
 
 /** The three ways to explore the past — no search box, just tap to browse. */
@@ -42,36 +44,26 @@ function mergeById<T extends { id: string }>(base: T[], extra: T[]): T[] {
 const ARTIST_PAGE = 36;
 
 /**
- * Works visible before the rest of an era collapses behind a toggle. Expanding
- * lists every work in the age — row images lazy-load, so a long age is cheap
- * until it is scrolled into view.
+ * Works previewed per era on the timeline. The rest live on the era's own
+ * screen — keeping the preview short is what stops one long age from burying
+ * the ages after it.
  */
-const ERA_COLLAPSED = 2;
+const ERA_PREVIEW = 2;
 
 export default function DiscoverView({
   onOpenArtist,
   onOpenArtwork,
+  onOpenEra,
 }: DiscoverViewProps) {
   const {
     artworks: liveArtworks,
     artists: liveArtists,
-    getArtwork,
     getArtist,
     getArtistAvatar,
   } = useCatalog();
   const [lens, setLens] = useState<Lens>("age");
   const [activeEmpire, setActiveEmpire] = useState<string | null>(null);
-  /** Era ids whose works are expanded past the collapsed preview. */
-  const [expandedEras, setExpandedEras] = useState<Set<string>>(new Set());
   const scrollRef = useRef<HTMLDivElement | null>(null);
-
-  const toggleEra = (eraId: string) =>
-    setExpandedEras((prev) => {
-      const next = new Set(prev);
-      if (next.has(eraId)) next.delete(eraId);
-      else next.add(eraId);
-      return next;
-    });
 
   const featured = featuredArtistIds
     .map((id) => getArtist(id))
@@ -94,41 +86,10 @@ export default function DiscoverView({
     [liveArtworks],
   );
 
-  // ── Lens 1: Ages ── curated set-pieces stay pinned first, then the live
-  // museum catalog fills each era (matched by period/tags/empire, then date).
-  const eraWorks = useMemo(() => {
-    const map = new Map<string, Artwork[]>();
-    for (const era of historyEras) {
-      map.set(
-        era.id,
-        era.artworkIds
-          .map((id) => getArtwork(id))
-          .filter((a): a is Artwork => !!a),
-      );
-    }
-    for (const art of liveArtworks) {
-      const era = eraForArtwork(art);
-      if (!era) continue;
-      const list = map.get(era.id)!;
-      if (!list.some((a) => a.id === art.id)) list.push(art);
-    }
-    return map;
-  }, [liveArtworks, getArtwork]);
-
-  // The named artists working in an era — anonymous/"Unknown" makers add
-  // nothing to a portrait rail, so they're skipped.
-  const artistsForWorks = (works: Artwork[]): Artist[] => {
-    const seen = new Set<string>();
-    const list: Artist[] = [];
-    for (const work of works) {
-      const artist = getArtist(work.artistId);
-      if (!artist || seen.has(artist.id)) continue;
-      if (!artist.name || /^unknown/i.test(artist.name)) continue;
-      seen.add(artist.id);
-      list.push(artist);
-    }
-    return list.slice(0, 16);
-  };
+  // ── Lens 1: Ages ── shared with the era screen so both agree on what an
+  // age contains.
+  const eraWorks = useEraWorks();
+  const artistsForWorks = useArtistsForWorks();
 
   // ── Lens 2: Empires ── group every work that belongs to an ancient empire.
   const empireGroups = useMemo(() => {
@@ -288,19 +249,7 @@ export default function DiscoverView({
               {historyEras.map((era, eraIndex) => {
                 const works = eraWorks.get(era.id) ?? [];
                 const eraArtists = artistsForWorks(works);
-                const expanded = expandedEras.has(era.id);
-                const collapsible = works.length > ERA_COLLAPSED;
-                const renderRow = (artwork: Artwork) => {
-                  const artist = getArtist(artwork.artistId);
-                  return (
-                    <ArtworkRow
-                      key={artwork.id}
-                      artwork={artwork}
-                      subtitle={`${artist?.name ?? "Unknown"} · ${artwork.year}`}
-                      onOpen={onOpenArtwork}
-                    />
-                  );
-                };
+                const rest = works.length - ERA_PREVIEW;
                 return (
                   <motion.section
                     key={era.id}
@@ -325,41 +274,29 @@ export default function DiscoverView({
                     <ArtistRail artists={eraArtists} onOpen={onOpenArtist} />
 
                     <div className="mt-4 space-y-3">
-                      {works.slice(0, ERA_COLLAPSED).map(renderRow)}
-
-                      {/* The rest of the era's works fold away behind the
-                          toggle so the timeline stays scannable. */}
-                      <AnimatePresence initial={false}>
-                        {expanded && (
-                          <motion.div
-                            key="more"
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: "auto", opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.25, ease: "easeOut" }}
-                            className="space-y-3 overflow-hidden"
-                          >
-                            {works.slice(ERA_COLLAPSED).map(renderRow)}
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
+                      {works.slice(0, ERA_PREVIEW).map((artwork) => {
+                        const artist = getArtist(artwork.artistId);
+                        return (
+                          <ArtworkRow
+                            key={artwork.id}
+                            artwork={artwork}
+                            subtitle={`${artist?.name ?? "Unknown"} · ${artwork.year}`}
+                            onOpen={onOpenArtwork}
+                          />
+                        );
+                      })}
                     </div>
 
-                    {collapsible && (
+                    {/* The rest of the age lives on its own screen — a long
+                        age would otherwise bury the ages after it. */}
+                    {rest > 0 && (
                       <button
                         type="button"
-                        onClick={() => toggleEra(era.id)}
-                        aria-expanded={expanded}
-                        className="mt-3 flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-[11px] font-medium text-white/70 transition-colors hover:text-white"
+                        onClick={() => onOpenEra(era.id)}
+                        className="mt-3 flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-[11px] font-medium text-white/70 transition-colors hover:border-white/25 hover:text-white"
                       >
-                        {expanded
-                          ? "Show less"
-                          : `Show all ${works.length - ERA_COLLAPSED} more`}
-                        <ChevronDownIcon
-                          className={`h-3 w-3 transition-transform duration-200 ${
-                            expanded ? "rotate-180" : ""
-                          }`}
-                        />
+                        See all {works.length} works
+                        <ArrowRightIcon className="h-3 w-3" />
                       </button>
                     )}
                   </motion.section>
@@ -500,78 +437,6 @@ export default function DiscoverView({
         </AnimatePresence>
       </div>
     </div>
-  );
-}
-
-/** Horizontal, tappable row of artist portraits — used by the Ages & Empires
- * lenses to answer "who was working here?". Renders nothing when empty. */
-function ArtistRail({
-  artists,
-  onOpen,
-}: {
-  artists: Artist[];
-  onOpen: (artistId: string) => void;
-}) {
-  const { getArtistAvatar } = useCatalog();
-  if (artists.length === 0) return null;
-  return (
-    <div className="mt-4 flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      {artists.map((artist) => (
-        <button
-          key={artist.id}
-          onClick={() => onOpen(artist.id)}
-          className="flex w-14 shrink-0 flex-col items-center gap-1.5"
-        >
-          <ArtistAvatar
-            src={getArtistAvatar(artist.id)}
-            name={artist.name}
-            initials={artist.initials}
-            lookup={shouldResolvePortrait(artist)}
-            size={48}
-            className="h-12 w-12 rounded-full border border-white/15 text-[13px] font-semibold text-white"
-            fallbackClassName=""
-            style={artist.accent ? { backgroundColor: artist.accent } : undefined}
-          />
-          <span className="line-clamp-2 text-center text-[10px] leading-tight text-white/55">
-            {artist.name}
-          </span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-/** Compact artwork row — thumbnail + title + meta. Used by the Ages timeline. */
-function ArtworkRow({
-  artwork,
-  subtitle,
-  onOpen,
-}: {
-  artwork: Artwork;
-  subtitle: string;
-  onOpen: (artworkId: string) => void;
-}) {
-  return (
-    <button
-      onClick={() => onOpen(artwork.id)}
-      className="group flex w-full items-center gap-3 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-2 text-left transition-colors hover:border-white/20 hover:bg-white/[0.06]"
-    >
-      <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl">
-        <BlurImage
-          src={artwork.image}
-          alt={artwork.title}
-          accent={artwork.accent}
-          thumbWidth={128}
-        />
-      </div>
-      <div className="min-w-0 flex-1 pr-2">
-        <p className="truncate font-serif text-[15px] text-white">
-          {artwork.title}
-        </p>
-        <p className="mt-0.5 truncate text-xs text-white/50">{subtitle}</p>
-        <p className="mt-1 truncate text-[11px] text-white/40">{artwork.medium}</p>
-      </div>
-    </button>
   );
 }
 

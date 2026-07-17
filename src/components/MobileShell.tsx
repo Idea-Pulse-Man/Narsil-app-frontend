@@ -6,6 +6,7 @@ import TermsView from "./TermsView";
 import MusicPrompt from "./MusicPrompt";
 import AdminView from "./AdminView";
 import type { Artist } from "@/data";
+import { historyEras } from "@/data/history";
 import { useCatalog } from "@/data/catalog";
 import TopTabs from "./TopTabs";
 import BottomNav from "./BottomNav";
@@ -18,6 +19,7 @@ import SearchView from "./SearchView";
 import SavedView from "./SavedView";
 import YouView from "./YouView";
 import ArtistProfileModal from "./ArtistProfileModal";
+import EraScreen from "./EraScreen";
 import ArtworkViewer from "./ArtworkViewer";
 import AuthView from "./AuthView";
 import PreferenceModal from "./PreferenceModal";
@@ -64,6 +66,8 @@ export default function MobileShell() {
   const [showFeedToggle, setShowFeedToggle] = useState(true);
   const [activeArtist, setActiveArtist] = useState<Artist | null>(null);
   const [activeArtworkId, setActiveArtworkId] = useState<string | null>(null);
+  /** The age opened to its own full-screen list from the Discover timeline. */
+  const [activeEraId, setActiveEraId] = useState<string | null>(null);
   const [clean, setClean] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -374,6 +378,7 @@ export default function MobileShell() {
               <DiscoverView
                 onOpenArtist={openArtist}
                 onOpenArtwork={openArtwork}
+                onOpenEra={setActiveEraId}
               />
             )}
 
@@ -451,6 +456,15 @@ export default function MobileShell() {
         </AnimatePresence>
 
         <Toast toast={toast} />
+
+        {/* One age in full. Sits under the profile/viewer so anything opened
+            from an era's list stacks on top of it. */}
+        <EraScreen
+          era={historyEras.find((e) => e.id === activeEraId) ?? null}
+          onClose={() => setActiveEraId(null)}
+          onOpenArtwork={openArtwork}
+          onOpenArtist={openArtist}
+        />
 
         <ArtistProfileModal
           artist={activeArtist}
