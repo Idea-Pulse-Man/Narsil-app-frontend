@@ -41,10 +41,11 @@ function mergeById<T extends { id: string }>(base: T[], extra: T[]): T[] {
 /** How many artists to show in the grid before loading more on scroll. */
 const ARTIST_PAGE = 36;
 
-/** How many works each timeline era previews (curated set-pieces first). */
-const ERA_PREVIEW = 6;
-
-/** Works visible before an era's remaining previews collapse behind a toggle. */
+/**
+ * Works visible before the rest of an era collapses behind a toggle. Expanding
+ * lists every work in the age — row images lazy-load, so a long age is cheap
+ * until it is scrolled into view.
+ */
 const ERA_COLLAPSED = 2;
 
 export default function DiscoverView({
@@ -287,10 +288,8 @@ export default function DiscoverView({
               {historyEras.map((era, eraIndex) => {
                 const works = eraWorks.get(era.id) ?? [];
                 const eraArtists = artistsForWorks(works);
-                const preview = works.slice(0, ERA_PREVIEW);
                 const expanded = expandedEras.has(era.id);
-                const collapsible = preview.length > ERA_COLLAPSED;
-                const hidden = works.length - preview.length;
+                const collapsible = works.length > ERA_COLLAPSED;
                 const renderRow = (artwork: Artwork) => {
                   const artist = getArtist(artwork.artistId);
                   return (
@@ -326,7 +325,7 @@ export default function DiscoverView({
                     <ArtistRail artists={eraArtists} onOpen={onOpenArtist} />
 
                     <div className="mt-4 space-y-3">
-                      {preview.slice(0, ERA_COLLAPSED).map(renderRow)}
+                      {works.slice(0, ERA_COLLAPSED).map(renderRow)}
 
                       {/* The rest of the era's works fold away behind the
                           toggle so the timeline stays scannable. */}
@@ -340,15 +339,7 @@ export default function DiscoverView({
                             transition={{ duration: 0.25, ease: "easeOut" }}
                             className="space-y-3 overflow-hidden"
                           >
-                            {preview.slice(ERA_COLLAPSED).map(renderRow)}
-
-                            {hidden > 0 && (
-                              <p className="text-[11px] text-white/35">
-                                +{hidden} more{" "}
-                                {hidden === 1 ? "work" : "works"} from this age
-                                in the collection
-                              </p>
-                            )}
+                            {works.slice(ERA_COLLAPSED).map(renderRow)}
                           </motion.div>
                         )}
                       </AnimatePresence>
@@ -363,7 +354,7 @@ export default function DiscoverView({
                       >
                         {expanded
                           ? "Show less"
-                          : `Show ${preview.length - ERA_COLLAPSED} more`}
+                          : `Show all ${works.length - ERA_COLLAPSED} more`}
                         <ChevronDownIcon
                           className={`h-3 w-3 transition-transform duration-200 ${
                             expanded ? "rotate-180" : ""
