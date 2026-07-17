@@ -85,18 +85,23 @@ export default function ArtworkCard({
   }, [resetToken, onCleanChange]);
 
   // Measure real overflow so short titles stay fully visible on one line.
+  // The title node swaps between <span> and <button> as `titleOverflows` flips,
+  // so re-run on that change to observe the element that's actually mounted.
+  // Ignore callbacks fired for a detached old node — it reports 0×0 and would
+  // otherwise clear the flag right after we set it, reverting to a dead span.
   useEffect(() => {
     if (titleExpanded) return;
     const el = titleRef.current;
     if (!el) return;
     const check = () => {
+      if (!el.isConnected) return;
       setTitleOverflows(el.scrollWidth > el.clientWidth + 1);
     };
     check();
     const ro = new ResizeObserver(check);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [artwork.title, titleExpanded]);
+  }, [artwork.title, titleExpanded, titleOverflows]);
 
   const setClean = (next: boolean) => {
     cleanRef.current = next;
