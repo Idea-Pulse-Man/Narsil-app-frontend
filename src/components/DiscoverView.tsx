@@ -14,6 +14,7 @@ import { sizedAvatarUrl } from "@/lib/imageUrl";
 import BlurImage from "./BlurImage";
 import ArtistAvatar from "./ArtistAvatar";
 import ArtworkTile from "./ArtworkTile";
+import { ChevronDownIcon } from "./Icons";
 import { screenScrollClass, screenContentClass } from "./artwork-layout";
 import { useInfiniteScroll } from "./useInfiniteScroll";
 
@@ -43,6 +44,9 @@ const ARTIST_PAGE = 36;
 /** How many works each timeline era previews (curated set-pieces first). */
 const ERA_PREVIEW = 6;
 
+/** Works visible before an era's remaining previews collapse behind a toggle. */
+const ERA_COLLAPSED = 2;
+
 export default function DiscoverView({
   onOpenArtist,
   onOpenArtwork,
@@ -56,7 +60,17 @@ export default function DiscoverView({
   } = useCatalog();
   const [lens, setLens] = useState<Lens>("age");
   const [activeEmpire, setActiveEmpire] = useState<string | null>(null);
+  /** Era ids whose works are expanded past the collapsed preview. */
+  const [expandedEras, setExpandedEras] = useState<Set<string>>(new Set());
   const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  const toggleEra = (eraId: string) =>
+    setExpandedEras((prev) => {
+      const next = new Set(prev);
+      if (next.has(eraId)) next.delete(eraId);
+      else next.add(eraId);
+      return next;
+    });
 
   const featured = featuredArtistIds
     .map((id) => getArtist(id))
@@ -273,8 +287,21 @@ export default function DiscoverView({
               {historyEras.map((era, eraIndex) => {
                 const works = eraWorks.get(era.id) ?? [];
                 const eraArtists = artistsForWorks(works);
-                const shown = works.slice(0, ERA_PREVIEW);
-                const hidden = works.length - shown.length;
+                const preview = works.slice(0, ERA_PREVIEW);
+                const expanded = expandedEras.has(era.id);
+                const collapsible = preview.length > ERA_COLLAPSED;
+                const hidden = works.length - preview.length;
+                const renderRow = (artwork: Artwork) => {
+                  const artist = getArtist(artwork.artistId);
+                  return (
+                    <ArtworkRow
+                      key={artwork.id}
+                      artwork={artwork}
+                      subtitle={`${artist?.name ?? "Unknown"} · ${artwork.year}`}
+                      onOpen={onOpenArtwork}
+                    />
+                  );
+                };
                 return (
                   <motion.section
                     key={era.id}
@@ -299,24 +326,50 @@ export default function DiscoverView({
                     <ArtistRail artists={eraArtists} onOpen={onOpenArtist} />
 
                     <div className="mt-4 space-y-3">
-                      {shown.map((artwork) => {
-                        const artist = getArtist(artwork.artistId);
-                        return (
-                          <ArtworkRow
-                            key={artwork.id}
-                            artwork={artwork}
-                            subtitle={`${artist?.name ?? "Unknown"} · ${artwork.year}`}
-                            onOpen={onOpenArtwork}
-                          />
-                        );
-                      })}
+                      {preview.slice(0, ERA_COLLAPSED).map(renderRow)}
+
+                      {/* The rest of the era's works fold away behind the
+                          toggle so the timeline stays scannable. */}
+                      <AnimatePresence initial={false}>
+                        {expanded && (
+                          <motion.div
+                            key="more"
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.25, ease: "easeOut" }}
+                            className="space-y-3 overflow-hidden"
+                          >
+                            {preview.slice(ERA_COLLAPSED).map(renderRow)}
+
+                            {hidden > 0 && (
+                              <p className="text-[11px] text-white/35">
+                                +{hidden} more{" "}
+                                {hidden === 1 ? "work" : "works"} from this age
+                                in the collection
+                              </p>
+                            )}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
 
-                    {hidden > 0 && (
-                      <p className="mt-3 text-[11px] text-white/35">
-                        +{hidden} more {hidden === 1 ? "work" : "works"} from
-                        this age in the collection
-                      </p>
+                    {collapsible && (
+                      <button
+                        type="button"
+                        onClick={() => toggleEra(era.id)}
+                        aria-expanded={expanded}
+                        className="mt-3 flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-[11px] font-medium text-white/70 transition-colors hover:text-white"
+                      >
+                        {expanded
+                          ? "Show less"
+                          : `Show ${preview.length - ERA_COLLAPSED} more`}
+                        <ChevronDownIcon
+                          className={`h-3 w-3 transition-transform duration-200 ${
+                            expanded ? "rotate-180" : ""
+                          }`}
+                        />
+                      </button>
                     )}
                   </motion.section>
                 );
