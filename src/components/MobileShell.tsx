@@ -20,6 +20,7 @@ import SavedView from "./SavedView";
 import YouView from "./YouView";
 import ArtistProfileModal from "./ArtistProfileModal";
 import EraScreen from "./EraScreen";
+import QuizOverlay from "./QuizOverlay";
 import ArtworkViewer from "./ArtworkViewer";
 import AuthView from "./AuthView";
 import PreferenceModal from "./PreferenceModal";
@@ -68,6 +69,10 @@ export default function MobileShell() {
   const [activeArtworkId, setActiveArtworkId] = useState<string | null>(null);
   /** The age opened to its own full-screen list from the Discover timeline. */
   const [activeEraId, setActiveEraId] = useState<string | null>(null);
+  /** Daily quiz overlay (stacked above Discover, like EraScreen). */
+  const [quizOpen, setQuizOpen] = useState(false);
+  /** Bumped when the quiz closes so entry cards re-read their streak. */
+  const [quizRefresh, setQuizRefresh] = useState(0);
   const [clean, setClean] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -379,6 +384,8 @@ export default function MobileShell() {
                 onOpenArtist={openArtist}
                 onOpenArtwork={openArtwork}
                 onOpenEra={setActiveEraId}
+                onOpenQuiz={() => setQuizOpen(true)}
+                quizRefresh={quizRefresh}
               />
             )}
 
@@ -428,6 +435,9 @@ export default function MobileShell() {
                 onSignIn={() => setAuthOpen(true)}
                 onOpenTerms={() => setTermsReview(true)}
                 onOpenAdmin={() => setAdminOpen(true)}
+                onOpenQuiz={() => setQuizOpen(true)}
+                quizRefresh={quizRefresh}
+                onQuizReset={() => setQuizRefresh((t) => t + 1)}
                 isAdmin={isAdmin}
                 showToast={showToast}
               />
@@ -464,6 +474,17 @@ export default function MobileShell() {
           onClose={() => setActiveEraId(null)}
           onOpenArtwork={openArtwork}
           onOpenArtist={openArtist}
+        />
+
+        {/* Daily quiz — stacks above Discover; opening an artwork from the
+            results closes it first so the viewer lands on top. */}
+        <QuizOverlay
+          open={quizOpen}
+          onClose={() => {
+            setQuizOpen(false);
+            setQuizRefresh((t) => t + 1);
+          }}
+          onOpenArtwork={openArtwork}
         />
 
         <ArtistProfileModal

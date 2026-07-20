@@ -1,8 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useCatalog } from "@/data/catalog";
 import { useAppState } from "./AppState";
 import { screenScrollClass, screenContentClass } from "./artwork-layout";
-import { SparkleIcon } from "./Icons";
+import { FlameIcon, SparkleIcon } from "./Icons";
+import {
+  effectiveStreak,
+  hasPlayedToday,
+  loadProgress,
+  resetQuizData,
+  EMPTY_PROGRESS,
+  type QuizProgress,
+} from "@/lib/quiz";
 import { useAudio } from "@/lib/audio/AudioProvider";
 import ArtworkTile from "./ArtworkTile";
 import AddressManager from "./AddressManager";
@@ -19,6 +27,11 @@ interface YouViewProps {
   onSignIn: () => void;
   onOpenTerms: () => void;
   onOpenAdmin: () => void;
+  onOpenQuiz: () => void;
+  /** Bumped when the quiz overlay closes so the streak re-reads. */
+  quizRefresh: number;
+  /** Called after the quiz streak is reset so entry cards re-read it. */
+  onQuizReset: () => void;
   isAdmin: boolean;
   showToast: (message: string, variant?: ToastState["variant"]) => void;
 }
@@ -32,6 +45,9 @@ export default function YouView({
   onSignIn,
   onOpenTerms,
   onOpenAdmin,
+  onOpenQuiz,
+  quizRefresh,
+  onQuizReset,
   isAdmin,
   showToast,
 }: YouViewProps) {
@@ -47,6 +63,26 @@ export default function YouView({
   const { getArtist, getArtwork } = useCatalog();
   const [addressOpen, setAddressOpen] = useState(false);
   const [ordersOpen, setOrdersOpen] = useState(false);
+  const [quizProgress, setQuizProgress] =
+    useState<QuizProgress>(EMPTY_PROGRESS);
+
+  useEffect(() => {
+    setQuizProgress(loadProgress());
+  }, [quizRefresh]);
+
+  const quizStreak = effectiveStreak(quizProgress);
+  const quizDoneToday = hasPlayedToday(quizProgress);
+  const hasQuizData =
+    quizStreak > 0 ||
+    quizProgress.lastPlayedDate != null ||
+    quizProgress.totalAnswered > 0;
+
+  const handleResetQuiz = async () => {
+    await resetQuizData();
+    setQuizProgress(EMPTY_PROGRESS); // reflect immediately, don't await the cloud
+    onQuizReset(); // bump the shared token so the Discover card re-reads too
+    showToast("Quiz streak reset");
+  };
 
   const openAddresses = () => {
     if (isGuest) {
@@ -151,6 +187,32 @@ export default function YouView({
           <Stat label="Following" value={following.length} />
         </div>
 
+        {/* Daily quiz */}
+        <button
+          onClick={onOpenQuiz}
+          className="mt-6 flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 text-left transition-colors hover:bg-white/[0.06]"
+        >
+          <FlameIcon
+            filled={quizStreak > 0}
+            className={`h-6 w-6 shrink-0 ${
+              quizStreak > 0 ? "text-amber-300" : "text-white/30"
+            }`}
+          />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-white">
+              {quizStreak > 0 ? `${quizStreak} day quiz streak` : "Daily quiz"}
+            </p>
+            <p className="mt-0.5 text-xs text-white/50">
+              {quizProgress.lastDailyScore != null
+                ? `Last score ${quizProgress.lastDailyScore}/${quizProgress.lastDailyTotal}`
+                : "Test your eye on the collection"}
+            </p>
+          </div>
+          <span className="shrink-0 text-xs font-medium text-emerald-300/90">
+            {quizDoneToday ? "Done today" : "Play ›"}
+          </span>
+        </button>
+
         {/* Preferences */}
         <section className="mt-8 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
           <div className="flex items-start justify-between gap-3">
@@ -244,6 +306,14 @@ export default function YouView({
           <Row label="Canvas orders" onClick={openOrders} />
           <Row label="Delivery addresses" onClick={openAddresses} />
           <Row label="Replay the tutorial" onClick={onRestartTutorial} />
+          {hasQuizData && (
+            <Row
+              label="Reset quiz streak"
+              hint={quizStreak > 0 ? `${quizStreak} days` : undefined}
+              onClick={handleResetQuiz}
+              destructive
+            />
+          )}
           {isAdmin && <Row label="Admin dashboard" onClick={onOpenAdmin} />}
           {!isGuest && (
             <Row label="Sign out" onClick={handleSignOut} destructive />

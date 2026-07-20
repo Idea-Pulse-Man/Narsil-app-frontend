@@ -19,6 +19,9 @@ export const STORAGE_KEYS = {
   termsVersion: "narsil:terms-version",
   musicEnabled: "narsil:music-enabled",
   musicPromptSeen: "narsil:music-prompt-seen",
+  quizProgress: "narsil:quiz-progress",
+  quizDaily: "narsil:quiz-daily",
+  quizInstallId: "narsil:quiz-install-id",
 } as const;
 
 export function readJSON<T>(key: string, fallback: T): T {

@@ -13,6 +13,7 @@ import { sizedAvatarUrl } from "@/lib/imageUrl";
 import ArtistAvatar from "./ArtistAvatar";
 import ArtworkTile from "./ArtworkTile";
 import ArtworkRow from "./ArtworkRow";
+import DailyQuizCard from "./DailyQuizCard";
 import ArtistRail from "./ArtistRail";
 import { ArrowRightIcon } from "./Icons";
 import { screenScrollClass, screenContentClass } from "./artwork-layout";
@@ -23,6 +24,9 @@ interface DiscoverViewProps {
   onOpenArtist: (artistId: string) => void;
   onOpenArtwork: (artworkId: string) => void;
   onOpenEra: (eraId: string) => void;
+  onOpenQuiz: () => void;
+  /** Bumped when the quiz overlay closes so the card re-reads its streak. */
+  quizRefresh: number;
 }
 
 /** The three ways to explore the past — no search box, just tap to browse. */
@@ -54,6 +58,8 @@ export default function DiscoverView({
   onOpenArtist,
   onOpenArtwork,
   onOpenEra,
+  onOpenQuiz,
+  quizRefresh,
 }: DiscoverViewProps) {
   const {
     artworks: liveArtworks,
@@ -175,6 +181,9 @@ export default function DiscoverView({
         <h1 className="font-serif text-[32px] leading-tight text-white">
           Art History
         </h1>
+
+        {/* Daily quiz — a Duolingo-style retention hook at the top of Discover */}
+        <DailyQuizCard onStart={onOpenQuiz} refreshKey={quizRefresh} />
 
         {/* Featured artists rail */}
         <h2 className="mt-7 font-serif text-lg text-white">Featured artists</h2>

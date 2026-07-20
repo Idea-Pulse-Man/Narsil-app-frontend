@@ -1,0 +1,109 @@
+import { motion } from "framer-motion";
+import type { QuizQuestion as Question } from "@/lib/quiz";
+import { MODE_LABEL } from "@/lib/quiz";
+import BlurImage from "./BlurImage";
+import { CheckIcon, CloseIcon } from "./Icons";
+
+interface QuizQuestionProps {
+  question: Question;
+  index: number;
+  total: number;
+  /** Chosen option, or null before the user has answered. */
+  selected: number | null;
+  onSelect: (index: number) => void;
+}
+
+/**
+ * A single quiz question — big artwork up top, four answer buttons below.
+ * Once answered, the correct option flashes green and a wrong pick flashes red;
+ * the buttons lock until the parent advances to the next question.
+ */
+export default function QuizQuestion({
+  question,
+  index,
+  total,
+  selected,
+  onSelect,
+}: QuizQuestionProps) {
+  const answered = selected !== null;
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* Progress dots */}
+      <div className="flex items-center justify-center gap-1.5 px-5 pt-1">
+        {Array.from({ length: total }).map((_, i) => (
+          <span
+            key={i}
+            className={`h-1.5 rounded-full transition-all ${
+              i === index
+                ? "w-5 bg-emerald-300"
+                : i < index
+                  ? "w-1.5 bg-emerald-300/60"
+                  : "w-1.5 bg-white/20"
+            }`}
+          />
+        ))}
+      </div>
+
+      {/* Artwork */}
+      <div className="mt-4 px-5">
+        <div className="relative aspect-square w-full overflow-hidden rounded-3xl border border-white/10">
+          <BlurImage
+            key={question.artworkId}
+            src={question.artwork.image}
+            alt="Artwork to identify"
+            accent={question.artwork.accent}
+            fit="contain"
+            priority
+          />
+          <span className="absolute left-3 top-3 rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/80 backdrop-blur-md">
+            {MODE_LABEL[question.mode]}
+          </span>
+        </div>
+      </div>
+
+      {/* Prompt + options */}
+      <div className="mt-5 flex flex-1 flex-col px-5">
+        <p className="text-center font-serif text-[19px] leading-snug text-white">
+          {question.prompt}
+        </p>
+
+        <div className="mt-4 space-y-2.5">
+          {question.options.map((option, i) => {
+            const isCorrect = i === question.correctIndex;
+            const isChosen = i === selected;
+            const showCorrect = answered && isCorrect;
+            const showWrong = answered && isChosen && !isCorrect;
+
+            const state = showCorrect
+              ? "border-emerald-400/70 bg-emerald-400/15 text-white"
+              : showWrong
+                ? "border-red-400/70 bg-red-400/15 text-white"
+                : answered
+                  ? "border-white/10 bg-white/[0.03] text-white/45"
+                  : "border-white/12 bg-white/[0.05] text-white/90 hover:border-white/25 hover:bg-white/[0.08]";
+
+            return (
+              <motion.button
+                key={`${question.id}:${i}`}
+                type="button"
+                disabled={answered}
+                onClick={() => onSelect(i)}
+                whileTap={answered ? undefined : { scale: 0.985 }}
+                className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3.5 text-left text-[15px] font-medium transition-colors ${state}`}
+              >
+                <span className="min-w-0">{option}</span>
+                {showCorrect && (
+                  <CheckIcon className="h-5 w-5 shrink-0 text-emerald-300" />
+                )}
+                {showWrong && (
+                  <CloseIcon className="h-5 w-5 shrink-0 text-red-300" />
+                )}
+              </motion.button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}

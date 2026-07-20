@@ -411,6 +411,22 @@ export function AppleGlyph(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function FlameIcon({ filled, ...props }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth={1.7}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <path d="M12 2c1 3.5-1.5 5-2.8 6.4C7.5 10.2 7 11.7 7 13.5A5 5 0 0 0 17 13.5c0-2.2-1-3.9-2.3-5.4-.4 1-1.2 1.6-2 1.7.6-2.3.1-5.6-.7-7.8Z" />
+    </svg>
+  );
+}
+
 export function LinkIcon(props: IconProps) {
   return (
     <svg
