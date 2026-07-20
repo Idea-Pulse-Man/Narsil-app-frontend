@@ -422,7 +422,28 @@ export function FlameIcon({ filled, ...props }: IconProps) {
       strokeLinejoin="round"
       {...props}
     >
-      <path d="M12 2c1 3.5-1.5 5-2.8 6.4C7.5 10.2 7 11.7 7 13.5A5 5 0 0 0 17 13.5c0-2.2-1-3.9-2.3-5.4-.4 1-1.2 1.6-2 1.7.6-2.3.1-5.6-.7-7.8Z" />
+      <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5Z" />
+    </svg>
+  );
+}
+
+export function LightbulbIcon({ filled, ...props }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.7}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <path
+        d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1.3.5 2.6 1.5 3.5.8.8 1.3 1.5 1.5 2.5"
+        fill={filled ? "currentColor" : "none"}
+      />
+      <path d="M9 18h6" />
+      <path d="M10 21.5h4" />
     </svg>
   );
 }

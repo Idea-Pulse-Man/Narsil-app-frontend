@@ -4,7 +4,7 @@ import {
   PlusSquareIcon,
   BookmarkIcon,
   UserIcon,
-  FlameIcon,
+  LightbulbIcon,
 } from "./Icons";
 
 const ICONS: Record<string, (p: { filled?: boolean; className?: string }) => React.ReactNode> = {
@@ -68,12 +68,12 @@ export default function BottomNav({
         <button
           onClick={() => !disabled && onOpenQuiz()}
           aria-label="Quiz"
-          className="relative flex flex-1 flex-col items-center gap-0.5 rounded-full py-1"
+          className="group relative flex flex-1 flex-col items-center gap-0.5 rounded-full py-1"
         >
-          <span className="relative text-white/55 transition-colors hover:text-white/80">
-            <FlameIcon className="h-[19px] w-[19px]" />
+          <span className="relative text-white/55 transition-colors group-hover:text-white/85">
+            <LightbulbIcon className="h-[19px] w-[19px]" />
           </span>
-          <span className="relative text-[9px] font-medium tracking-tight text-white/55">
+          <span className="relative text-[9px] font-medium tracking-tight text-white/55 transition-colors group-hover:text-white/85">
             Quiz
           </span>
         </button>
