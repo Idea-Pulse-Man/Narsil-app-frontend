@@ -4,6 +4,7 @@ import {
   PlusSquareIcon,
   BookmarkIcon,
   UserIcon,
+  FlameIcon,
 } from "./Icons";
 
 const ICONS: Record<string, (p: { filled?: boolean; className?: string }) => React.ReactNode> = {
@@ -15,10 +16,12 @@ const ICONS: Record<string, (p: { filled?: boolean; className?: string }) => Rea
 export default function BottomNav({
   active,
   onChange,
+  onOpenQuiz,
   disabled = false,
 }: {
   active: Screen;
   onChange: (screen: Screen) => void;
+  onOpenQuiz: () => void;
   disabled?: boolean;
 }) {
   return (
@@ -59,6 +62,21 @@ export default function BottomNav({
             </button>
           );
         })}
+
+        {/* Quiz launcher — opens the full-screen quiz overlay (not a routed
+            screen), so it sits to the right of You without an active pill. */}
+        <button
+          onClick={() => !disabled && onOpenQuiz()}
+          aria-label="Quiz"
+          className="relative flex flex-1 flex-col items-center gap-0.5 rounded-full py-1"
+        >
+          <span className="relative text-white/55 transition-colors hover:text-white/80">
+            <FlameIcon className="h-[19px] w-[19px]" />
+          </span>
+          <span className="relative text-[9px] font-medium tracking-tight text-white/55">
+            Quiz
+          </span>
+        </button>
       </div>
     </nav>
   );

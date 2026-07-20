@@ -460,7 +460,11 @@ export default function MobileShell() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 12 }}
             >
-              <BottomNav active={screen} onChange={navigate} />
+              <BottomNav
+                active={screen}
+                onChange={navigate}
+                onOpenQuiz={() => setQuizOpen(true)}
+              />
             </motion.div>
           )}
         </AnimatePresence>
