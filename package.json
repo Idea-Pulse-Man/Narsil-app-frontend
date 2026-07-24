@@ -21,6 +21,7 @@
     "@capacitor/haptics": "^8.0.2",
     "@capacitor/keyboard": "^8.0.5",
     "@capacitor/status-bar": "^8.0.2",
+    "@capacitor-community/stripe": "^8.1.1",
     "@ionic/react": "^8.8.12",
     "@stripe/react-stripe-js": "^6.7.0",
     "@stripe/stripe-js": "^9.10.0",

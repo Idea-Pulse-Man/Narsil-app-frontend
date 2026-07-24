@@ -8,6 +8,7 @@
  */
 
 import { loadStripe, type Stripe } from "@stripe/stripe-js";
+import { Capacitor } from "@capacitor/core";
 import { API_URL } from "./api";
 import { ngrokFetch } from "./ngrok";
 import { supabase } from "./supabase";
@@ -16,15 +17,76 @@ const STRIPE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as
   | string
   | undefined;
 
+/**
+ * Apple Pay merchant id created in the Apple Developer portal (e.g.
+ * "merchant.com.narsil.museum") and registered with Stripe. When unset, the
+ * native sheet still works with card entry — only the Apple Pay button is
+ * hidden.
+ */
+const APPLE_PAY_MERCHANT_ID = import.meta.env
+  .VITE_APPLE_PAY_MERCHANT_ID as string | undefined;
+
+/** True inside the packaged iOS/Android app (WebView), false in a browser. */
+export const IS_NATIVE = Capacitor.isNativePlatform();
+
 export const PAYMENTS_ENABLED = Boolean(STRIPE_KEY);
 
 let stripePromise: Promise<Stripe | null> | null = null;
 
-/** Shared Stripe.js instance (loaded once per session). */
+/** Shared Stripe.js instance (loaded once per session). Web path only. */
 export function getStripe(): Promise<Stripe | null> {
   if (!STRIPE_KEY) return Promise.resolve(null);
   if (!stripePromise) stripePromise = loadStripe(STRIPE_KEY);
   return stripePromise;
+}
+
+// ── Native payment sheet (Apple Pay + card) ────────────────────────────────
+// On the packaged app, Apple Pay JS is unavailable inside the WebView, so we
+// drive Stripe's NATIVE iOS SDK via @capacitor-community/stripe. Same Stripe
+// account, same PaymentIntent/clientSecret the backend already returns — only
+// the confirmation UI is native. The plugin is imported lazily so it never
+// enters the web bundle.
+
+export type NativePayResult = "completed" | "canceled" | "failed";
+
+let nativeInit: Promise<void> | null = null;
+
+/** Initialise the native Stripe SDK once per session with the publishable key. */
+async function initNativeStripe(): Promise<void> {
+  if (!STRIPE_KEY) throw new Error("Payments aren't configured.");
+  if (!nativeInit) {
+    const { Stripe } = await import("@capacitor-community/stripe");
+    nativeInit = Stripe.initialize({ publishableKey: STRIPE_KEY });
+  }
+  return nativeInit;
+}
+
+/**
+ * Present the native Stripe payment sheet for the backend's PaymentIntent.
+ * Shows Apple Pay (when a merchant id is set) alongside card entry. Native only
+ * — call the web PaymentElement flow in a browser.
+ */
+export async function payWithNativeSheet(
+  clientSecret: string,
+): Promise<NativePayResult> {
+  const { Stripe, PaymentSheetEventsEnum } = await import(
+    "@capacitor-community/stripe"
+  );
+  await initNativeStripe();
+
+  await Stripe.createPaymentSheet({
+    paymentIntentClientSecret: clientSecret,
+    merchantDisplayName: "Narsil",
+    enableApplePay: Boolean(APPLE_PAY_MERCHANT_ID),
+    applePayMerchantId: APPLE_PAY_MERCHANT_ID ?? "",
+    countryCode: "US",
+    style: "alwaysDark",
+  });
+
+  const { paymentResult } = await Stripe.presentPaymentSheet();
+  if (paymentResult === PaymentSheetEventsEnum.Completed) return "completed";
+  if (paymentResult === PaymentSheetEventsEnum.Canceled) return "canceled";
+  return "failed";
 }
 
 export interface CheckoutIntent {
