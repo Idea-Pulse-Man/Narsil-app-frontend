@@ -17,6 +17,7 @@ import {
 import { useCatalog } from "@/data/catalog";
 import { useAppState } from "./AppState";
 import { fetchAddresses, createAddress, type Address } from "@/lib/orders";
+import { addressProblem, normalizeAddress } from "@/lib/address";
 import {
   PAYMENTS_ENABLED,
   getStripe,
@@ -135,14 +136,28 @@ export default function CanvasPurchaseSheet({
     setPlacing(true);
     try {
       let addressId = showForm ? null : selectedAddressId;
-      if (!addressId) {
+      if (addressId) {
+        // A saved address can predate the delivery checks — don't let it fail
+        // as a 400 after the customer has already committed to a size.
+        const saved = addresses.find((a) => a.id === addressId);
+        const problem = saved ? addressProblem(saved) : null;
+        if (problem) {
+          showToast(`${problem} Fix it under You → Delivery addresses.`, "error");
+          return;
+        }
+      } else {
         if (!form.line1.trim()) {
           setShowForm(true);
           showToast("Add a delivery address", "error");
           return;
         }
+        const problem = addressProblem(form);
+        if (problem) {
+          showToast(problem, "error");
+          return;
+        }
         const created = await createAddress({
-          ...form,
+          ...normalizeAddress(form),
           is_default: addresses.length === 0,
         });
         addressId = created?.id ?? null;
@@ -304,6 +319,7 @@ export default function CanvasPurchaseSheet({
                   <div className="mt-3 space-y-2">
                     {addresses.map((addr) => {
                       const selected = selectedAddressId === addr.id;
+                      const incomplete = addressProblem(addr) !== null;
                       return (
                         <button
                           key={addr.id}
@@ -319,10 +335,22 @@ export default function CanvasPurchaseSheet({
                               {addr.recipient_name || addr.label}
                             </span>
                             <span className="block truncate text-xs text-white/50">
-                              {[addr.line1, addr.city, addr.postal_code]
+                              {[
+                                addr.line1,
+                                addr.city,
+                                addr.region,
+                                addr.postal_code,
+                                addr.country,
+                              ]
                                 .filter(Boolean)
                                 .join(", ")}
                             </span>
+                            {incomplete && (
+                              <span className="mt-1 block text-xs text-amber-300/80">
+                                Incomplete — add the state and country under You
+                                → Delivery addresses
+                              </span>
+                            )}
                           </span>
                           <span
                             className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${

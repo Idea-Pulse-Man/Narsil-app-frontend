@@ -8,6 +8,7 @@ import {
   setDefaultAddress,
   type Address,
 } from "@/lib/orders";
+import { addressProblem, normalizeAddress } from "@/lib/address";
 import { CloseIcon, CheckIcon } from "./Icons";
 import type { ToastState } from "./Toast";
 
@@ -91,17 +92,21 @@ export default function AddressManager({
   };
 
   const save = async () => {
-    if (!form.line1.trim()) {
-      showToast("Address line 1 is required", "error");
+    // Same rules the backend enforces at checkout — catching them here means a
+    // saved address is always one Printful can actually ship to.
+    const problem = addressProblem(form);
+    if (problem) {
+      showToast(problem, "error");
       return;
     }
+    const clean = normalizeAddress(form);
     setBusy(true);
     try {
       if (editing === "new") {
-        await createAddress({ ...form, is_default: addresses.length === 0 });
+        await createAddress({ ...clean, is_default: addresses.length === 0 });
         showToast("Address added");
       } else if (editing) {
-        await updateAddress(editing, form);
+        await updateAddress(editing, clean);
         showToast("Address updated");
       }
       await refresh();
@@ -284,7 +289,7 @@ export default function AddressManager({
                       onChange={(v) => setField("city", v)}
                     />
                     <Input
-                      placeholder="State / region"
+                      placeholder="State (e.g. AZ)"
                       value={form.region}
                       onChange={(v) => setField("region", v)}
                     />
@@ -296,7 +301,7 @@ export default function AddressManager({
                       onChange={(v) => setField("postal_code", v)}
                     />
                     <Input
-                      placeholder="Country"
+                      placeholder="Country (e.g. US)"
                       value={form.country}
                       onChange={(v) => setField("country", v)}
                     />
