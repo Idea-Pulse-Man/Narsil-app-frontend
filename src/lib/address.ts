@@ -6,73 +6,54 @@
  * the form is still in front of them, instead of a 400 from
  * /api/checkout/payment-intent after they've picked a size.
  *
- * Keep the maps below in sync with the backend's; the backend stays the
- * authority, this is just the friendlier first pass.
+ * The forms pick codes from `lib/countries.ts`, so new addresses are already
+ * correct by construction. The name lookups below exist for rows saved before
+ * the dropdowns, and for anything typed by hand.
  */
 
-/** Common country spellings → ISO 3166-1 alpha-2 (2-letter input passes through). */
-const COUNTRY_CODES: Record<string, string> = {
-  "united states": "US",
-  "united states of america": "US",
-  usa: "US",
-  america: "US",
-  "united kingdom": "GB",
-  uk: "GB",
-  "great britain": "GB",
-  england: "GB",
-  canada: "CA",
-  australia: "AU",
-  germany: "DE",
-  deutschland: "DE",
-  france: "FR",
-  spain: "ES",
-  italy: "IT",
-  netherlands: "NL",
-  belgium: "BE",
-  switzerland: "CH",
-  austria: "AT",
-  ireland: "IE",
-  portugal: "PT",
-  sweden: "SE",
-  norway: "NO",
-  denmark: "DK",
-  finland: "FI",
-  poland: "PL",
-  japan: "JP",
-  "south korea": "KR",
-  korea: "KR",
-  china: "CN",
-  india: "IN",
-  brazil: "BR",
-  mexico: "MX",
-  "new zealand": "NZ",
-  singapore: "SG",
-  "hong kong": "HK",
-  taiwan: "TW",
-  "united arab emirates": "AE",
-  uae: "AE",
-};
+import {
+  COUNTRIES,
+  SUBDIVISIONS,
+  isCountryCode,
+  subdivisionsFor,
+} from "./countries";
 
-const US_STATES: Record<string, string> = {
-  alabama: "AL", alaska: "AK", arizona: "AZ", arkansas: "AR",
-  california: "CA", colorado: "CO", connecticut: "CT", delaware: "DE",
-  florida: "FL", georgia: "GA", hawaii: "HI", idaho: "ID",
-  illinois: "IL", indiana: "IN", iowa: "IA", kansas: "KS",
-  kentucky: "KY", louisiana: "LA", maine: "ME", maryland: "MD",
-  massachusetts: "MA", michigan: "MI", minnesota: "MN", mississippi: "MS",
-  missouri: "MO", montana: "MT", nebraska: "NE", nevada: "NV",
-  "new hampshire": "NH", "new jersey": "NJ", "new mexico": "NM",
-  "new york": "NY", "north carolina": "NC", "north dakota": "ND",
-  ohio: "OH", oklahoma: "OK", oregon: "OR", pennsylvania: "PA",
-  "rhode island": "RI", "south carolina": "SC", "south dakota": "SD",
-  tennessee: "TN", texas: "TX", utah: "UT", vermont: "VT",
-  virginia: "VA", washington: "WA", "west virginia": "WV",
-  wisconsin: "WI", wyoming: "WY", "district of columbia": "DC",
-  "puerto rico": "PR",
-};
-
-/** Countries whose Printful orders must carry a state_code. */
-const STATE_REQUIRED = new Set(["US", "CA", "AU"]);
+/** Country name (as listed) → code, plus the spellings people actually type. */
+const COUNTRY_BY_NAME = new Map<string, string>([
+  ...COUNTRIES.map((c) => [c.name.toLowerCase(), c.code] as const),
+  ["united states of america", "US"],
+  ["usa", "US"],
+  ["u.s.a.", "US"],
+  ["u.s.", "US"],
+  ["america", "US"],
+  ["uk", "GB"],
+  ["u.k.", "GB"],
+  ["great britain", "GB"],
+  ["britain", "GB"],
+  ["england", "GB"],
+  ["scotland", "GB"],
+  ["wales", "GB"],
+  ["northern ireland", "GB"],
+  ["russia", "RU"],
+  ["south korea", "KR"],
+  ["korea", "KR"],
+  ["north korea", "KP"],
+  ["vietnam", "VN"],
+  ["uae", "AE"],
+  ["holland", "NL"],
+  ["deutschland", "DE"],
+  ["czech republic", "CZ"],
+  ["turkey", "TR"],
+  ["ivory coast", "CI"],
+  ["cape verde", "CV"],
+  ["swaziland", "SZ"],
+  ["macedonia", "MK"],
+  ["burma", "MM"],
+  ["east timor", "TL"],
+  ["vatican", "VA"],
+  ["hong kong sar", "HK"],
+  ["macau", "MO"],
+]);
 
 /** The address fields this module reads — a subset of both form shapes. */
 export interface AddressFields {
@@ -83,19 +64,32 @@ export interface AddressFields {
   country?: string | null;
 }
 
+/** Resolve a country code or name to ISO 3166-1 alpha-2. */
 export function toCountryCode(value: string): string | null {
   const trimmed = value.trim();
   if (!trimmed) return null;
-  if (/^[A-Za-z]{2}$/.test(trimmed)) return trimmed.toUpperCase();
-  return COUNTRY_CODES[trimmed.toLowerCase()] ?? null;
+  const upper = trimmed.toUpperCase();
+  // A 2-letter input still has to BE a country — "XX" would sail past Printful's
+  // validation here and only fail after the customer has paid.
+  if (/^[A-Za-z]{2}$/.test(trimmed)) return isCountryCode(upper) ? upper : null;
+  return COUNTRY_BY_NAME.get(trimmed.toLowerCase()) ?? null;
 }
 
+/** Resolve a state/province code or name for countries that require one. */
 export function toStateCode(value: string, countryCode: string): string | null {
   const trimmed = value.trim();
   if (!trimmed) return null;
-  if (/^[A-Za-z]{2,3}$/.test(trimmed)) return trimmed.toUpperCase();
-  if (countryCode === "US") return US_STATES[trimmed.toLowerCase()] ?? null;
-  return null;
+  const options = subdivisionsFor(countryCode);
+  if (!options) {
+    // No list for this country — Printful doesn't require one, so pass the
+    // customer's own wording through untouched.
+    return trimmed;
+  }
+  const upper = trimmed.toUpperCase();
+  const byCode = options.find((s) => s.code === upper);
+  if (byCode) return byCode.code;
+  const byName = options.find((s) => s.name.toLowerCase() === trimmed.toLowerCase());
+  return byName?.code ?? null;
 }
 
 /**
@@ -107,13 +101,10 @@ export function addressProblem(address: AddressFields): string | null {
   if (!address.city?.trim()) return "The delivery address needs a city.";
 
   const countryCode = toCountryCode(address.country ?? "");
-  if (!countryCode) {
-    return 'Unrecognised delivery country — use a 2-letter code like "US" or "GB".';
-  }
+  if (!countryCode) return "Pick a delivery country from the list.";
 
-  const stateCode = toStateCode(address.region ?? "", countryCode);
-  if (STATE_REQUIRED.has(countryCode) && !stateCode) {
-    return 'This country needs a state/province — add a 2-letter code (e.g. "NY") to the address.';
+  if (countryCode in SUBDIVISIONS && !toStateCode(address.region ?? "", countryCode)) {
+    return "Pick a state/province from the list.";
   }
 
   if (!address.postal_code?.trim()) {
@@ -125,7 +116,8 @@ export function addressProblem(address: AddressFields): string | null {
 /**
  * Rewrite country/region to the codes Printful expects ("United States" → "US",
  * "Arizona" → "AZ") so what we store is what the order will use. Returns the
- * input untouched when the values don't resolve — `addressProblem` reports that.
+ * input untouched when the country doesn't resolve — `addressProblem` reports
+ * that.
  */
 export function normalizeAddress<T extends AddressFields>(address: T): T {
   const countryCode = toCountryCode(address.country ?? "");

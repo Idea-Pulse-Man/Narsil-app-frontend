@@ -18,11 +18,14 @@ import { useCatalog } from "@/data/catalog";
 import { useAppState } from "./AppState";
 import { fetchAddresses, createAddress, type Address } from "@/lib/orders";
 import { addressProblem, normalizeAddress } from "@/lib/address";
+import { COUNTRIES, subdivisionsFor } from "@/lib/countries";
 import {
   PAYMENTS_ENABLED,
+  IS_NATIVE,
   getStripe,
   createPaymentIntent,
   finalizeOrder,
+  payWithNativeSheet,
   type CheckoutIntent,
 } from "@/lib/checkout";
 import BlurImage from "./BlurImage";
@@ -120,6 +123,9 @@ export default function CanvasPurchaseSheet({
 
   const setField = (key: keyof typeof EMPTY_FORM, value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
+
+  // Only US/CA/AU need a state code; everywhere else keeps a free-text field.
+  const states = subdivisionsFor(form.country);
 
   /** Step 1 → 2: save the address if needed, then ask the backend for a
    *  PaymentIntent (the price is computed server-side). */
@@ -390,30 +396,42 @@ export default function CanvasPurchaseSheet({
                       value={form.line2}
                       onChange={(v) => setField("line2", v)}
                     />
+                    <AddressSelect
+                      label="Country"
+                      value={form.country}
+                      options={COUNTRIES}
+                      onChange={(v) => {
+                        setField("country", v);
+                        // The old region belongs to the old country's list.
+                        setField("region", "");
+                      }}
+                    />
                     <div className="flex gap-2">
                       <AddressInput
                         placeholder="City"
                         value={form.city}
                         onChange={(v) => setField("city", v)}
                       />
-                      <AddressInput
-                        placeholder="State (e.g. NY)"
-                        value={form.region}
-                        onChange={(v) => setField("region", v)}
-                      />
+                      {states ? (
+                        <AddressSelect
+                          label="State / province"
+                          value={form.region}
+                          options={states}
+                          onChange={(v) => setField("region", v)}
+                        />
+                      ) : (
+                        <AddressInput
+                          placeholder="State / region (optional)"
+                          value={form.region}
+                          onChange={(v) => setField("region", v)}
+                        />
+                      )}
                     </div>
-                    <div className="flex gap-2">
-                      <AddressInput
-                        placeholder="Postal code"
-                        value={form.postal_code}
-                        onChange={(v) => setField("postal_code", v)}
-                      />
-                      <AddressInput
-                        placeholder="Country (e.g. US)"
-                        value={form.country}
-                        onChange={(v) => setField("country", v)}
-                      />
-                    </div>
+                    <AddressInput
+                      placeholder="Postal code"
+                      value={form.postal_code}
+                      onChange={(v) => setField("postal_code", v)}
+                    />
                     <AddressInput
                       placeholder="Phone"
                       value={form.phone}
@@ -468,15 +486,9 @@ export default function CanvasPurchaseSheet({
                   </span>
                 </div>
                 <div className="mt-4">
-                  <Elements
-                    stripe={getStripe()}
-                    options={{
-                      clientSecret: intent.clientSecret,
-                      appearance: STRIPE_APPEARANCE,
-                    }}
-                  >
-                    <PaymentForm
-                      price={intent.price}
+                  {IS_NATIVE ? (
+                    <NativePaymentForm
+                      intent={intent}
                       onPaid={handlePaid}
                       onBack={() => {
                         setIntent(null);
@@ -484,7 +496,25 @@ export default function CanvasPurchaseSheet({
                       }}
                       showToast={showToast}
                     />
-                  </Elements>
+                  ) : (
+                    <Elements
+                      stripe={getStripe()}
+                      options={{
+                        clientSecret: intent.clientSecret,
+                        appearance: STRIPE_APPEARANCE,
+                      }}
+                    >
+                      <PaymentForm
+                        price={intent.price}
+                        onPaid={handlePaid}
+                        onBack={() => {
+                          setIntent(null);
+                          setStep("details");
+                        }}
+                        showToast={showToast}
+                      />
+                    </Elements>
+                  )}
                 </div>
               </div>
             )}
@@ -582,6 +612,65 @@ function PaymentForm({
   );
 }
 
+/**
+ * Native payment step (packaged iOS/Android app). Presents Stripe's native
+ * payment sheet — Apple Pay + card — via @capacitor-community/stripe, using the
+ * same PaymentIntent clientSecret the backend returned. Apple Pay JS can't run
+ * inside the WebView, so this replaces the <PaymentElement> flow on-device.
+ */
+function NativePaymentForm({
+  intent,
+  onPaid,
+  onBack,
+  showToast,
+}: {
+  intent: CheckoutIntent;
+  onPaid: () => void;
+  onBack: () => void;
+  showToast: (message: string, variant?: ToastState["variant"]) => void;
+}) {
+  const [paying, setPaying] = useState(false);
+
+  const handlePay = async () => {
+    setPaying(true);
+    try {
+      const result = await payWithNativeSheet(intent.clientSecret);
+      if (result === "completed") {
+        onPaid();
+      } else if (result === "failed") {
+        showToast("Payment was not completed", "error");
+      }
+      // "canceled" → user dismissed the sheet; stay on the step silently.
+    } catch (err) {
+      showToast(
+        err instanceof Error ? err.message : "Payment failed",
+        "error",
+      );
+    } finally {
+      setPaying(false);
+    }
+  };
+
+  return (
+    <div>
+      <button
+        onClick={handlePay}
+        disabled={paying}
+        className="flex w-full items-center justify-center rounded-full bg-white py-3.5 text-sm font-semibold text-ink transition-transform active:scale-[0.98] disabled:opacity-50"
+      >
+        {paying ? "Processing…" : `Pay $${intent.price}`}
+      </button>
+      <button
+        onClick={onBack}
+        disabled={paying}
+        className="mt-3 w-full text-center text-sm text-white/60 transition-colors hover:text-white disabled:opacity-50"
+      >
+        Back to size &amp; address
+      </button>
+    </div>
+  );
+}
+
 function AddressInput({
   placeholder,
   value,
@@ -598,5 +687,41 @@ function AddressInput({
       onChange={(e) => onChange(e.target.value)}
       className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35 transition-colors focus:border-white/25 focus:outline-none"
     />
+  );
+}
+
+/**
+ * Native <select> so iOS shows its own picker wheel. The options need an
+ * explicit dark background — on some platforms the popup is rendered by the OS
+ * and doesn't inherit the sheet's styling.
+ */
+function AddressSelect({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: { code: string; name: string }[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={`w-full appearance-none rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm transition-colors focus:border-white/25 focus:outline-none ${
+        value ? "text-white" : "text-white/35"
+      }`}
+    >
+      <option value="" className="bg-ink-soft text-white">
+        {label}
+      </option>
+      {options.map((o) => (
+        <option key={o.code} value={o.code} className="bg-ink-soft text-white">
+          {o.name}
+        </option>
+      ))}
+    </select>
   );
 }

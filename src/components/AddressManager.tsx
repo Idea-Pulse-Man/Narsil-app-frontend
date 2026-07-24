@@ -9,6 +9,7 @@ import {
   type Address,
 } from "@/lib/orders";
 import { addressProblem, normalizeAddress } from "@/lib/address";
+import { COUNTRIES, subdivisionsFor } from "@/lib/countries";
 import { CloseIcon, CheckIcon } from "./Icons";
 import type { ToastState } from "./Toast";
 
@@ -80,6 +81,9 @@ export default function AddressManager({
 
   const setField = (key: keyof FormState, value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
+
+  // Only US/CA/AU need a state code; everywhere else keeps a free-text field.
+  const states = subdivisionsFor(form.country);
 
   const startAdd = () => {
     setForm({ ...EMPTY_FORM });
@@ -282,30 +286,42 @@ export default function AddressManager({
                     value={form.line2}
                     onChange={(v) => setField("line2", v)}
                   />
+                  <Select
+                    label="Country"
+                    value={form.country}
+                    options={COUNTRIES}
+                    onChange={(v) => {
+                      setField("country", v);
+                      // The old region belongs to the old country's list.
+                      setField("region", "");
+                    }}
+                  />
                   <div className="flex gap-2">
                     <Input
                       placeholder="City"
                       value={form.city}
                       onChange={(v) => setField("city", v)}
                     />
-                    <Input
-                      placeholder="State (e.g. AZ)"
-                      value={form.region}
-                      onChange={(v) => setField("region", v)}
-                    />
+                    {states ? (
+                      <Select
+                        label="State / province"
+                        value={form.region}
+                        options={states}
+                        onChange={(v) => setField("region", v)}
+                      />
+                    ) : (
+                      <Input
+                        placeholder="State / region (optional)"
+                        value={form.region}
+                        onChange={(v) => setField("region", v)}
+                      />
+                    )}
                   </div>
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Postal code"
-                      value={form.postal_code}
-                      onChange={(v) => setField("postal_code", v)}
-                    />
-                    <Input
-                      placeholder="Country (e.g. US)"
-                      value={form.country}
-                      onChange={(v) => setField("country", v)}
-                    />
-                  </div>
+                  <Input
+                    placeholder="Postal code"
+                    value={form.postal_code}
+                    onChange={(v) => setField("postal_code", v)}
+                  />
                   <Input
                     placeholder="Phone"
                     value={form.phone}
@@ -360,5 +376,41 @@ function Input({
       onChange={(e) => onChange(e.target.value)}
       className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35 transition-colors focus:border-white/25 focus:outline-none"
     />
+  );
+}
+
+/**
+ * Native <select> so iOS shows its own picker wheel. The options need an
+ * explicit dark background — on some platforms the popup is rendered by the OS
+ * and doesn't inherit the sheet's styling.
+ */
+function Select({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: { code: string; name: string }[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={`w-full appearance-none rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm transition-colors focus:border-white/25 focus:outline-none ${
+        value ? "text-white" : "text-white/35"
+      }`}
+    >
+      <option value="" className="bg-ink-soft text-white">
+        {label}
+      </option>
+      {options.map((o) => (
+        <option key={o.code} value={o.code} className="bg-ink-soft text-white">
+          {o.name}
+        </option>
+      ))}
+    </select>
   );
 }
