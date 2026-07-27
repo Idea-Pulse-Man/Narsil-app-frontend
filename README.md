@@ -41,6 +41,48 @@ npm run cap:android
 npm run cap:ios
 ```
 
+## iOS build (macOS only)
+
+The backend already runs on EC2 behind CloudFront, so the phone build only needs
+the right env vars — nothing has to be started locally.
+
+1. Clone and install:
+
+   ```bash
+   git clone https://github.com/Idea-Pulse-Man/Narsil-app-frontend.git
+   cd Narsil-app-frontend
+   npm install
+   ```
+
+2. Create `.env.local` (gitignored — the values are baked into the bundle at
+   build time, so this must exist *before* `npm run build`):
+
+   ```dotenv
+   VITE_API_URL=https://d2lvgalchu2nps.cloudfront.net
+   VITE_SUPABASE_URL=…            # same values as the Windows .env.local
+   VITE_SUPABASE_ANON_KEY=…
+   VITE_STRIPE_PUBLISHABLE_KEY=…  # unset ⇒ checkout shows "payments unavailable"
+   VITE_APPLE_PAY_MERCHANT_ID=merchant.com.narsil.museum
+   ```
+
+   Without `VITE_API_URL` the app falls back to `http://localhost:4000`, which on
+   a device means every request fails (and iOS blocks cleartext HTTP anyway).
+
+3. Add the platform and open Xcode:
+
+   ```bash
+   npm run build
+   npx cap add ios      # runs pod install; needs Xcode + CocoaPods
+   npm run cap:ios
+   ```
+
+4. In Xcode → target `App` → Signing & Capabilities: pick your team, confirm the
+   bundle id is `com.narsil.museum`, and add the **Apple Pay** capability with the
+   `merchant.com.narsil.museum` merchant id. Skip this and the app still builds —
+   the payment sheet just falls back to card entry.
+
+After any web change: `npm run cap:sync`.
+
 ## Project layout
 
 | Path | Description |
