@@ -28,7 +28,9 @@ export default function QuizQuestion({
   const answered = selected !== null;
 
   return (
-    <div className="flex h-full flex-col">
+    // Scrolls: on short screens the image + four options exceed the viewport,
+    // and without this the last answers are unreachable.
+    <div className="h-full overflow-y-auto overscroll-contain pb-[calc(env(safe-area-inset-bottom)+1.5rem)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {/* Progress dots */}
       <div className="flex items-center justify-center gap-1.5 px-5 pt-1">
         {Array.from({ length: total }).map((_, i) => (
@@ -47,7 +49,9 @@ export default function QuizQuestion({
 
       {/* Artwork */}
       <div className="mt-4 px-5">
-        <div className="relative aspect-square w-full overflow-hidden rounded-3xl border border-white/10">
+        {/* Height-capped so the answers stay in view on short screens; the
+            artwork is `contain`-fitted, so a non-square box letterboxes fine. */}
+        <div className="relative aspect-square max-h-[min(38vh,340px)] w-full overflow-hidden rounded-3xl border border-white/10">
           <BlurImage
             key={question.artworkId}
             src={question.artwork.image}
@@ -63,7 +67,7 @@ export default function QuizQuestion({
       </div>
 
       {/* Prompt + options */}
-      <div className="mt-5 flex flex-1 flex-col px-5">
+      <div className="mt-5 px-5">
         <p className="text-center font-serif text-[19px] leading-snug text-white">
           {question.prompt}
         </p>

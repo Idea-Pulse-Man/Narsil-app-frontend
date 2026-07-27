@@ -44,7 +44,7 @@ export default function QuizResults({
     <div className="relative flex h-full flex-col">
       {milestone !== null && <StreakCelebration streak={milestone} />}
       <div
-        className={`flex-1 overflow-y-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+        className={`flex-1 overflow-y-auto overscroll-contain px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
           milestone !== null ? "pt-28" : "pt-10"
         }`}
       >

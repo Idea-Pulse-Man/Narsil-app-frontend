@@ -425,7 +425,7 @@ function QuizHub({
           : `${DAILY_COUNT} questions · builds your streak`;
 
   return (
-    <div className="h-full overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom)+2rem)] pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div className="h-full overflow-y-auto overscroll-contain px-5 pb-[calc(env(safe-area-inset-bottom)+2rem)] pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <h1 className="font-serif text-[30px] leading-tight text-white">
         Test your eye
       </h1>
