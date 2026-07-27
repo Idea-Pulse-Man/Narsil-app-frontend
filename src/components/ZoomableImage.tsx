@@ -16,6 +16,14 @@ interface ZoomableImageProps {
   onTap?: () => void;
   /** Reports whether the image is currently zoomed in (scale > 1). */
   onZoomChange?: (zoomed: boolean) => void;
+  /**
+   * Live vertical offset of a swipe-down-to-dismiss drag, in px (0 when idle).
+   * Only fires while the image sits at fit scale — once zoomed, a vertical drag
+   * pans the artwork instead.
+   */
+  onDismissDrag?: (dy: number) => void;
+  /** Fired when the dismiss drag ends: true if it passed the close threshold. */
+  onDismissEnd?: (dismissed: boolean) => void;
   className?: string;
 }
 
@@ -26,6 +34,13 @@ export interface ZoomableImageHandle {
 const MIN_SCALE = 1;
 const MAX_SCALE = 5;
 const DOUBLE_TAP_SCALE = 2.5;
+
+/** Drag must clear this before it starts pulling the viewer down (px). */
+const DISMISS_START = 10;
+/** Release beyond this distance closes the viewer (px). */
+const DISMISS_DISTANCE = 120;
+/** …or a shorter drag flicked at this speed (px/ms). */
+const DISMISS_VELOCITY = 0.55;
 
 const clamp = (v: number, min: number, max: number) =>
   Math.min(max, Math.max(min, v));
@@ -38,7 +53,16 @@ const clamp = (v: number, min: number, max: number) =>
  */
 const ZoomableImage = forwardRef<ZoomableImageHandle, ZoomableImageProps>(
   function ZoomableImage(
-    { src, alt, accent, onTap, onZoomChange, className = "" },
+    {
+      src,
+      alt,
+      accent,
+      onTap,
+      onZoomChange,
+      onDismissDrag,
+      onDismissEnd,
+      className = "",
+    },
     ref
   ) {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -59,6 +83,22 @@ const ZoomableImage = forwardRef<ZoomableImageHandle, ZoomableImageProps>(
     const pan = useRef<{ x: number; y: number } | null>(null);
     const moved = useRef(false);
     const lastTap = useRef(0);
+    // Swipe-down-to-dismiss: tracked from the first touch so we can tell a
+    // vertical pull-to-close apart from a horizontal drag or a pinch.
+    const dismiss = useRef<{
+      startX: number;
+      startY: number;
+      dy: number;
+      lastY: number;
+      lastT: number;
+      velocity: number;
+      active: boolean;
+    } | null>(null);
+
+    const cancelDismiss = useCallback(() => {
+      if (dismiss.current?.active) onDismissDrag?.(0);
+      dismiss.current = null;
+    }, [onDismissDrag]);
 
     // Resolve ngrok-hosted images to a blob URL (mirrors BlurImage behaviour).
     useEffect(() => {
@@ -135,22 +175,36 @@ const ZoomableImage = forwardRef<ZoomableImageHandle, ZoomableImageProps>(
       y: (a.y + b.y) / 2,
     });
 
-    const onPointerDown = useCallback((e: React.PointerEvent) => {
-      (e.target as Element).setPointerCapture?.(e.pointerId);
-      pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      moved.current = false;
+    const onPointerDown = useCallback(
+      (e: React.PointerEvent) => {
+        (e.target as Element).setPointerCapture?.(e.pointerId);
+        pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        moved.current = false;
 
-      const pts = [...pointers.current.values()];
-      if (pts.length === 2) {
-        pinch.current = {
-          dist: distance(pts[0], pts[1]),
-          mid: midpoint(pts[0], pts[1]),
-        };
-        pan.current = null;
-      } else if (pts.length === 1) {
-        pan.current = { x: e.clientX, y: e.clientY };
-      }
-    }, []);
+        const pts = [...pointers.current.values()];
+        if (pts.length === 2) {
+          pinch.current = {
+            dist: distance(pts[0], pts[1]),
+            mid: midpoint(pts[0], pts[1]),
+          };
+          pan.current = null;
+          // A second finger means pinch, never dismiss — snap the viewer back.
+          cancelDismiss();
+        } else if (pts.length === 1) {
+          pan.current = { x: e.clientX, y: e.clientY };
+          dismiss.current = {
+            startX: e.clientX,
+            startY: e.clientY,
+            dy: 0,
+            lastY: e.clientY,
+            lastT: Date.now(),
+            velocity: 0,
+            active: false,
+          };
+        }
+      },
+      [cancelDismiss]
+    );
 
     const onPointerMove = useCallback(
       (e: React.PointerEvent) => {
@@ -177,9 +231,32 @@ const ZoomableImage = forwardRef<ZoomableImageHandle, ZoomableImageProps>(
           if (Math.abs(dx) > 2 || Math.abs(dy) > 2) moved.current = true;
           apply(t.current.scale, t.current.tx + dx, t.current.ty + dy);
           pan.current = { x: e.clientX, y: e.clientY };
+        } else if (pts.length === 1 && dismiss.current && onDismissDrag) {
+          // Not zoomed: a downward, vertically-dominant drag pulls to dismiss.
+          const d = dismiss.current;
+          const dx = e.clientX - d.startX;
+          const dy = e.clientY - d.startY;
+
+          if (!d.active) {
+            if (dy > DISMISS_START && dy > Math.abs(dx)) d.active = true;
+            else if (Math.abs(dx) > DISMISS_START || dy < -DISMISS_START) {
+              // Committed to a horizontal swipe or an upward drag instead.
+              dismiss.current = null;
+              return;
+            } else return;
+          }
+
+          const now = Date.now();
+          const dt = now - d.lastT;
+          if (dt > 0) d.velocity = (e.clientY - d.lastY) / dt;
+          d.lastY = e.clientY;
+          d.lastT = now;
+          d.dy = Math.max(0, dy);
+          moved.current = true;
+          onDismissDrag(d.dy);
         }
       },
-      [apply]
+      [apply, onDismissDrag]
     );
 
     const endPointer = useCallback(
@@ -191,9 +268,23 @@ const ZoomableImage = forwardRef<ZoomableImageHandle, ZoomableImageProps>(
         if (remaining === 1) {
           const [p] = [...pointers.current.values()];
           pan.current = { x: p.x, y: p.y };
+          // Fingers left over from a pinch shouldn't turn into a dismiss.
+          dismiss.current = null;
         }
         if (remaining === 0) {
           pan.current = null;
+
+          const d = dismiss.current;
+          dismiss.current = null;
+          if (d?.active) {
+            const dismissed =
+              e.type !== "pointercancel" &&
+              (d.dy > DISMISS_DISTANCE ||
+                (d.velocity > DISMISS_VELOCITY && d.dy > 40));
+            if (!dismissed) onDismissDrag?.(0);
+            onDismissEnd?.(dismissed);
+            return;
+          }
 
           // Tap detection — only when the pointer didn't meaningfully move.
           if (!moved.current) {
@@ -215,7 +306,7 @@ const ZoomableImage = forwardRef<ZoomableImageHandle, ZoomableImageProps>(
           }
         }
       },
-      [apply, onTap]
+      [apply, onTap, onDismissDrag, onDismissEnd]
     );
 
     const onWheel = useCallback(
