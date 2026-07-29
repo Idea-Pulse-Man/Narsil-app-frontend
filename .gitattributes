@@ -1,0 +1,33 @@
+# Pin what gets STORED in the repository to LF, regardless of each machine's
+# core.autocrlf setting. Checkout is unaffected — a Windows working copy still
+# gets CRLF — so this changes nothing day to day. What it prevents is a
+# contributor with autocrlf=false committing CRLF and turning the next diff
+# into a whole-file rewrite that buries the real change.
+* text=auto
+
+# Must be LF wherever they are checked out: CRLF breaks a shebang, and these
+# are read by tools rather than edited by hand.
+*.sh   text eol=lf
+*.p8   text eol=lf
+
+# Never normalise — byte-for-byte or not at all.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.avif binary
+*.ico  binary
+*.mp3  binary
+*.m4a  binary
+*.woff binary
+*.woff2 binary
+*.ttf  binary
+*.otf  binary
+*.keystore binary
+*.jks  binary
+
+# Generated — keep them out of diffs and out of language statistics.
+package-lock.json  linguist-generated=true -diff
+dist/**            linguist-generated=true
+android/**         linguist-vendored=true
