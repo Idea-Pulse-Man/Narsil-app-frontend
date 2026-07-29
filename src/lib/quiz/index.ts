@@ -10,6 +10,16 @@ export {
 export { eligibleFor, isModePlayable, answerFor } from "./pool";
 export { buildQuestion, generateQuestion } from "./generator";
 export { buildDailyQuiz, todayKey, DAILY_COUNT } from "./daily";
+
+/**
+ * Questions a non-subscriber may answer per practice run before the paywall.
+ *
+ * Practice mode is the endless quiz — it already loops the pool forever
+ * (`QuizOverlay.nextPractice`). Narsil Pro removes this cap; the DAILY quiz is
+ * untouched and stays free at DAILY_COUNT questions, so nobody loses something
+ * they already had.
+ */
+export const FREE_PRACTICE_QUESTIONS = 5;
 export { mulberry32, hashString } from "./random";
 export type { Rng } from "./random";
 export {

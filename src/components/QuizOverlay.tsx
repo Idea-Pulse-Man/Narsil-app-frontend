@@ -16,6 +16,7 @@ import {
   firstUnanswered,
   sessionCorrectness,
   quizSalt,
+  FREE_PRACTICE_QUESTIONS,
   type DailySession,
   type QuizMode,
   type QuizQuestion,
@@ -64,7 +65,7 @@ export default function QuizOverlay({
   onOpenArtwork,
 }: QuizOverlayProps) {
   const { pool, loading } = useQuizPool();
-  const { user } = useAppState();
+  const { user, isPro, requestPro } = useAppState();
   const { streak, playedToday, recordDaily, recordPractice, previewDaily } =
     useQuizProgress(user?.id ?? null);
 
@@ -239,6 +240,18 @@ export default function QuizOverlay({
     setSelected(null);
   }, [practiceMode, pool]);
 
+  // Declared before `handleSelect`, which lists it as a dependency — a `const`
+  // referenced in a dependency array must already be initialised.
+  const backToHub = useCallback(() => {
+    clearTimer();
+    setStage("hub");
+    setQuestions([]);
+    setQIndex(0);
+    setSelected(null);
+    setCorrect([]);
+    setPracticeMode(null);
+  }, []);
+
   const handleSelect = useCallback(
     (choice: number) => {
       if (selected !== null) return;
@@ -272,6 +285,20 @@ export default function QuizOverlay({
       } else {
         recordPractice(1);
         setCorrect((prev) => [...prev, wasCorrect]);
+
+        // Practice is the endless mode. Free users get FREE_PRACTICE_QUESTIONS
+        // per run, then the paywall — after the answer has been revealed, so the
+        // run ends on a resolved question rather than mid-thought. The DAILY
+        // quiz is never gated.
+        const answered = correct.length + 1;
+        if (!isPro && answered >= FREE_PRACTICE_QUESTIONS) {
+          advanceTimer.current = setTimeout(() => {
+            backToHub();
+            requestPro("practice-quiz");
+          }, REVEAL_MS);
+          return;
+        }
+
         advanceTimer.current = setTimeout(nextPractice, REVEAL_MS);
       }
     },
@@ -284,18 +311,11 @@ export default function QuizOverlay({
       finishDaily,
       nextPractice,
       recordPractice,
+      isPro,
+      requestPro,
+      backToHub,
     ],
   );
-
-  const backToHub = useCallback(() => {
-    clearTimer();
-    setStage("hub");
-    setQuestions([]);
-    setQIndex(0);
-    setSelected(null);
-    setCorrect([]);
-    setPracticeMode(null);
-  }, []);
 
   const current = questions[qIndex];
   const practiceScore = !isDaily ? correct.filter(Boolean).length : 0;
@@ -350,6 +370,7 @@ export default function QuizOverlay({
                 dailyMode={dailyMode}
                 dailyReady={dailyReady}
                 playableModes={playableModes}
+                isPro={isPro}
                 onDaily={startDaily}
                 onStartPractice={startPractice}
               />
@@ -396,6 +417,7 @@ function QuizHub({
   dailyMode,
   dailyReady,
   playableModes,
+  isPro,
   onDaily,
   onStartPractice,
 }: {
@@ -404,6 +426,7 @@ function QuizHub({
   dailyMode: DailyMode;
   dailyReady: boolean;
   playableModes: Record<QuizMode, boolean>;
+  isPro: boolean;
   onDaily: () => void;
   onStartPractice: (mode: QuizMode) => void;
 }) {
@@ -478,9 +501,18 @@ function QuizHub({
       </button>
 
       {/* Practice */}
-      <h2 className="mt-8 font-serif text-lg text-white">Practice</h2>
+      <h2 className="mt-8 flex items-center gap-2 font-serif text-lg text-white">
+        Practice
+        {!isPro && (
+          <span className="rounded-full bg-amber-300/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-300">
+            Pro
+          </span>
+        )}
+      </h2>
       <p className="mt-1 text-[12px] text-white/45">
-        Endless questions — doesn't affect your streak.
+        {isPro
+          ? "Endless questions — doesn't affect your streak."
+          : `${FREE_PRACTICE_QUESTIONS} free questions per round · Narsil Pro plays endless.`}
       </p>
       <div className="mt-3 space-y-2.5">
         {QUIZ_MODES.map((mode) => {

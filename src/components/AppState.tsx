@@ -27,6 +27,12 @@ import {
   acceptTermsRemote,
   type Profile,
 } from "@/lib/userData";
+import {
+  fetchSubscription,
+  NO_SUBSCRIPTION,
+  type PaywallReason,
+  type SubscriptionState,
+} from "@/lib/subscription";
 
 /** User preferences captured by the "Personalize your museum" modal. */
 export interface Preferences {
@@ -92,6 +98,28 @@ interface AppStateValue {
   isGuest: boolean;
   /** Sign the current user out. */
   signOut: () => Promise<void>;
+
+  /**
+   * Narsil Pro entitlement, as reported by the backend. Use `isPro` to decide
+   * what the UI OFFERS; never to decide what it delivers — every paid perk is
+   * re-checked server-side, so a stale or tampered value here can only change
+   * which buttons appear, never what the user actually receives.
+   */
+  subscription: SubscriptionState;
+  isPro: boolean;
+  /** Adopt a freshly purchased or restored entitlement without a round trip. */
+  setSubscription: (subscription: SubscriptionState) => void;
+  /** Re-read entitlement from the backend (after a purchase, or on resume). */
+  refreshSubscription: () => Promise<void>;
+
+  /**
+   * The paywall lives here rather than being prop-drilled: the things that
+   * trigger it (the action rail inside the feed, the quiz overlay) sit several
+   * levels below the shell that renders it. `null` means closed.
+   */
+  proPrompt: PaywallReason | null;
+  requestPro: (reason: PaywallReason) => void;
+  dismissPro: () => void;
 }
 
 const AppStateContext = createContext<AppStateValue | null>(null);
@@ -108,6 +136,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [subscription, setSubscription] =
+    useState<SubscriptionState>(NO_SUBSCRIPTION);
+  const [proPrompt, setProPrompt] = useState<PaywallReason | null>(null);
 
   // True once a Supabase (anonymous) session exists — gates cloud writes.
   const cloudReady = useRef(false);
@@ -317,6 +348,35 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     [makeToggle]
   );
 
+  const refreshSubscription = useCallback(async () => {
+    setSubscription(await fetchSubscription());
+  }, []);
+
+  const requestPro = useCallback((reason: PaywallReason) => {
+    setProPrompt(reason);
+  }, []);
+
+  const dismissPro = useCallback(() => setProPrompt(null), []);
+
+  /**
+   * Re-read entitlement whenever the signed-in user changes. Signing out must
+   * clear it immediately — leaving a stale `isPro` behind would show the next
+   * user of the device a 20% discount that checkout then refuses to honour.
+   */
+  useEffect(() => {
+    if (!user || user.is_anonymous) {
+      setSubscription(NO_SUBSCRIPTION);
+      return;
+    }
+    let cancelled = false;
+    void fetchSubscription().then((state) => {
+      if (!cancelled) setSubscription(state);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
   const savePreferences = useCallback(
     (prefs: Omit<Preferences, "completed">) => {
       const next: Preferences = { ...prefs, completed: true };
@@ -373,6 +433,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     profile,
     isGuest: !user || user.is_anonymous === true,
     signOut,
+    subscription,
+    isPro: subscription.active,
+    setSubscription,
+    refreshSubscription,
+    proPrompt,
+    requestPro,
+    dismissPro,
   };
 
   return (

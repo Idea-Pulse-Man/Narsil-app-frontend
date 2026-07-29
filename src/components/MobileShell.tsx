@@ -21,6 +21,7 @@ import YouView from "./YouView";
 import ArtistProfileModal from "./ArtistProfileModal";
 import EraScreen from "./EraScreen";
 import QuizOverlay from "./QuizOverlay";
+import ProPaywall from "./ProPaywall";
 import ArtworkViewer from "./ArtworkViewer";
 import AuthView from "./AuthView";
 import PreferenceModal from "./PreferenceModal";
@@ -56,6 +57,9 @@ export default function MobileShell() {
     acceptTerms,
     isAdmin,
     isGuest,
+    proPrompt,
+    dismissPro,
+    setSubscription,
   } = useAppState();
   const { promptSeen, markPromptSeen, setEnabled } = useAudio();
 
@@ -529,6 +533,20 @@ export default function MobileShell() {
             />
           )}
         </AnimatePresence>
+
+        {/* Narsil Pro. Rendered once here because the things that trigger it —
+            the action rail inside the feed, the quiz overlay — are several
+            levels down; they raise it through AppState's `requestPro`. */}
+        <ProPaywall
+          reason={proPrompt}
+          onClose={dismissPro}
+          onSubscribed={setSubscription}
+          onShowTerms={() => {
+            dismissPro();
+            setTermsReview(true);
+          }}
+          showToast={showToast}
+        />
 
         <AnimatePresence>
           {musicPromptOpen && (

@@ -94,7 +94,12 @@ export interface CheckoutIntent {
   clientSecret: string;
   amount: number;
   currency: string;
+  /** What the customer pays — already discounted for Narsil Pro members. */
   price: number;
+  /** Undiscounted price, for the struck-through original in the checkout bar. */
+  listPrice: number;
+  /** 20 when the Pro discount applied, 0 otherwise. Computed server-side. */
+  discountPct: number;
 }
 
 export interface OrderStatus {

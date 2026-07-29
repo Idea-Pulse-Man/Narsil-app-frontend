@@ -472,18 +472,33 @@ export default function CanvasPurchaseSheet({
 
             {step === "payment" && intent && (
               <div className="px-6 pb-8 pt-5">
-                <div className="flex items-center justify-between rounded-2xl border border-white/12 bg-white/[0.03] px-4 py-3">
-                  <div>
-                    <p className="text-sm font-medium text-white">
-                      {size} canvas
-                    </p>
-                    <p className="text-xs text-white/45">
-                      {CANVAS_SIZES.find((s) => s.size === size)?.dimensions}
-                    </p>
+                <div className="rounded-2xl border border-white/12 bg-white/[0.03] px-4 py-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-white">
+                        {size} canvas
+                      </p>
+                      <p className="text-xs text-white/45">
+                        {CANVAS_SIZES.find((s) => s.size === size)?.dimensions}
+                        {" · shipping included"}
+                      </p>
+                    </div>
+                    <span className="text-sm font-semibold text-white">
+                      {/* The server decides the discount; this only renders it. */}
+                      {intent.discountPct > 0 && (
+                        <span className="mr-2 font-normal text-white/35 line-through">
+                          ${intent.listPrice}
+                        </span>
+                      )}
+                      ${intent.price}
+                    </span>
                   </div>
-                  <span className="text-sm font-semibold text-white">
-                    ${intent.price}
-                  </span>
+                  {intent.discountPct > 0 && (
+                    <p className="mt-2 border-t border-white/10 pt-2 text-xs font-medium text-amber-300">
+                      Narsil Pro · {intent.discountPct}% off — you saved $
+                      {(intent.listPrice - intent.price).toFixed(2)}
+                    </p>
+                  )}
                 </div>
                 <div className="mt-4">
                   {IS_NATIVE ? (

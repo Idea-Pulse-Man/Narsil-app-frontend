@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { shouldResolvePortrait, type Artist } from "@/data";
+import { shouldResolvePortrait, type Artist, type Artwork } from "@/data";
 import { useCatalog } from "@/data/catalog";
 import ArtistAvatar from "./ArtistAvatar";
 import {
@@ -11,7 +12,8 @@ import {
   BookmarkIcon,
 } from "./Icons";
 import { useAppState } from "./AppState";
-import { downloadArtwork, shareArtwork } from "@/lib/download";
+import { shareArtwork } from "@/lib/download";
+import DownloadSheet from "./DownloadSheet";
 import type { ToastState } from "./Toast";
 
 interface ActionRailProps {
@@ -70,15 +72,19 @@ export default function ActionRail({
 }: ActionRailProps) {
   const { isLiked, toggleLiked, isSaved, toggleSaved } = useAppState();
   const { getArtistAvatar, getArtwork } = useCatalog();
+  // Which artwork the download sheet is open for (null = closed).
+  const [downloadFor, setDownloadFor] = useState<Artwork | null>(null);
 
   const liked = isLiked(artworkId);
   const saved = isSaved(artworkId);
 
   const handleShare = () => shareArtwork(artworkId, artworkTitle, showToast);
 
+  // Downloading now asks for a resolution first — Standard is free, High
+  // Resolution is a Narsil Pro perk (see DownloadSheet).
   const handleDownload = () => {
     const artwork = getArtwork(artworkId);
-    if (artwork) downloadArtwork(artwork, showToast);
+    if (artwork) setDownloadFor(artwork);
   };
 
   return (
@@ -165,6 +171,12 @@ export default function ActionRail({
       <RailButton label="Hide interface" onClick={onHideUi}>
         <EyeOffIcon className="h-5 w-5" />
       </RailButton>
+
+      <DownloadSheet
+        artwork={downloadFor}
+        onClose={() => setDownloadFor(null)}
+        showToast={showToast}
+      />
     </div>
   );
 }

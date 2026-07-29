@@ -74,7 +74,17 @@ export interface Artwork {
   period: string;
   medium: string;
   source: string;
+  /** Display image — the staged S3 copy (843px). Not the print/download master. */
   image: string;
+  /**
+   * The museum's own image URL, which full-resolution downloads and canvas
+   * print files are derived from. Resolved server-side; the app only needs it
+   * to know whether a high-resolution version exists at all.
+   */
+  sourceImage?: string;
+  /** Master pixel dimensions when known — shown on the download sheet. */
+  imageWidth?: number;
+  imageHeight?: number;
   /** Dominant color used for the blur-up placeholder background. */
   accent: string;
   description: string;

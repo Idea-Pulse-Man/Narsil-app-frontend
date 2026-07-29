@@ -2,8 +2,25 @@ import type { Artwork } from "@/data";
 import type { ToastState } from "@/components/Toast";
 import { API_URL } from "@/lib/api";
 import { ngrokFetch } from "@/lib/ngrok";
+import { supabase } from "@/lib/supabase";
 
 type ShowToast = (message: string, variant?: ToastState["variant"]) => void;
+
+/**
+ * Bearer token when signed in, nothing when not. The standard tier is public,
+ * so an anonymous download must still work — the header only decides whether
+ * the high tier can be authorised.
+ */
+async function authHeaders(): Promise<Record<string, string>> {
+  if (!supabase) return {};
+  try {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch {
+    return {};
+  }
+}
 
 /** Query-param key a shared link uses to deep-link into a single artwork. */
 export const SHARE_ART_PARAM = "art";
@@ -108,33 +125,76 @@ function anchorDownload(blob: Blob, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
+/** Which of the two download tiers to request. */
+export type DownloadTier = "standard" | "high";
+
+/** Raised when the high-resolution tier is requested without Narsil Pro. */
+export class ProRequiredError extends Error {
+  constructor() {
+    super("High-resolution downloads are a Narsil Pro feature.");
+    this.name = "ProRequiredError";
+  }
+}
+
+/**
+ * Human-readable size for the download sheet.
+ *
+ * The standard tier is a genuine 2000px downscale served by the museum's own
+ * image server — not the same file relabelled — so the two options really do
+ * differ. When the master's dimensions are known we show them, because
+ * "3,842 × 5,120" is both more persuasive and more honest than "4K", which
+ * would be false for the scans that top out around 2400px.
+ */
+export function describeTier(artwork: Artwork, tier: DownloadTier): string {
+  if (tier === "standard") return "2000 px · JPEG";
+  if (artwork.imageWidth && artwork.imageHeight) {
+    return `${artwork.imageWidth.toLocaleString()} × ${artwork.imageHeight.toLocaleString()} px`;
+  }
+  return "Full resolution";
+}
+
 /**
  * Download an artwork image to the user's device via the backend proxy so S3
  * CORS does not block the fetch. In browsers that support the File System Access
  * API the user gets a "Save As" dialog; elsewhere it falls back to a standard
  * download. Freelance originals require the artist's permission and are blocked.
+ *
+ * `tier: "high"` requests the museum master and requires an active Narsil Pro
+ * subscription — the backend checks entitlement itself and answers 402, which
+ * surfaces here as `ProRequiredError` for the caller to turn into a paywall.
  */
 export async function downloadArtwork(
   artwork: Artwork,
   showToast: ShowToast,
+  tier: DownloadTier = "standard",
 ): Promise<void> {
   if (artwork.origin === "artist-original") {
     showToast("Download needs the artist's permission");
     return;
   }
 
-  const downloadUrl = `${API_URL}/api/artworks/${encodeURIComponent(artwork.id)}/download`;
+  const downloadUrl =
+    `${API_URL}/api/artworks/${encodeURIComponent(artwork.id)}/download` +
+    `?res=${tier}`;
 
   let blob: Blob;
   try {
-    const res = await ngrokFetch(downloadUrl, { mode: "cors" });
+    const res = await ngrokFetch(downloadUrl, {
+      mode: "cors",
+      headers: await authHeaders(),
+    });
     if (res.status === 403) {
       showToast("Download needs the artist's permission");
       return;
     }
+    if (res.status === 402) {
+      // Let the caller open the paywall — a toast here would bury the offer.
+      throw new ProRequiredError();
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     blob = await res.blob();
-  } catch {
+  } catch (err) {
+    if (err instanceof ProRequiredError) throw err;
     // Last resort — open the display image so the user can save manually.
     const fallback = fullResUrl(artwork.image);
     if (typeof window !== "undefined") window.open(fallback, "_blank", "noopener");
@@ -143,7 +203,7 @@ export async function downloadArtwork(
   }
 
   const ext = extForType(blob.type);
-  const filename = `${slugify(artwork.title)}.${ext}`;
+  const filename = `${slugify(artwork.title)}${tier === "high" ? "-hires" : ""}.${ext}`;
   const picker = (window as unknown as SaveFilePickerWindow).showSaveFilePicker;
 
   if (picker) {
