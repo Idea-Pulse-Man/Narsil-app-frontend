@@ -29,6 +29,10 @@ const REASON_COPY: Record<PaywallReason, { title: string; lead: string }> = {
     title: "Save on every canvas",
     lead: "Narsil Pro takes 20% off every print, with shipping already included.",
   },
+  settings: {
+    title: "Narsil Pro",
+    lead: "Endless quizzes, full-resolution downloads, and 20% off every canvas.",
+  },
 };
 
 const PERKS = [

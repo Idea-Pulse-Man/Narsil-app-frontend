@@ -28,7 +28,36 @@ import {
  * than in the paywall component so `AppState` can hold the prompt without
  * importing a component.
  */
-export type PaywallReason = "practice-quiz" | "hi-res-download" | "canvas-discount";
+export type PaywallReason =
+  | "practice-quiz"
+  | "hi-res-download"
+  | "canvas-discount"
+  /** Opened deliberately from Settings rather than by hitting a gate. */
+  | "settings";
+
+/** Apple's subscription management page — the only place a user can cancel. */
+export const APPLE_SUBSCRIPTIONS_URL =
+  "https://apps.apple.com/account/subscriptions";
+
+/** "Annual" / "Monthly" from an App Store product id. */
+export function planLabel(productId: string | null): string {
+  if (!productId) return "Narsil Pro";
+  if (productId.endsWith(".annual")) return "Annual";
+  if (productId.endsWith(".monthly")) return "Monthly";
+  return "Narsil Pro";
+}
+
+/** Renewal/expiry date as a readable local date, or null when unknown. */
+export function formatRenewal(expiresAt: string | null): string | null {
+  if (!expiresAt) return null;
+  const date = new Date(expiresAt);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
 
 export interface SubscriptionState {
   active: boolean;

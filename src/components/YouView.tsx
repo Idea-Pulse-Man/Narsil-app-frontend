@@ -15,6 +15,7 @@ import { useAudio } from "@/lib/audio/AudioProvider";
 import ArtworkTile from "./ArtworkTile";
 import AddressManager from "./AddressManager";
 import OrdersSheet from "./OrdersSheet";
+import ProStatusSheet from "./ProStatusSheet";
 import type { ToastState } from "./Toast";
 import type { Screen } from "./navigation";
 
@@ -51,8 +52,18 @@ export default function YouView({
   isAdmin,
   showToast,
 }: YouViewProps) {
-  const { saved, liked, following, preferences, user, profile, isGuest, signOut } =
-    useAppState();
+  const {
+    saved,
+    liked,
+    following,
+    preferences,
+    user,
+    profile,
+    isGuest,
+    signOut,
+    isPro,
+    requestPro,
+  } = useAppState();
   const {
     enabled: musicOn,
     setEnabled: setMusicOn,
@@ -63,6 +74,7 @@ export default function YouView({
   const { getArtist, getArtwork } = useCatalog();
   const [addressOpen, setAddressOpen] = useState(false);
   const [ordersOpen, setOrdersOpen] = useState(false);
+  const [proOpen, setProOpen] = useState(false);
   const [quizProgress, setQuizProgress] =
     useState<QuizProgress>(EMPTY_PROGRESS);
 
@@ -98,6 +110,24 @@ export default function YouView({
       return;
     }
     setOrdersOpen(true);
+  };
+
+  /**
+   * Members get their status; everyone else gets the offer. Guests are sent to
+   * sign-in first — the entitlement binds to a real account, and an anonymous
+   * session is discarded on reinstall, which would leave someone paying Apple
+   * for an account that no longer exists.
+   */
+  const openPro = () => {
+    if (isGuest) {
+      onSignIn();
+      return;
+    }
+    if (isPro) {
+      setProOpen(true);
+      return;
+    }
+    requestPro("settings");
   };
 
   const email = profile?.email ?? user?.email ?? null;
@@ -302,6 +332,15 @@ export default function YouView({
               }
             }}
           />
+          {/* First in the list: the only entry point that isn't reached by
+              hitting a paywall, so anyone willing to pay without being blocked
+              can actually find it. */}
+          <Row
+            label="Narsil Pro"
+            hint={isPro ? "Active" : "Subscribe"}
+            onClick={openPro}
+            accent={!isPro}
+          />
           <Row label="Terms of Service" onClick={onOpenTerms} />
           <Row label="Canvas orders" onClick={openOrders} />
           <Row label="Delivery addresses" onClick={openAddresses} />
@@ -344,6 +383,11 @@ export default function YouView({
         showToast={showToast}
       />
       <OrdersSheet open={ordersOpen} onClose={() => setOrdersOpen(false)} />
+      <ProStatusSheet
+        open={proOpen}
+        onClose={() => setProOpen(false)}
+        showToast={showToast}
+      />
     </div>
   );
 }
@@ -376,21 +420,28 @@ function Row({
   hint,
   onClick,
   destructive = false,
+  accent = false,
 }: {
   label: string;
   hint?: string;
   onClick: () => void;
   destructive?: boolean;
+  /** Highlights the row as an offer rather than a setting. */
+  accent?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
-      className={`flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3.5 text-left text-sm transition-colors hover:bg-white/[0.06] ${
-        destructive ? "text-red-400" : "text-white/85"
-      }`}
+      className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3.5 text-left text-sm transition-colors ${
+        accent
+          ? "border-amber-300/25 bg-gradient-to-br from-amber-300/12 to-amber-300/[0.04] text-white hover:border-amber-300/45"
+          : "border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"
+      } ${destructive ? "text-red-400" : accent ? "" : "text-white/85"}`}
     >
       <span>{label}</span>
-      <span className="text-white/35">{hint ? hint : "›"}</span>
+      <span className={accent ? "font-medium text-amber-300" : "text-white/35"}>
+        {hint ? hint : "›"}
+      </span>
     </button>
   );
 }
