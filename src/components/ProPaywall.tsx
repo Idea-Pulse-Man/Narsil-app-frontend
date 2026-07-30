@@ -145,7 +145,12 @@ export default function ProPaywall({
     <AnimatePresence>
       {reason && copy && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm"
+          /* `absolute`, not `fixed` — every overlay in this app positions
+             against MobileShell's `relative h-[100dvh]` root, which keeps the
+             desktop phone-frame preview intact. z-index sits ABOVE QuizOverlay
+             (65), since the practice gate leaves the quiz open underneath, and
+             BELOW TermsView (82) so the Terms link opens on top of this. */
+          className="absolute inset-0 z-[80] flex items-end justify-center bg-black/60 backdrop-blur-sm"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}

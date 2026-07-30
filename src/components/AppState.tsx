@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import type { User } from "@supabase/supabase-js";
+import type { Artwork } from "@/data";
 import { STORAGE_KEYS, readJSON, writeJSON } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
 import {
@@ -120,6 +121,16 @@ interface AppStateValue {
   proPrompt: PaywallReason | null;
   requestPro: (reason: PaywallReason) => void;
   dismissPro: () => void;
+
+  /**
+   * The download resolution picker, raised from the action rail. Held here for
+   * the same reason as the paywall, plus a positioning one: the rail's own root
+   * is an `absolute` 44px-wide column, so a sheet rendered inside it would size
+   * itself to the rail rather than the screen.
+   */
+  downloadRequest: Artwork | null;
+  requestDownload: (artwork: Artwork) => void;
+  dismissDownload: () => void;
 }
 
 const AppStateContext = createContext<AppStateValue | null>(null);
@@ -139,6 +150,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [subscription, setSubscription] =
     useState<SubscriptionState>(NO_SUBSCRIPTION);
   const [proPrompt, setProPrompt] = useState<PaywallReason | null>(null);
+  const [downloadRequest, setDownloadRequest] = useState<Artwork | null>(null);
 
   // True once a Supabase (anonymous) session exists — gates cloud writes.
   const cloudReady = useRef(false);
@@ -358,6 +370,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   const dismissPro = useCallback(() => setProPrompt(null), []);
 
+  const requestDownload = useCallback((artwork: Artwork) => {
+    setDownloadRequest(artwork);
+  }, []);
+
+  const dismissDownload = useCallback(() => setDownloadRequest(null), []);
+
   /**
    * Re-read entitlement whenever the signed-in user changes. Signing out must
    * clear it immediately — leaving a stale `isPro` behind would show the next
@@ -440,6 +458,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     proPrompt,
     requestPro,
     dismissPro,
+    downloadRequest,
+    requestDownload,
+    dismissDownload,
   };
 
   return (

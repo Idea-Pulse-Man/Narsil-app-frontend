@@ -80,10 +80,16 @@ export default function ProStatusSheet({
     setBusy(true);
     try {
       const state = await restorePurchases();
-      setSubscription(state);
-      showToast(
-        state.active ? "Subscription refreshed" : "No active subscription found",
-      );
+      // Only adopt a result that found something. An empty restore means
+      // "Apple returned nothing" — which also happens on web and on a
+      // transient failure — and writing that over a live entitlement would
+      // drop a paying member to the free tier until they relaunch.
+      if (state.active) {
+        setSubscription(state);
+        showToast("Subscription refreshed");
+      } else {
+        showToast("No active subscription found on this Apple ID");
+      }
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Restore failed");
     } finally {

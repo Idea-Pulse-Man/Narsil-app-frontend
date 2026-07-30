@@ -22,6 +22,7 @@ import ArtistProfileModal from "./ArtistProfileModal";
 import EraScreen from "./EraScreen";
 import QuizOverlay from "./QuizOverlay";
 import ProPaywall from "./ProPaywall";
+import DownloadSheet from "./DownloadSheet";
 import ArtworkViewer from "./ArtworkViewer";
 import AuthView from "./AuthView";
 import PreferenceModal from "./PreferenceModal";
@@ -60,6 +61,8 @@ export default function MobileShell() {
     proPrompt,
     dismissPro,
     setSubscription,
+    downloadRequest,
+    dismissDownload,
   } = useAppState();
   const { promptSeen, markPromptSeen, setEnabled } = useAudio();
 
@@ -533,6 +536,15 @@ export default function MobileShell() {
             />
           )}
         </AnimatePresence>
+
+        {/* Download resolution picker. Rendered here rather than in the action
+            rail: the rail's root is a 44px-wide absolute column, so an overlay
+            inside it would size to the rail instead of the screen. */}
+        <DownloadSheet
+          artwork={downloadRequest}
+          onClose={dismissDownload}
+          showToast={showToast}
+        />
 
         {/* Narsil Pro. Rendered once here because the things that trigger it —
             the action rail inside the feed, the quiz overlay — are several

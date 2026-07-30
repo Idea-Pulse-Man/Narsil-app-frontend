@@ -1,6 +1,5 @@
-import { useState } from "react";
 import { motion } from "framer-motion";
-import { shouldResolvePortrait, type Artist, type Artwork } from "@/data";
+import { shouldResolvePortrait, type Artist } from "@/data";
 import { useCatalog } from "@/data/catalog";
 import ArtistAvatar from "./ArtistAvatar";
 import {
@@ -13,7 +12,6 @@ import {
 } from "./Icons";
 import { useAppState } from "./AppState";
 import { shareArtwork } from "@/lib/download";
-import DownloadSheet from "./DownloadSheet";
 import type { ToastState } from "./Toast";
 
 interface ActionRailProps {
@@ -70,21 +68,22 @@ export default function ActionRail({
   onHideUi,
   highlight = false,
 }: ActionRailProps) {
-  const { isLiked, toggleLiked, isSaved, toggleSaved } = useAppState();
+  const { isLiked, toggleLiked, isSaved, toggleSaved, requestDownload } =
+    useAppState();
   const { getArtistAvatar, getArtwork } = useCatalog();
-  // Which artwork the download sheet is open for (null = closed).
-  const [downloadFor, setDownloadFor] = useState<Artwork | null>(null);
 
   const liked = isLiked(artworkId);
   const saved = isSaved(artworkId);
 
   const handleShare = () => shareArtwork(artworkId, artworkTitle, showToast);
 
-  // Downloading now asks for a resolution first — Standard is free, High
-  // Resolution is a Narsil Pro perk (see DownloadSheet).
+  // Downloading asks for a resolution first — Standard is free, High
+  // Resolution is a Narsil Pro perk. The sheet itself is rendered by
+  // MobileShell: this rail is a 44px-wide absolutely-positioned column, so an
+  // overlay rendered here would size itself to the rail, not the screen.
   const handleDownload = () => {
     const artwork = getArtwork(artworkId);
-    if (artwork) setDownloadFor(artwork);
+    if (artwork) requestDownload(artwork);
   };
 
   return (
@@ -171,12 +170,6 @@ export default function ActionRail({
       <RailButton label="Hide interface" onClick={onHideUi}>
         <EyeOffIcon className="h-5 w-5" />
       </RailButton>
-
-      <DownloadSheet
-        artwork={downloadFor}
-        onClose={() => setDownloadFor(null)}
-        showToast={showToast}
-      />
     </div>
   );
 }
