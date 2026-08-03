@@ -11,12 +11,25 @@ After `npx cap add ios`:
 
 ```bash
 cp native/ios/NarsilStoreKit.swift ios/App/App/
+cp native/ios/MainViewController.swift ios/App/App/
 npm run cap:ios
 ```
 
-In Xcode, confirm `NarsilStoreKit.swift` appears under the **App** target
-(Build Phases → Compile Sources). No `.m` bridging file is needed: the class
-adopts `CAPBridgedPlugin`, which registers it with Capacitor 6+ from Swift.
+In Xcode, confirm both files appear under the **App** target (Build Phases →
+Compile Sources). No `.m` bridging file is needed.
+
+Then wire up the registration — Capacitor only auto-registers plugins that
+arrive as packages; an app-local plugin must be registered in code or every
+call to it rejects with `UNIMPLEMENTED`:
+
+1. `MainViewController.swift` subclasses `CAPBridgeViewController` and calls
+   `bridge?.registerPluginInstance(NarsilStoreKit())` — already written, just
+   ensure it's compiled into the target.
+2. Open `App/Base.lproj/Main.storyboard`, select the view controller, open the
+   **Identity Inspector** (⌥⌘3), and set **Custom Class** to
+   `MainViewController` (Module: `App`, "Inherit Module From Target" is fine).
+   The template ships with `CAPBridgeViewController` there; ours must replace
+   it or `capacitorDidLoad()` never runs.
 
 Re-copy the file after any `npx cap add ios` / `npx cap sync` that regenerates
 the platform.
