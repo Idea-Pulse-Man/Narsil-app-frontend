@@ -9,6 +9,7 @@ import {
 } from "@/lib/subscription";
 import {
   getProducts,
+  isPluginMissing,
   PRO_ANNUAL,
   type ProProductId,
   type StoreProduct,
@@ -74,6 +75,7 @@ export default function ProPaywall({
   const [selected, setSelected] = useState<ProProductId>(PRO_ANNUAL);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [pluginMissing, setPluginMissing] = useState(false);
 
   const available = canSubscribe();
 
@@ -90,8 +92,15 @@ export default function ProPaywall({
           setSelected(list[0].id as ProProductId);
         }
       })
-      .catch(() => {
-        if (!cancelled) setProducts([]);
+      .catch((err) => {
+        // Left in release builds on purpose — this is the only trace of WHY
+        // the paywall is empty (plugin missing vs. App Store returning
+        // nothing), and it is invisible outside Safari's Web Inspector.
+        console.error("[ProPaywall] getProducts failed:", err);
+        if (!cancelled) {
+          setProducts([]);
+          setPluginMissing(isPluginMissing(err));
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -206,7 +215,12 @@ export default function ProPaywall({
               </p>
             ) : products.length === 0 ? (
               <p className="rounded-2xl bg-white/5 p-4 text-center text-sm text-white/60">
-                Plans are unavailable right now. Please try again shortly.
+                {pluginMissing
+                  ? // A build without NarsilStoreKit.swift compiled in — see
+                    // native/ios/README.md. Only reachable in broken builds,
+                    // never in a correctly assembled release.
+                    "Subscriptions aren't available in this build of the app."
+                  : "Plans are unavailable right now. Please try again shortly."}
               </p>
             ) : (
               <>

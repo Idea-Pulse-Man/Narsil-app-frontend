@@ -1,0 +1,90 @@
+{
+  "identifier" : "8E4D2A10-6F3B-4C58-9A21-D7E5B0C41F92",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+
+  ],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "21504231",
+      "localizations" : [
+
+      ],
+      "name" : "Narsil Pro",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "4.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "6748301521",
+          "introductoryOffer" : {
+            "internalID" : "1D4C9A02-77B1-4E60-8C4F-A2B93E015D34",
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P1W"
+          },
+          "localizations" : [
+            {
+              "description" : "Endless quiz, full-res downloads, 20% off canvas",
+              "displayName" : "Narsil Pro Monthly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.narsil.museum.pro.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Pro Monthly",
+          "subscriptionGroupID" : "21504231",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "39.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "6748301522",
+          "introductoryOffer" : {
+            "internalID" : "7A2F5C18-90D3-4B7E-B156-C8E04D2A61F9",
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P1W"
+          },
+          "localizations" : [
+            {
+              "description" : "Endless quiz, full-res downloads, 20% off canvas",
+              "displayName" : "Narsil Pro Annual",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.narsil.museum.pro.annual",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Pro Annual",
+          "subscriptionGroupID" : "21504231",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

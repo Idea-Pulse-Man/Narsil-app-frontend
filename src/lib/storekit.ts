@@ -62,6 +62,18 @@ export interface NarsilStoreKitPlugin {
 
 const StoreKit = registerPlugin<NarsilStoreKitPlugin>("NarsilStoreKit");
 
+/**
+ * True when a plugin call failed because the native side isn't in the build —
+ * `NarsilStoreKit.swift` was never copied into the Xcode target. That is a
+ * build mistake, not a transient App Store hiccup, and the paywall shows a
+ * different message for it so the two aren't confused during testing.
+ */
+export function isPluginMissing(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const { code, message } = err as { code?: string; message?: string };
+  return code === "UNIMPLEMENTED" || /not implemented/i.test(message ?? "");
+}
+
 /** True only where StoreKit actually exists — native iOS. */
 export function isAvailable(): boolean {
   return Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios";

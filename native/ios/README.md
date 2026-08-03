@@ -81,6 +81,35 @@ missing the whole subscription tier no-ops and nobody is a subscriber.
 
 ## 6. Testing
 
+### In the Simulator (no App Store Connect needed)
+
+`Product.products(for:)` returns an **empty list** in the Simulator unless a
+StoreKit Configuration file is attached to the scheme — the paywall then shows
+"Plans are unavailable right now". `NarsilPro.storekit` in this folder defines
+both products with the 7-day trial:
+
+1. Xcode → add `native/ios/NarsilPro.storekit` to the project (reference is
+   fine, no target membership needed).
+2. Product → Scheme → **Edit Scheme… → Run → Options → StoreKit
+   Configuration** → select `NarsilPro.storekit`.
+3. Run. Purchases are simulated locally — no sandbox account, no real charge.
+
+Note: locally simulated transactions are signed with Xcode's test certificate,
+**not** Apple's root CA, so the backend's JWS verification will reject them.
+The `.storekit` file is for exercising the paywall UI and purchase sheet; the
+full purchase → entitlement path needs sandbox (below).
+
+If the paywall instead says "Subscriptions aren't available in this build",
+`NarsilStoreKit.swift` isn't compiled into the target — redo step 1 of this
+README. Check Safari Web Inspector's console for `[ProPaywall]` errors to tell
+the two apart.
+
+### Sandbox (device / TestFlight)
+
+Products load from App Store Connect only once they exist there, are at least
+"Ready to Submit", and the **Paid Applications agreement** is signed — until
+then the paywall is empty even on a real device.
+
 Sandbox testers: App Store Connect → Users and Access → **Sandbox Testers**.
 Sign out of the App Store on the device first; the sandbox prompt appears at
 purchase time.
