@@ -8,6 +8,7 @@ import CanvasPurchaseSheet from "./CanvasPurchaseSheet";
 import { screenScrollClass, screenContentClass } from "./artwork-layout";
 import { useInfiniteScroll } from "./useInfiniteScroll";
 import { BookmarkIcon, SparkleIcon } from "./Icons";
+import { formatCount } from "@/lib/format";
 import type { ToastState } from "./Toast";
 
 interface BuyViewProps {
@@ -142,7 +143,7 @@ export default function BuyView({ showToast }: BuyViewProps) {
                       active ? "text-ink/40" : "text-white/30"
                     }`}
                   >
-                    {counts[id]}
+                    {formatCount(counts[id])}
                   </span>
                 )}
               </button>

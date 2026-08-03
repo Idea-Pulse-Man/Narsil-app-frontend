@@ -42,7 +42,7 @@ function RailButton({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center gap-1.5">
+    <div className="flex shrink-0 flex-col items-center gap-1.5">
       <motion.button
         whileTap={{ scale: 0.82 }}
         onClick={onClick}
@@ -88,14 +88,16 @@ export default function ActionRail({
 
   return (
     <div
-      className={`absolute bottom-24 right-3 flex flex-col items-center gap-4 rounded-full p-1 transition-shadow ${
+      // max-h + overflow keep every button reachable on short (landscape)
+      // viewports, where the full column is taller than the screen.
+      className={`absolute bottom-24 right-[calc(env(safe-area-inset-right)+0.75rem)] flex max-h-[calc(100%-env(safe-area-inset-top)-9.5rem)] flex-col items-center gap-4 overflow-y-auto rounded-full p-1 transition-shadow [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
         highlight
           ? "z-[85] ring-2 ring-white/60 shadow-[0_0_30px_rgba(255,255,255,0.35)]"
           : "z-40"
       }`}
     >
       {/* 1. Artist profile — tap to open the artist's profile. */}
-      <div className="flex flex-col items-center gap-1.5">
+      <div className="flex shrink-0 flex-col items-center gap-1.5">
         <motion.button
           whileTap={{ scale: 0.85 }}
           onClick={onOpenArtist}

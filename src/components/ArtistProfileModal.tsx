@@ -5,18 +5,12 @@ import BlurImage from "./BlurImage";
 import ArtistAvatar from "./ArtistAvatar";
 import { CloseIcon, PlusIcon, CheckIcon } from "./Icons";
 import { useAppState } from "./AppState";
+import { formatCount } from "@/lib/format";
 
 interface ArtistProfileModalProps {
   artist: Artist | null;
   onClose: () => void;
   onOpenArtwork?: (artworkId: string) => void;
-}
-
-/** Compact count formatter — 1240 → "1.2K", 4800000 → "4.8M". */
-function formatCount(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, "")}K`;
-  return `${n}`;
 }
 
 export default function ArtistProfileModal({
@@ -57,7 +51,7 @@ export default function ArtistProfileModal({
                   : `radial-gradient(120% 90% at 30% 10%, rgba(255,255,255,0.10), rgba(10,10,11,0.2)), linear-gradient(160deg, #2a2a30, #0a0a0b)`,
               }}
             />
-            <div className="relative flex min-h-60 items-center p-6">
+            <div className="relative flex min-h-60 items-center px-6 pb-6 pt-[calc(env(safe-area-inset-top)+1.5rem)]">
               <div className="flex w-full items-center gap-4">
                 <ArtistAvatar
                   src={getArtistAvatar(artist.id)}
@@ -91,7 +85,7 @@ export default function ArtistProfileModal({
               whileTap={{ scale: 0.9 }}
               onClick={onClose}
               aria-label="Close artist profile"
-              className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/30 text-white backdrop-blur-md"
+              className="absolute right-4 top-[calc(env(safe-area-inset-top)+0.75rem)] flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/30 text-white backdrop-blur-md"
             >
               <CloseIcon className="h-5 w-5" />
             </motion.button>
