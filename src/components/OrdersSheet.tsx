@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useCatalog } from "@/data/catalog";
+import { WORLD } from "@/data/worldCopy";
 import { fetchCanvasOrders, type CanvasOrder } from "@/lib/orders";
 import BlurImage from "./BlurImage";
 import { CloseIcon } from "./Icons";
@@ -123,7 +124,7 @@ export default function OrdersSheet({ open, onClose }: OrdersSheetProps) {
 
               {!loading && orders.length === 0 && (
                 <p className="py-8 text-center text-sm text-white/45">
-                  No canvas orders yet — pick a piece from the Buy tab.
+                  No canvas orders yet — pick a piece from {WORLD.gallery}.
                 </p>
               )}
 

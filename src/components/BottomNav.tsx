@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { WORLD } from "@/data/worldCopy";
 import { BOTTOM_TABS, type Screen } from "./navigation";
 import {
   PlusSquareIcon,
@@ -67,14 +68,14 @@ export default function BottomNav({
             screen), so it sits to the right of You without an active pill. */}
         <button
           onClick={() => !disabled && onOpenQuiz()}
-          aria-label="Quiz"
+          aria-label={WORLD.royalAssessment}
           className="group relative flex flex-1 flex-col items-center gap-0.5 rounded-full py-1"
         >
           <span className="relative text-white/55 transition-colors group-hover:text-white/85">
             <LightbulbIcon className="h-[19px] w-[19px]" />
           </span>
           <span className="relative text-[9px] font-medium tracking-tight text-white/55 transition-colors group-hover:text-white/85">
-            Quiz
+            {WORLD.assessmentNav}
           </span>
         </button>
       </div>

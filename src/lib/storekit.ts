@@ -100,7 +100,7 @@ export async function purchase(
   productId: ProProductId,
 ): Promise<StoreTransaction | null> {
   if (!isAvailable()) {
-    throw new Error("Narsil Pro is available on iPhone and iPad.");
+    throw new Error("The Explorer's Guild is available on iPhone and iPad.");
   }
   const { transaction, cancelled } = await StoreKit.purchase({ productId });
   return cancelled ? null : transaction;

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { WORLD } from "@/data/worldCopy";
 import { useCatalog } from "@/data/catalog";
 import { useAppState } from "./AppState";
 import { screenScrollClass, screenContentClass } from "./artwork-layout";
@@ -37,7 +38,7 @@ export default function SavedView({
           Collection
         </p>
         <h1 className="mt-2 font-serif text-[28px] leading-tight text-white">
-          Saved
+          {WORLD.vault}
         </h1>
 
         {ready && items.length === 0 ? (
@@ -45,14 +46,14 @@ export default function SavedView({
             <span className="flex h-16 w-16 items-center justify-center rounded-full border border-white/12 bg-white/5 text-white/40">
               <BookmarkIcon className="h-7 w-7" />
             </span>
-            <h2 className="mt-5 font-serif text-xl text-white">
-              Nothing saved yet
+            <h2 className="mt-5 max-w-[18rem] font-serif text-xl text-white">
+              {WORLD.vaultEmpty}
             </h2>
             <button
               onClick={() => onNavigate("for-you")}
               className="mt-6 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-ink transition-transform active:scale-95"
             >
-              Explore the feed
+              Discover the archives
             </button>
           </div>
         ) : (
@@ -71,7 +72,7 @@ export default function SavedView({
 
         {ready && items.length > 0 && (
           <p className="mt-5 text-center text-[11px] text-white/35">
-            {items.length} saved{items.length === 1 ? " artwork" : " artworks"}
+            {items.length} piece{items.length === 1 ? "" : "s"} in the vault
           </p>
         )}
       </div>

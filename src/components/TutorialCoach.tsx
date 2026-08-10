@@ -276,9 +276,9 @@ function FooterTapHint() {
 const QUICK_ACTIONS = [
   "Artist profile",
   "Like",
-  "Save",
+  "Save to vault",
   "Comment",
-  "Download",
+  "Extract from Archive",
   "Share",
   "Hide interface",
 ];

@@ -14,32 +14,33 @@ import {
   type ProProductId,
   type StoreProduct,
 } from "@/lib/storekit";
+import { WORLD } from "@/data/worldCopy";
 import { CloseIcon, CheckIcon } from "./Icons";
 import type { ToastState } from "./Toast";
 
 const REASON_COPY: Record<PaywallReason, { title: string; lead: string }> = {
   "practice-quiz": {
-    title: "Keep practising",
-    lead: "You've used your five free questions. Narsil Pro plays endless.",
+    title: "Keep exploring",
+    lead: `You've used your five free questions. ${WORLD.explorersGuild} unlocks ${WORLD.unchartedArchives}.`,
   },
   "hi-res-download": {
-    title: "Download the full resolution",
+    title: `Extract the ${WORLD.masterFile}`,
     lead: "Get the museum's original scan instead of the 2000px version.",
   },
   "canvas-discount": {
-    title: "Save on every canvas",
-    lead: "Narsil Pro takes 20% off every print, with shipping already included.",
+    title: WORLD.patronsAdvantage,
+    lead: `${WORLD.explorersGuild} takes 20% off every print, with ${WORLD.dispatchIncluded}.`,
   },
   settings: {
-    title: "Narsil Pro",
-    lead: "Endless quizzes, full-resolution downloads, and 20% off every canvas.",
+    title: WORLD.explorersGuild,
+    lead: WORLD.subscribePitch,
   },
 };
 
 const PERKS = [
-  "Endless quiz — play as long as you can keep answering",
-  "Full-resolution downloads straight from the museum scan",
-  "20% off every canvas print, shipping included",
+  `${WORLD.unchartedArchives} — play as long as you can keep answering`,
+  `Extract uncompressed ${WORLD.masterFile}s straight from the museum scan`,
+  `${WORLD.patronsAdvantage} — 20% off every canvas print, ${WORLD.dispatchIncluded}`,
 ];
 
 interface ProPaywallProps {
@@ -119,7 +120,7 @@ export default function ProPaywall({
       const outcome = await subscribe(selected);
       if (outcome.result === "cancelled") return; // silent — a normal choice
       onSubscribed(outcome.subscription);
-      showToast("Narsil Pro is active");
+      showToast(`${WORLD.explorersGuild} is active`);
       onClose();
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Purchase failed");
@@ -134,7 +135,7 @@ export default function ProPaywall({
       const state = await restorePurchases();
       if (state.active) {
         onSubscribed(state);
-        showToast("Narsil Pro restored");
+        showToast(`${WORLD.explorersGuild} restored`);
         onClose();
       } else {
         showToast("No previous subscription found on this Apple ID");
@@ -174,12 +175,12 @@ export default function ProPaywall({
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
-            aria-label="Narsil Pro"
+            aria-label={WORLD.explorersGuild}
           >
             <header className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
-                  Narsil Pro
+                  {WORLD.explorersGuild}
                 </p>
                 <h2 className="mt-1 text-2xl font-semibold">{copy.title}</h2>
                 <p className="mt-1 text-sm text-white/60">{copy.lead}</p>
@@ -207,7 +208,7 @@ export default function ProPaywall({
 
             {!available ? (
               <p className="rounded-2xl bg-white/5 p-4 text-center text-sm text-white/60">
-                Narsil Pro is available on iPhone and iPad.
+                {WORLD.explorersGuild} is available on iPhone and iPad.
               </p>
             ) : loading ? (
               <p className="py-6 text-center text-sm text-white/50">

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useCatalog } from "@/data/catalog";
+import { WORLD } from "@/data/worldCopy";
 import { useAppState } from "./AppState";
 import { screenScrollClass, screenContentClass } from "./artwork-layout";
 import { FlameIcon, SparkleIcon } from "./Icons";
@@ -203,7 +204,7 @@ export default function YouView({
                 Sign in or create an account
               </span>
               <span className="mt-0.5 block text-xs text-white/50">
-                Sync your saved art across devices
+                Sync your vault across devices
               </span>
             </span>
             <span className="text-white/40">›</span>
@@ -212,12 +213,12 @@ export default function YouView({
 
         {/* Stats */}
         <div className="mt-6 grid grid-cols-3 gap-3">
-          <Stat label="Saved" value={saved.length} onClick={() => onNavigate("saved")} />
+          <Stat label={WORLD.vault} value={saved.length} onClick={() => onNavigate("saved")} />
           <Stat label="Liked" value={liked.length} />
           <Stat label="Following" value={following.length} />
         </div>
 
-        {/* Daily quiz */}
+        {/* Daily quiz / Royal Assessment */}
         <button
           onClick={onOpenQuiz}
           className="mt-6 flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 text-left transition-colors hover:bg-white/[0.06]"
@@ -230,11 +231,13 @@ export default function YouView({
           />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-white">
-              {quizStreak > 0 ? `${quizStreak} day quiz streak` : "Daily quiz"}
+              {quizStreak > 0
+                ? `${quizStreak} day assessment streak`
+                : WORLD.royalAssessment}
             </p>
             <p className="mt-0.5 text-xs text-white/50">
               {quizProgress.lastDailyScore != null
-                ? `Last score ${quizProgress.lastDailyScore}/${quizProgress.lastDailyTotal}`
+                ? `Last ${WORLD.appraisal.toLowerCase()} ${quizProgress.lastDailyScore}/${quizProgress.lastDailyTotal}`
                 : "Test your eye on the collection"}
             </p>
           </div>
@@ -336,7 +339,7 @@ export default function YouView({
               hitting a paywall, so anyone willing to pay without being blocked
               can actually find it. */}
           <Row
-            label="Narsil Pro"
+            label={WORLD.explorersGuild}
             hint={isPro ? "Active" : "Subscribe"}
             onClick={openPro}
             accent={!isPro}
@@ -347,7 +350,7 @@ export default function YouView({
           <Row label="Replay the tutorial" onClick={onRestartTutorial} />
           {hasQuizData && (
             <Row
-              label="Reset quiz streak"
+              label="Reset assessment streak"
               hint={quizStreak > 0 ? `${quizStreak} days` : undefined}
               onClick={handleResetQuiz}
               destructive

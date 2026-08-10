@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { Artwork, Artist } from "@/data";
-import { originLabel } from "@/data";
+import { originLabel, WORLD } from "@/data";
 import { useAppState } from "./AppState";
 import { downloadArtwork, shareArtwork } from "@/lib/download";
 import ZoomableImage, { type ZoomableImageHandle } from "./ZoomableImage";
@@ -274,13 +274,13 @@ export default function ArtworkViewer({
                     </ActionButton>
   
                     <ActionButton
-                      label={saved ? "Remove from saved" : "Save"}
+                      label={saved ? "Remove from vault" : "Save to vault"}
                       active={saved}
                       activeColor="text-amber-300 bg-amber-300/15 border-amber-300/30"
                       onClick={() => {
                         toggleSaved(artwork.id);
                         showToast(
-                          saved ? "Removed from saved" : "Saved to your gallery"
+                          saved ? "Removed from the vault" : "Secured in the vault"
                         );
                       }}
                     >
@@ -294,7 +294,10 @@ export default function ArtworkViewer({
                       <CommentIcon className="h-5 w-5" />
                     </ActionButton>
   
-                    <ActionButton label="Download" onClick={handleDownload}>
+                    <ActionButton
+                      label={WORLD.extractFromArchive}
+                      onClick={handleDownload}
+                    >
                       <DownloadIcon className="h-5 w-5" />
                     </ActionButton>
   

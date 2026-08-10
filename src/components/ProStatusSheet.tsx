@@ -7,14 +7,15 @@ import {
   planLabel,
   restorePurchases,
 } from "@/lib/subscription";
+import { WORLD } from "@/data/worldCopy";
 import { useAppState } from "./AppState";
 import { CloseIcon, CheckIcon } from "./Icons";
 import type { ToastState } from "./Toast";
 
 const PERKS = [
-  "Endless practice quiz",
-  "Full-resolution downloads",
-  "20% off every canvas print",
+  WORLD.unchartedArchives,
+  `Extract ${WORLD.masterFile}s`,
+  `${WORLD.patronsAdvantage} — 20% off every canvas`,
 ];
 
 interface ProStatusSheetProps {
@@ -116,12 +117,12 @@ export default function ProStatusSheet({
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
-            aria-label="Narsil Pro subscription"
+            aria-label={`${WORLD.explorersGuild} subscription`}
           >
             <header className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
-                  Narsil Pro
+                  {WORLD.explorersGuild}
                 </p>
                 <h2 className="mt-1 font-serif text-2xl leading-tight">
                   {plan}

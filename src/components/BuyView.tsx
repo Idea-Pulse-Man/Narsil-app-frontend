@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { originLabel, priceFromId, type Artwork } from "@/data";
+import { originLabel, priceFromId, WORLD, type Artwork } from "@/data";
 import { useCatalog } from "@/data/catalog";
 import { useAppState } from "./AppState";
 import BlurImage from "./BlurImage";
@@ -98,7 +98,7 @@ export default function BuyView({ showToast }: BuyViewProps) {
     <div ref={scrollRef} className={screenScrollClass}>
       <div className={screenContentClass}>
         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
-          Canvas Shop
+          {WORLD.gallery}
         </p>
         <h1 className="mt-2 font-serif text-[28px] leading-tight text-white">
           Own the art
@@ -308,7 +308,7 @@ function CanvasTile({ artwork, priceFrom, index, onOpen }: CanvasTileProps) {
 
       <button
         onClick={() => toggleSaved(artwork.id)}
-        aria-label={saved ? "Remove from saved" : "Save artwork"}
+        aria-label={saved ? "Remove from vault" : "Save to vault"}
         aria-pressed={saved}
         className={`absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full border backdrop-blur-md transition-colors ${
           saved

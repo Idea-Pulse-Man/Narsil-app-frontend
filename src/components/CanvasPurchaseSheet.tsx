@@ -11,6 +11,7 @@ import {
   CANVAS_SIZES,
   priceForSize,
   priceFromId,
+  WORLD,
   type CanvasSize,
   type Artwork,
 } from "@/data";
@@ -132,7 +133,7 @@ export default function CanvasPurchaseSheet({
   const handleContinue = async () => {
     if (!artwork) return;
     if (isGuest) {
-      showToast("Sign in from the You tab to order", "error");
+      showToast(`Sign in from the ${WORLD.member} tab to order`, "error");
       return;
     }
     if (!PAYMENTS_ENABLED) {
@@ -148,7 +149,10 @@ export default function CanvasPurchaseSheet({
         const saved = addresses.find((a) => a.id === addressId);
         const problem = saved ? addressProblem(saved) : null;
         if (problem) {
-          showToast(`${problem} Fix it under You → Delivery addresses.`, "error");
+          showToast(
+            `${problem} Fix it under ${WORLD.member} → Delivery addresses.`,
+            "error",
+          );
           return;
         }
       } else {
@@ -190,7 +194,7 @@ export default function CanvasPurchaseSheet({
    *  verifies the payment with Stripe and creates the Printful order. */
   const handlePaid = async () => {
     setStep("placed");
-    showToast("Order placed");
+    showToast(WORLD.acquisitionSecured);
     if (!intent) return;
     try {
       await finalizeOrder(intent.orderId);
@@ -353,7 +357,8 @@ export default function CanvasPurchaseSheet({
                             </span>
                             {incomplete && (
                               <span className="mt-1 block text-xs text-amber-300/80">
-                                Incomplete — add the state and country under You
+                                Incomplete — add the state and country under{" "}
+                                {WORLD.member}
                                 → Delivery addresses
                               </span>
                             )}
@@ -450,7 +455,7 @@ export default function CanvasPurchaseSheet({
               </div>
             )}
 
-            {/* Continue to payment */}
+            {/* Acquire */}
             <div className="px-6 pb-8 pt-5">
               <button
                 onClick={handleContinue}
@@ -458,12 +463,12 @@ export default function CanvasPurchaseSheet({
                 className="flex w-full items-center justify-center rounded-full bg-white py-3.5 text-sm font-semibold text-ink transition-transform active:scale-[0.98] disabled:opacity-50"
               >
                 {placing
-                  ? "Preparing checkout…"
-                  : `Continue to payment · $${priceForSize(priceFrom, size)}`}
+                  ? `Preparing to ${WORLD.acquire.toLowerCase()}…`
+                  : `${WORLD.acquire} · $${priceForSize(priceFrom, size)}`}
               </button>
               {isGuest && (
                 <p className="mt-3 text-center text-[11px] text-white/35">
-                  Sign in from the You tab to order a canvas.
+                  Sign in from the {WORLD.member} tab to order a canvas.
                 </p>
               )}
             </div>
@@ -480,7 +485,8 @@ export default function CanvasPurchaseSheet({
                       </p>
                       <p className="text-xs text-white/45">
                         {CANVAS_SIZES.find((s) => s.size === size)?.dimensions}
-                        {" · shipping included"}
+                        {" · "}
+                        {WORLD.dispatchIncluded}
                       </p>
                     </div>
                     <span className="text-sm font-semibold text-white">
@@ -495,7 +501,8 @@ export default function CanvasPurchaseSheet({
                   </div>
                   {intent.discountPct > 0 && (
                     <p className="mt-2 border-t border-white/10 pt-2 text-xs font-medium text-amber-300">
-                      Narsil Pro · {intent.discountPct}% off — you saved $
+                      {WORLD.explorersGuild} · {WORLD.patronsAdvantage} (
+                      {intent.discountPct}% off) — you saved $
                       {(intent.listPrice - intent.price).toFixed(2)}
                     </p>
                   )}
@@ -537,11 +544,13 @@ export default function CanvasPurchaseSheet({
             {step === "placed" && (
               <div className="px-6 pb-8 pt-5">
                 <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/10 p-4 text-center">
-                  <p className="font-medium text-emerald-200">Order placed</p>
+                  <p className="font-medium text-emerald-200">
+                    {WORLD.acquisitionSecured}
+                  </p>
                   <p className="mt-1 text-sm text-white/60">
                     Payment received — your {size.toLowerCase()} canvas of{" "}
                     {artwork.title} is being prepared for printing. Track it
-                    any time under You → Canvas orders.
+                    any time under {WORLD.member} → Canvas orders.
                   </p>
                 </div>
               </div>
@@ -614,7 +623,7 @@ function PaymentForm({
         disabled={!ready || paying}
         className="mt-4 flex w-full items-center justify-center rounded-full bg-white py-3.5 text-sm font-semibold text-ink transition-transform active:scale-[0.98] disabled:opacity-50"
       >
-        {paying ? "Processing…" : `Pay $${price}`}
+        {paying ? "Processing…" : `${WORLD.acquire} $${price}`}
       </button>
       <button
         onClick={onBack}
@@ -673,7 +682,7 @@ function NativePaymentForm({
         disabled={paying}
         className="flex w-full items-center justify-center rounded-full bg-white py-3.5 text-sm font-semibold text-ink transition-transform active:scale-[0.98] disabled:opacity-50"
       >
-        {paying ? "Processing…" : `Pay $${intent.price}`}
+        {paying ? "Processing…" : `${WORLD.acquire} $${intent.price}`}
       </button>
       <button
         onClick={onBack}

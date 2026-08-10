@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { categoryMap, type CategoryId } from "@/data";
+import { categoryMap, WORLD, type CategoryId } from "@/data";
 import { useCatalog } from "@/data/catalog";
 import { screenScrollClass, screenContentClass } from "./artwork-layout";
 import { SearchIcon, CloseIcon, ChevronDownIcon } from "./Icons";
@@ -116,7 +116,7 @@ export default function SearchView({
     <div ref={scrollRef} className={screenScrollClass}>
       <div className={screenContentClass}>
         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
-          Search
+          {WORLD.discover}
         </p>
         <h1 className="mt-2 font-serif text-[28px] leading-tight text-white">
           Find a masterpiece
@@ -128,7 +128,7 @@ export default function SearchView({
           <input
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Search artworks, artists, periods…"
+            placeholder={WORLD.discoverPlaceholder}
             className="min-w-0 flex-1 bg-transparent text-sm text-white placeholder:text-white/35 outline-none"
           />
           {text && (
@@ -190,7 +190,7 @@ export default function SearchView({
                     </Chip>
                   </FacetRow>
 
-                  <FacetRow title="Category">
+                  <FacetRow title={WORLD.collections}>
                     {searchFacets.categories.map((id) => (
                       <Chip
                         key={id}

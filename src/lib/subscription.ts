@@ -41,10 +41,10 @@ export const APPLE_SUBSCRIPTIONS_URL =
 
 /** "Annual" / "Monthly" from an App Store product id. */
 export function planLabel(productId: string | null): string {
-  if (!productId) return "Narsil Pro";
+  if (!productId) return "The Explorer's Guild";
   if (productId.endsWith(".annual")) return "Annual";
   if (productId.endsWith(".monthly")) return "Monthly";
-  return "Narsil Pro";
+  return "The Explorer's Guild";
 }
 
 /** Renewal/expiry date as a readable local date, or null when unknown. */
@@ -86,7 +86,7 @@ async function authedJson<T>(
   init?: { method?: string; body?: unknown },
 ): Promise<T> {
   const token = await accessToken();
-  if (!token) throw new Error("Sign in to manage Narsil Pro.");
+  if (!token) throw new Error("Sign in to manage The Explorer's Guild.");
 
   const res = await ngrokFetch(`${API_URL}${path}`, {
     method: init?.method ?? "GET",

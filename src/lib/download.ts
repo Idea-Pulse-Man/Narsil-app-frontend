@@ -128,10 +128,10 @@ function anchorDownload(blob: Blob, filename: string): void {
 /** Which of the two download tiers to request. */
 export type DownloadTier = "standard" | "high";
 
-/** Raised when the high-resolution tier is requested without Narsil Pro. */
+/** Raised when the high-resolution tier is requested without Guild membership. */
 export class ProRequiredError extends Error {
   constructor() {
-    super("High-resolution downloads are a Narsil Pro feature.");
+    super("Master File extracts are an Explorer's Guild feature.");
     this.name = "ProRequiredError";
   }
 }
@@ -169,7 +169,7 @@ export async function downloadArtwork(
   tier: DownloadTier = "standard",
 ): Promise<void> {
   if (artwork.origin === "artist-original") {
-    showToast("Download needs the artist's permission");
+    showToast("Extract needs the artist's permission");
     return;
   }
 
@@ -184,7 +184,7 @@ export async function downloadArtwork(
       headers: await authHeaders(),
     });
     if (res.status === 403) {
-      showToast("Download needs the artist's permission");
+      showToast("Extract needs the artist's permission");
       return;
     }
     if (res.status === 402) {

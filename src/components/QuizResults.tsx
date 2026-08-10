@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { appraisalFor, WORLD } from "@/data/worldCopy";
 import type { QuizQuestion } from "@/lib/quiz";
 import BlurImage from "./BlurImage";
 import { FlameIcon } from "./Icons";
@@ -20,15 +21,6 @@ interface QuizResultsProps {
   onDone: () => void;
 }
 
-/** A short line that scales praise to the score. */
-function verdict(score: number, total: number): string {
-  const ratio = total === 0 ? 0 : score / total;
-  if (ratio === 1) return "Flawless. A true connoisseur.";
-  if (ratio >= 0.7) return "Sharp eye — well played.";
-  if (ratio >= 0.4) return "Not bad. The gallery grows on you.";
-  return "Every master started somewhere.";
-}
-
 export default function QuizResults({
   score,
   total,
@@ -40,6 +32,8 @@ export default function QuizResults({
   onOpenArtwork,
   onDone,
 }: QuizResultsProps) {
+  const appraisal = appraisalFor(score, total, isDaily);
+
   return (
     <div className="relative flex h-full flex-col">
       {milestone !== null && <StreakCelebration streak={milestone} />}
@@ -55,13 +49,25 @@ export default function QuizResults({
           className="text-center"
         >
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-300/80">
-            {isDaily ? "Daily quiz complete" : "Practice complete"}
+            {isDaily
+              ? `${WORLD.royalAssessment} complete`
+              : `${WORLD.unchartedArchives} complete`}
+          </p>
+          <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
+            {WORLD.appraisal}
           </p>
           <p className="mt-3 font-serif text-[56px] leading-none text-white">
             {score}
             <span className="text-white/40">/{total}</span>
           </p>
-          <p className="mt-3 text-sm text-white/55">{verdict(score, total)}</p>
+          {appraisal.title && (
+            <p className="mt-4 font-serif text-xl leading-snug text-white">
+              {appraisal.title}
+            </p>
+          )}
+          <p className="mt-3 text-sm leading-relaxed text-white/55">
+            {appraisal.message}
+          </p>
 
           {isDaily && (
             <motion.div

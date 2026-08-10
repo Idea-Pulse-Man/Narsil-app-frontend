@@ -37,6 +37,14 @@ export {
   priceFromId,
 };
 
+export {
+  WORLD,
+  APPRAISAL_RANKS,
+  appraisalFor,
+  practiceVerdict,
+} from "./worldCopy";
+export type { AppraisalRank } from "./worldCopy";
+
 export type {
   Artwork,
   Artist,

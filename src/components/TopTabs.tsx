@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { TOP_TABS, type Screen } from "./navigation";
+import { WORLD } from "@/data/worldCopy";
 import { SearchIcon } from "./Icons";
 
 interface TopTabsProps {
@@ -57,11 +58,11 @@ export default function TopTabs({
             );
           })}
 
-          {/* Search sits inline, right after the Buy tab */}
+          {/* Search sits inline, right after The Gallery tab */}
           <motion.button
             onClick={() => onChange?.("search")}
             whileTap={{ scale: 0.94 }}
-            aria-label="Search"
+            aria-label={WORLD.discover}
             aria-current={isSearchActive ? "page" : undefined}
             className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white"
           >

@@ -21,6 +21,7 @@ import {
   type QuizMode,
   type QuizQuestion,
 } from "@/lib/quiz";
+import { WORLD } from "@/data/worldCopy";
 import { useAppState } from "./AppState";
 import QuizQuestionView from "./QuizQuestion";
 import QuizResults from "./QuizResults";
@@ -347,10 +348,10 @@ export default function QuizOverlay({
               <div className="min-w-0 flex-1">
                 <p className="truncate font-serif text-[17px] leading-tight text-white">
                   {stage === "hub"
-                    ? "Quiz"
+                    ? WORLD.royalAssessment
                     : isDaily
-                      ? "Daily quiz"
-                      : `Practice · ${practiceMode ? MODE_LABEL[practiceMode] : ""}`}
+                      ? WORLD.royalAssessment
+                      : `${WORLD.unchartedArchives} · ${practiceMode ? MODE_LABEL[practiceMode] : ""}`}
                 </p>
               </div>
               {stage === "playing" && (
@@ -468,8 +469,8 @@ function QuizHub({
           </p>
           <p className="text-[12px] text-white/45">
             {done
-              ? "Today's quiz is done — see you tomorrow."
-              : "Play the daily quiz to keep it going."}
+              ? `Today's ${WORLD.royalAssessment} is done — see you tomorrow.`
+              : `Play ${WORLD.royalAssessment} to keep it going.`}
           </p>
         </div>
       </div>
@@ -484,10 +485,10 @@ function QuizHub({
         <span>
           <span className="block font-serif text-lg text-white">
             {dailyMode === "resume"
-              ? "Daily quiz — in progress"
+              ? `${WORLD.royalAssessment} — in progress`
               : done
-                ? "Daily quiz complete"
-                : "Daily quiz"}
+                ? `${WORLD.royalAssessment} complete`
+                : WORLD.royalAssessment}
           </span>
           <span className="mt-0.5 block text-[12px] text-white/55">
             {dailySubtitle}
@@ -500,19 +501,19 @@ function QuizHub({
         )}
       </button>
 
-      {/* Practice */}
+      {/* Practice / Uncharted Archives */}
       <h2 className="mt-8 flex items-center gap-2 font-serif text-lg text-white">
-        Practice
+        {WORLD.unchartedArchives}
         {!isPro && (
           <span className="rounded-full bg-amber-300/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-300">
-            Pro
+            Guild
           </span>
         )}
       </h2>
       <p className="mt-1 text-[12px] text-white/45">
         {isPro
           ? "Endless questions — doesn't affect your streak."
-          : `${FREE_PRACTICE_QUESTIONS} free questions per round · Narsil Pro plays endless.`}
+          : `${FREE_PRACTICE_QUESTIONS} free questions per round · ${WORLD.explorersGuild} plays endless.`}
       </p>
       <div className="mt-3 space-y-2.5">
         {QUIZ_MODES.map((mode) => {

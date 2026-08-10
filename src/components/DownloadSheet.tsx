@@ -7,6 +7,7 @@ import {
   ProRequiredError,
   type DownloadTier,
 } from "@/lib/download";
+import { WORLD } from "@/data/worldCopy";
 import { useAppState } from "./AppState";
 import { CloseIcon, DownloadIcon } from "./Icons";
 import type { ToastState } from "./Toast";
@@ -51,7 +52,7 @@ export default function DownloadSheet({
         requestPro("hi-res-download");
         return;
       }
-      showToast(err instanceof Error ? err.message : "Download failed");
+      showToast(err instanceof Error ? err.message : "Extract failed");
     } finally {
       setBusy(null);
     }
@@ -87,11 +88,13 @@ export default function DownloadSheet({
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
-            aria-label="Download artwork"
+            aria-label={WORLD.extractFromArchive}
           >
             <header className="mb-4 flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <h2 className="font-serif text-xl leading-tight">Download</h2>
+                <h2 className="font-serif text-xl leading-tight">
+                  {WORLD.extractFromArchive}
+                </h2>
                 <p className="mt-0.5 truncate text-sm text-white/50">
                   {artwork.title}
                 </p>
@@ -132,11 +135,11 @@ export default function DownloadSheet({
               >
                 <span className="min-w-0">
                   <span className="block text-sm font-medium">
-                    High Resolution
+                    {WORLD.masterFile}
                   </span>
                   <span className="mt-0.5 block text-[12px] text-white/45">
                     {describeTier(artwork, "high")}
-                    {isPro ? "" : " · Narsil Pro"}
+                    {isPro ? "" : ` · ${WORLD.explorersGuild}`}
                   </span>
                 </span>
                 <span className="shrink-0 text-amber-300">
@@ -146,7 +149,7 @@ export default function DownloadSheet({
                     <DownloadIcon className="h-5 w-5" />
                   ) : (
                     <span className="rounded-full bg-amber-300 px-3 py-1 text-[11px] font-semibold text-ink">
-                      Pro
+                      Guild
                     </span>
                   )}
                 </span>

@@ -7,6 +7,7 @@ import {
   EMPTY_PROGRESS,
   type QuizProgress,
 } from "@/lib/quiz";
+import { WORLD } from "@/data/worldCopy";
 import { FlameIcon } from "./Icons";
 
 interface DailyQuizCardProps {
@@ -51,7 +52,11 @@ export default function DailyQuizCard({
       </div>
       <div className="min-w-0 flex-1">
         <p className="font-serif text-lg leading-tight text-white">
-          {inProgress ? "Daily quiz — in progress" : done ? "Daily quiz done" : "Daily quiz"}
+          {inProgress
+            ? `${WORLD.royalAssessment} — in progress`
+            : done
+              ? `${WORLD.royalAssessment} done`
+              : WORLD.royalAssessment}
         </p>
         <p className="mt-0.5 text-[12px] text-white/55">
           {inProgress

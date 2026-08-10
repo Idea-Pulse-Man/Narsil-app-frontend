@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { shouldResolvePortrait, type Artist } from "@/data";
+import { shouldResolvePortrait, WORLD, type Artist } from "@/data";
 import { useCatalog } from "@/data/catalog";
 import ArtistAvatar from "./ArtistAvatar";
 import {
@@ -132,14 +132,16 @@ export default function ActionRail({
         </motion.span>
       </RailButton>
 
-      {/* 3. Save / bookmark — adds the artwork to the Saved collection. */}
+      {/* 3. Save / bookmark — adds the artwork to The Vault. */}
       <RailButton
-        label={saved ? "Remove from saved" : "Save"}
+        label={saved ? "Remove from vault" : "Save to vault"}
         active={saved}
         activeColor="text-amber-300 bg-amber-300/15 border-amber-300/30"
         onClick={() => {
           toggleSaved(artworkId);
-          showToast(saved ? "Removed from saved" : "Saved to your gallery");
+          showToast(
+            saved ? "Removed from the vault" : "Secured in the vault",
+          );
         }}
       >
         <motion.span
@@ -156,9 +158,9 @@ export default function ActionRail({
         <CommentIcon className="h-5 w-5" />
       </RailButton>
 
-      {/* 5. Download — public domain saves to a folder you choose;
+      {/* 5. Extract from Archive — public domain saves to a folder you choose;
           freelance originals need the artist's permission. */}
-      <RailButton label="Download" onClick={handleDownload}>
+      <RailButton label={WORLD.extractFromArchive} onClick={handleDownload}>
         <DownloadIcon className="h-5 w-5" />
       </RailButton>
 

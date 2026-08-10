@@ -95,7 +95,7 @@ export default function ArtworkTile({
       {showSave && (
         <button
           onClick={() => toggleSaved(artwork.id)}
-          aria-label={saved ? "Remove from saved" : "Save artwork"}
+          aria-label={saved ? "Remove from vault" : "Save to vault"}
           aria-pressed={saved}
           className={`absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full border backdrop-blur-md transition-colors ${
             saved
