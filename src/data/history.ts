@@ -96,24 +96,42 @@ export const historyEras: HistoryEra[] = [
     range: [1850, 1909],
   },
   {
-    id: "contemporary",
-    title: "Modern & Contemporary",
-    years: "1910 – today",
+    id: "modernism",
+    title: "Modern Art",
+    years: "1910 – 1960",
     description:
-      "Every rule breaks — abstraction, surreal dreams, and living artists carrying the story into the present.",
+      "Cubism, Surrealism, and the avant-garde shatter tradition — form and feeling reinvented for a new century.",
     artworkIds: [],
     keywords: [
       "expressionis",
       "cubis",
       "surreal",
-      "abstract",
       "dada",
       "bauhaus",
+      "fauvis",
+      "futurism",
+      "constructiv",
+      "abstract expression",
+    ],
+    range: [1910, 1959],
+  },
+  {
+    id: "contemporary",
+    title: "Contemporary",
+    years: "1960 – today",
+    description:
+      "Pop, Minimalism, and living artists — art of the present, still being written.",
+    artworkIds: [],
+    keywords: [
       "pop art",
       "minimalis",
       "contemporary",
+      "conceptual",
+      "postmodern",
+      "color field",
+      "street art",
     ],
-    range: [1910, 3000],
+    range: [1960, 3000],
   },
 ];
 
