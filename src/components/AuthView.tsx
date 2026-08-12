@@ -99,7 +99,7 @@ export default function AuthView({ onClose }: AuthViewProps) {
       <div className="mt-8 space-y-3">
         <button
           onClick={() => oauth("apple")}
-          className="flex w-full items-center justify-center gap-2.5 rounded-full bg-white py-3.5 text-sm font-semibold text-ink transition-transform active:scale-[0.98]"
+          className="flex w-full items-center justify-center gap-2.5 rounded-full bg-accent py-3.5 text-sm font-semibold text-ink transition-transform active:scale-[0.98]"
         >
           <AppleGlyph className="h-[18px] w-[18px] -mt-0.5" />
           Continue with Apple
@@ -158,7 +158,7 @@ export default function AuthView({ onClose }: AuthViewProps) {
       <button
         onClick={submitEmail}
         disabled={!canSubmit}
-        className="mt-5 w-full rounded-full bg-white py-3.5 text-sm font-semibold text-ink transition-transform active:scale-[0.98] disabled:cursor-default disabled:opacity-40"
+        className="mt-5 w-full rounded-full bg-accent py-3.5 text-sm font-semibold text-ink transition-transform active:scale-[0.98] disabled:cursor-default disabled:opacity-40"
       >
         {busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Sign up"}
       </button>

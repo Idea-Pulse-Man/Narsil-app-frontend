@@ -2,17 +2,22 @@
 @import "tailwindcss";
 
 @theme {
-  --color-ink: #0a0a0b;
-  --color-ink-soft: #16161a;
-  --color-canvas: #f7f5f1;
-  --color-canvas-muted: #e9e6df;
-  --color-stone-450: #9b958c;
+  /* Espresso shell — warm gallery darks instead of cool grey */
+  --color-ink: #14100e;
+  --color-ink-soft: #1f1915;
+  --color-umber: #3a2e24;
+  --color-canvas: #f4efe6;
+  --color-canvas-muted: #e4d9c8;
+  --color-stone-450: #a89880;
+  /* Muted gold — active tabs, brand, CTAs */
+  --color-accent: #c4a574;
+  --color-accent-deep: #9a7b4a;
 
   --font-sans: "Inter", system-ui, "Segoe UI", sans-serif;
   --font-serif: "Playfair Display", Georgia, serif;
 
-  --shadow-placard: 0 -20px 60px -15px rgba(0, 0, 0, 0.5);
-  --shadow-rail: 0 8px 30px rgba(0, 0, 0, 0.25);
+  --shadow-placard: 0 -20px 60px -15px rgba(20, 12, 8, 0.55);
+  --shadow-rail: 0 8px 30px rgba(20, 12, 8, 0.3);
 
   --animate-fade-in: fade-in 0.5s ease forwards;
   --animate-pop: pop 0.4s ease;
@@ -81,8 +86,8 @@ ion-app {
 
 body {
   margin: 0;
-  background-color: #0a0a0b;
-  color: #f7f5f1;
+  background-color: #14100e;
+  color: #f4efe6;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -99,6 +104,6 @@ body {
 
 @layer components {
   .field-input {
-    @apply w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-white/25 focus:bg-white/[0.06];
+    @apply w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-accent/40 focus:bg-white/[0.06];
   }
 }

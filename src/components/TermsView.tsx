@@ -86,7 +86,7 @@ export default function TermsView({
           type="button"
           disabled={!canAccept}
           onClick={onAccept}
-          className="mt-4 flex w-full items-center justify-center rounded-full bg-white py-3.5 text-sm font-semibold text-ink disabled:cursor-not-allowed disabled:opacity-40"
+          className="mt-4 flex w-full items-center justify-center rounded-full bg-accent py-3.5 text-sm font-semibold text-ink disabled:cursor-not-allowed disabled:opacity-40"
         >
           I Agree
         </button>

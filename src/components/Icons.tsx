@@ -271,8 +271,8 @@ export function PlusSquareIcon({ filled, ...props }: IconProps) {
       {...props}
     >
       <rect x="3" y="3" width="18" height="18" rx="5" />
-      <line x1="12" y1="8" x2="12" y2="16" stroke={filled ? "#0a0a0b" : "currentColor"} />
-      <line x1="8" y1="12" x2="16" y2="12" stroke={filled ? "#0a0a0b" : "currentColor"} />
+      <line x1="12" y1="8" x2="12" y2="16" stroke={filled ? "#14100e" : "currentColor"} />
+      <line x1="8" y1="12" x2="16" y2="12" stroke={filled ? "#14100e" : "currentColor"} />
     </svg>
   );
 }

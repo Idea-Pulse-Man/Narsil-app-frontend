@@ -70,7 +70,7 @@ export default function DailyQuizCard({
       </div>
       <span
         className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${
-          done && !inProgress ? "bg-white/10 text-white/70" : "bg-white text-ink"
+          done && !inProgress ? "bg-white/10 text-white/70" : "bg-accent text-ink"
         }`}
       >
         {cta}

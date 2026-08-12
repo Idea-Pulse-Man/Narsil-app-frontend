@@ -47,8 +47,8 @@ export default function ArtistProfileModal({
               className="absolute inset-0"
               style={{
                 background: isFreelance
-                  ? `radial-gradient(120% 90% at 30% 10%, ${artist.accent ?? "#7c5cff"}55, rgba(10,10,11,0.2)), linear-gradient(160deg, #1c1c22, #0a0a0b)`
-                  : `radial-gradient(120% 90% at 30% 10%, rgba(255,255,255,0.10), rgba(10,10,11,0.2)), linear-gradient(160deg, #2a2a30, #0a0a0b)`,
+                  ? `radial-gradient(120% 90% at 30% 10%, ${artist.accent ?? "#c4a574"}55, rgba(20,16,14,0.25)), linear-gradient(160deg, #2a221c, #14100e)`
+                  : `radial-gradient(120% 90% at 30% 10%, rgba(196,165,116,0.18), rgba(20,16,14,0.25)), linear-gradient(160deg, #2f261f, #14100e)`,
               }}
             />
             <div className="relative flex min-h-60 items-center px-6 pb-6 pt-[calc(env(safe-area-inset-top)+1.5rem)]">
@@ -103,7 +103,7 @@ export default function ArtistProfileModal({
                 className={`ml-auto flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
                   following
                     ? "border border-white/20 bg-white/5 text-white"
-                    : "bg-white text-ink"
+                    : "bg-accent text-ink"
                 }`}
               >
                 {following ? (

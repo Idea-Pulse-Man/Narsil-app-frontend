@@ -261,7 +261,7 @@ export default function AddressManager({
 
                   <button
                     onClick={startAdd}
-                    className="mt-4 w-full rounded-full bg-white py-3.5 text-sm font-semibold text-ink transition-transform active:scale-[0.98]"
+                    className="mt-4 w-full rounded-full bg-accent py-3.5 text-sm font-semibold text-ink transition-transform active:scale-[0.98]"
                   >
                     Add a new address
                   </button>
@@ -338,7 +338,7 @@ export default function AddressManager({
                     <button
                       onClick={save}
                       disabled={busy}
-                      className="flex flex-[1.4] items-center justify-center gap-2 rounded-full bg-white py-3.5 text-sm font-semibold text-ink transition-transform active:scale-[0.98] disabled:opacity-50"
+                      className="flex flex-[1.4] items-center justify-center gap-2 rounded-full bg-accent py-3.5 text-sm font-semibold text-ink transition-transform active:scale-[0.98] disabled:opacity-50"
                     >
                       {busy ? (
                         "Saving…"

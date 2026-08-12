@@ -236,7 +236,7 @@ export default function ProPaywall({
                         aria-pressed={isSelected}
                         className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3.5 text-left transition ${
                           isSelected
-                            ? "border-amber-300 bg-amber-300/10"
+                            ? "border-accent bg-accent/15"
                             : "border-white/10 bg-white/5"
                         }`}
                       >
@@ -263,7 +263,7 @@ export default function ProPaywall({
                   type="button"
                   onClick={handleSubscribe}
                   disabled={busy}
-                  className="w-full rounded-2xl bg-white py-3.5 text-base font-semibold text-black transition disabled:opacity-50"
+                  className="w-full rounded-2xl bg-accent py-3.5 text-base font-semibold text-ink transition disabled:opacity-50"
                 >
                   {busy
                     ? "Working…"

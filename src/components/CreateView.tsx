@@ -224,7 +224,7 @@ export default function CreateView({ showToast, onPublished }: CreateViewProps) 
                   onClick={() => setOrigin(opt.value)}
                   className={`flex-1 rounded-full px-3 py-2 text-xs font-medium transition-colors ${
                     origin === opt.value
-                      ? "bg-white text-ink"
+                      ? "bg-accent text-ink"
                       : "border border-white/15 bg-white/5 text-white/70 hover:text-white"
                   }`}
                 >
@@ -288,7 +288,7 @@ export default function CreateView({ showToast, onPublished }: CreateViewProps) 
             type="submit"
             disabled={!canPublish}
             whileTap={canPublish ? { scale: 0.98 } : undefined}
-            className="mt-2 flex w-full items-center justify-center rounded-full bg-white py-3.5 text-sm font-semibold text-ink transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+            className="mt-2 flex w-full items-center justify-center rounded-full bg-accent py-3.5 text-sm font-semibold text-ink transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
           >
             {busy ? "Publishing…" : "Post to Narsil"}
           </motion.button>

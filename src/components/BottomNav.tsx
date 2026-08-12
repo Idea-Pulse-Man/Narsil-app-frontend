@@ -27,7 +27,7 @@ export default function BottomNav({
 }) {
   return (
     <nav className="absolute inset-x-0 bottom-0 z-40 pb-[env(safe-area-inset-bottom)]">
-      <div className="mx-auto mb-2 flex max-w-[86%] items-center justify-around rounded-full border border-white/12 bg-black/45 px-1.5 py-1 backdrop-blur-2xl shadow-rail">
+      <div className="mx-auto mb-2 flex max-w-[86%] items-center justify-around rounded-full border border-accent/15 bg-ink/70 px-1.5 py-1 backdrop-blur-2xl shadow-rail">
         {BOTTOM_TABS.map((tab) => {
           const isActive = tab.id === active;
           const Icon = ICONS[tab.id];
@@ -43,19 +43,19 @@ export default function BottomNav({
                 <motion.span
                   layoutId="bottom-pill"
                   transition={{ type: "spring", stiffness: 420, damping: 34 }}
-                  className="absolute inset-0 rounded-full bg-white/12 ring-1 ring-white/12"
+                  className="absolute inset-0 rounded-full bg-accent/18 ring-1 ring-accent/25"
                 />
               )}
               <span
                 className={`relative transition-colors ${
-                  isActive ? "text-white" : "text-white/55"
+                  isActive ? "text-accent" : "text-white/55"
                 }`}
               >
                 {Icon({ filled: isActive, className: "h-[19px] w-[19px]" })}
               </span>
               <span
                 className={`relative text-[9px] font-medium tracking-tight transition-colors ${
-                  isActive ? "text-white" : "text-white/55"
+                  isActive ? "text-accent" : "text-white/55"
                 }`}
               >
                 {tab.label}

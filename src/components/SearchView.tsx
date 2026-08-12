@@ -327,7 +327,7 @@ function Chip({
       onClick={onClick}
       className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
         active
-          ? "bg-white text-ink"
+          ? "bg-accent text-ink"
           : "border border-white/15 bg-white/5 text-white/70 hover:text-white"
       }`}
     >

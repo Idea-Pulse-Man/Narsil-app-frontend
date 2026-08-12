@@ -144,7 +144,7 @@ export default function PreferenceModal({
                             onClick={() => toggle(opt.label)}
                             className={`rounded-full px-3.5 py-2 text-sm font-medium transition-colors ${
                               active
-                                ? "bg-white text-ink"
+                                ? "bg-accent text-ink"
                                 : "border border-white/15 bg-white/5 text-white/75 hover:text-white"
                             }`}
                           >
@@ -166,7 +166,7 @@ export default function PreferenceModal({
                 </button>
                 <button
                   onClick={handleSave}
-                  className="flex-[1.4] rounded-full bg-white py-3.5 text-sm font-semibold text-ink transition-transform active:scale-[0.98]"
+                  className="flex-[1.4] rounded-full bg-accent py-3.5 text-sm font-semibold text-ink transition-transform active:scale-[0.98]"
                 >
                   Save preferences
                 </button>

@@ -298,14 +298,14 @@ export default function MobileShell() {
   return (
     <div
       className={`flex min-h-[100dvh] w-full items-center justify-center ${
-        isNative ? "bg-ink" : "bg-neutral-950 sm:bg-neutral-900 sm:py-6"
+        isNative ? "bg-ink" : "bg-[#0c0a09] sm:bg-[#1a1512] sm:py-6"
       }`}
     >
       <div
         className={`relative h-[100dvh] w-full overflow-hidden bg-ink ${
           isNative
             ? ""
-            : "sm:h-[844px] sm:w-[390px] sm:rounded-[44px] sm:border-[10px] sm:border-neutral-800 sm:shadow-2xl"
+            : "sm:h-[844px] sm:w-[390px] sm:rounded-[44px] sm:border-[10px] sm:border-umber sm:shadow-2xl"
         }`}
       >
         {/* Top tabs — shared across every screen so the active pill animates */}
@@ -330,7 +330,7 @@ export default function MobileShell() {
               exit={{ opacity: 0, y: -6 }}
               className="absolute inset-x-0 top-[calc(env(safe-area-inset-top)+3.25rem)] z-30 flex justify-center"
             >
-              <div className="flex items-center rounded-full border border-white/25 bg-black/40 p-1 backdrop-blur-xl">
+              <div className="flex items-center rounded-full border border-accent/25 bg-ink/55 p-1 backdrop-blur-xl">
                 {(
                   [
                     { id: "all", label: "Mix" },
@@ -346,7 +346,7 @@ export default function MobileShell() {
                     }}
                     className={`rounded-full px-4 py-1.5 text-[12px] font-medium transition-all ${
                       feedFilter === opt.id
-                        ? "bg-white text-ink shadow-sm"
+                        ? "bg-accent text-ink shadow-sm"
                         : "text-white/60 hover:text-white/85"
                     }`}
                   >

@@ -40,7 +40,7 @@ export default function MusicPrompt({ onEnable, onDecline }: MusicPromptProps) {
           <button
             type="button"
             onClick={onEnable}
-            className="flex-1 rounded-full bg-white py-3 text-sm font-semibold text-ink"
+            className="flex-1 rounded-full bg-accent py-3 text-sm font-semibold text-ink"
           >
             Play music
           </button>

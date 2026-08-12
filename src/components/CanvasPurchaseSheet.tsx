@@ -48,10 +48,10 @@ const EMPTY_FORM = {
 const STRIPE_APPEARANCE: Appearance = {
   theme: "night",
   variables: {
-    colorPrimary: "#ffffff",
-    colorBackground: "#26262a",
-    colorText: "#ffffff",
-    colorTextPlaceholder: "rgba(255,255,255,0.35)",
+    colorPrimary: "#c4a574",
+    colorBackground: "#1f1915",
+    colorText: "#f4efe6",
+    colorTextPlaceholder: "rgba(244,239,230,0.35)",
     borderRadius: "16px",
   },
 };
@@ -305,7 +305,7 @@ export default function CanvasPurchaseSheet({
                         <span
                           className={`flex h-5 w-5 items-center justify-center rounded-full border ${
                             selected
-                              ? "border-white bg-white text-ink"
+                              ? "border-accent bg-accent text-ink"
                               : "border-white/30"
                           }`}
                         >
@@ -366,7 +366,7 @@ export default function CanvasPurchaseSheet({
                           <span
                             className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
                               selected
-                                ? "border-white bg-white text-ink"
+                                ? "border-accent bg-accent text-ink"
                                 : "border-white/30"
                             }`}
                           >
@@ -460,7 +460,7 @@ export default function CanvasPurchaseSheet({
               <button
                 onClick={handleContinue}
                 disabled={placing}
-                className="flex w-full items-center justify-center rounded-full bg-white py-3.5 text-sm font-semibold text-ink transition-transform active:scale-[0.98] disabled:opacity-50"
+                className="flex w-full items-center justify-center rounded-full bg-accent py-3.5 text-sm font-semibold text-ink transition-transform active:scale-[0.98] disabled:opacity-50"
               >
                 {placing
                   ? `Preparing to ${WORLD.acquire.toLowerCase()}…`
@@ -621,7 +621,7 @@ function PaymentForm({
       <button
         onClick={handlePay}
         disabled={!ready || paying}
-        className="mt-4 flex w-full items-center justify-center rounded-full bg-white py-3.5 text-sm font-semibold text-ink transition-transform active:scale-[0.98] disabled:opacity-50"
+        className="mt-4 flex w-full items-center justify-center rounded-full bg-accent py-3.5 text-sm font-semibold text-ink transition-transform active:scale-[0.98] disabled:opacity-50"
       >
         {paying ? "Processing…" : `${WORLD.acquire} $${price}`}
       </button>
@@ -680,7 +680,7 @@ function NativePaymentForm({
       <button
         onClick={handlePay}
         disabled={paying}
-        className="flex w-full items-center justify-center rounded-full bg-white py-3.5 text-sm font-semibold text-ink transition-transform active:scale-[0.98] disabled:opacity-50"
+        className="flex w-full items-center justify-center rounded-full bg-accent py-3.5 text-sm font-semibold text-ink transition-transform active:scale-[0.98] disabled:opacity-50"
       >
         {paying ? "Processing…" : `${WORLD.acquire} $${intent.price}`}
       </button>

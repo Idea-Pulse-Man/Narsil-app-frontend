@@ -232,7 +232,7 @@ export default function DiscoverView({
                 onClick={() => setLens(opt.id)}
                 className={`rounded-full px-3 py-1 text-[11px] font-medium transition-colors ${
                   lens === opt.id
-                    ? "bg-white text-ink"
+                    ? "bg-accent text-ink"
                     : "text-white/60 hover:text-white"
                 }`}
               >
@@ -267,9 +267,9 @@ export default function DiscoverView({
                     transition={{ delay: eraIndex * 0.06, duration: 0.35 }}
                     className="relative pl-7"
                   >
-                    <div className="absolute left-0 top-1.5 h-3.5 w-3.5 rounded-full border-2 border-white/30 bg-ink ring-4 ring-ink" />
+                    <div className="absolute left-0 top-1.5 h-3.5 w-3.5 rounded-full border-2 border-accent/50 bg-ink ring-4 ring-ink" />
 
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-300/80">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent">
                       {era.years}
                     </p>
                     <h3 className="mt-1 font-serif text-xl text-white">
@@ -338,13 +338,13 @@ export default function DiscoverView({
                           onClick={() => setActiveEmpire(group.empire)}
                           className={`rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors ${
                             active
-                              ? "bg-white text-ink"
+                              ? "bg-accent text-ink"
                               : "border border-white/15 bg-white/5 text-white/70 hover:text-white"
                           }`}
                         >
                           {group.empire}
                           <span
-                            className={`ml-1.5 ${active ? "text-ink/50" : "text-white/35"}`}
+                            className={`ml-1.5 ${active ? "text-ink/55" : "text-white/35"}`}
                           >
                             {group.artworks.length}
                           </span>

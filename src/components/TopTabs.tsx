@@ -25,10 +25,10 @@ export default function TopTabs({
         <div className="mt-1 flex w-[56px] shrink-0 flex-col items-center gap-1">
           {showBrand && (
             <>
-              <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-white text-[9px] font-bold text-ink shadow-sm">
+              <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-accent text-[9px] font-bold text-ink shadow-sm">
                 N
               </span>
-              <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white">
+              <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-accent">
                 Narsil
               </span>
             </>
@@ -50,10 +50,14 @@ export default function TopTabs({
                   <motion.span
                     layoutId="top-tab-pill"
                     transition={{ type: "spring", stiffness: 420, damping: 34 }}
-                    className="absolute inset-0 rounded-full border border-white/20 bg-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-xl"
+                    className="absolute inset-0 rounded-full border border-accent/35 bg-accent/20 shadow-[inset_0_1px_0_rgba(196,165,116,0.25)] backdrop-blur-xl"
                   />
                 )}
-                <span className="relative whitespace-nowrap">{tab.label}</span>
+                <span
+                  className={`relative whitespace-nowrap ${isActive ? "text-accent" : ""}`}
+                >
+                  {tab.label}
+                </span>
               </motion.button>
             );
           })}
@@ -72,10 +76,12 @@ export default function TopTabs({
               <motion.span
                 layoutId="top-tab-pill"
                 transition={{ type: "spring", stiffness: 420, damping: 34 }}
-                className="absolute inset-0 rounded-full border border-white/20 bg-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-xl"
+                className="absolute inset-0 rounded-full border border-accent/35 bg-accent/20 shadow-[inset_0_1px_0_rgba(196,165,116,0.25)] backdrop-blur-xl"
               />
             )}
-            <SearchIcon className="relative h-[15px] w-[15px]" />
+            <SearchIcon
+              className={`relative h-[15px] w-[15px] ${isSearchActive ? "text-accent" : ""}`}
+            />
           </motion.button>
         </div>
 
