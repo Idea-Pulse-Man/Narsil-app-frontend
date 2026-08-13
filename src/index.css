@@ -23,9 +23,10 @@
   --animate-pop: pop 0.4s ease;
   --animate-float-up: float-up 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   --animate-shimmer: shimmer 1.6s infinite;
-  --animate-gallery-spin: gallery-spin 1.6s linear infinite;
-  --animate-gallery-float: gallery-float 3.2s ease-in-out infinite;
-  --animate-gallery-glow: gallery-glow 2.4s ease-in-out infinite;
+  --animate-gallery-spin: gallery-spin 2.4s linear infinite;
+  --animate-gallery-float: gallery-float 3.6s ease-in-out infinite;
+  --animate-gallery-glow: gallery-glow 2.8s ease-in-out infinite;
+  --animate-gallery-unfurl: gallery-unfurl 2.2s ease-in-out infinite;
 
   @keyframes fade-in {
     0% {
@@ -87,6 +88,18 @@
       opacity: 0.55;
     }
     50% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes gallery-unfurl {
+    0%,
+    100% {
+      transform: scaleY(0.92);
+      opacity: 0.72;
+    }
+    50% {
+      transform: scaleY(1);
       opacity: 1;
     }
   }

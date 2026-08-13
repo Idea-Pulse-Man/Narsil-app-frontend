@@ -177,80 +177,142 @@ export default function ArtFeed({
           </div>
 
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center pb-24">
-            <div className="animate-gallery-float relative flex h-[7.25rem] w-[7.25rem] items-center justify-center">
+            <div className="animate-gallery-float relative flex h-[9.5rem] w-[9.5rem] items-center justify-center">
+              {/* Ornate medieval ring — slow gold orbit */}
               <svg
-                viewBox="0 0 96 96"
+                viewBox="0 0 120 120"
                 className="animate-gallery-spin absolute inset-0 h-full w-full"
                 aria-hidden
               >
                 <circle
-                  cx="48"
-                  cy="48"
-                  r="44"
+                  cx="60"
+                  cy="60"
+                  r="52"
                   fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.75"
-                  className="text-accent/20"
-                />
-                <circle
-                  cx="48"
-                  cy="48"
-                  r="44"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.75"
-                  strokeLinecap="round"
-                  strokeDasharray="42 234"
-                  className="text-accent"
-                />
-              </svg>
-              <svg
-                viewBox="0 0 64 80"
-                className="relative h-[4.35rem] w-[3.5rem] drop-shadow-[0_8px_24px_rgba(196,165,116,0.22)]"
-                aria-hidden
-              >
-                <rect
-                  x="2"
-                  y="2"
-                  width="60"
-                  height="76"
-                  rx="3"
-                  fill="#1a1410"
                   stroke="#c4a574"
-                  strokeWidth="2.4"
+                  strokeWidth="1"
+                  opacity="0.22"
                 />
-                <rect
-                  x="6.5"
-                  y="6.5"
-                  width="51"
-                  height="67"
-                  rx="1.5"
-                  fill="#241c16"
-                  stroke="#9a7b4a"
-                  strokeWidth="0.9"
-                />
-                <rect x="9" y="9" width="46" height="62" fill="#2c241c" />
                 <circle
-                  cx="38"
-                  cy="26"
-                  r="7"
+                  cx="60"
+                  cy="60"
+                  r="52"
+                  fill="none"
+                  stroke="#c4a574"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  strokeDasharray="18 28 8 40 12 55"
+                  opacity="0.9"
+                />
+                {/* Compass points */}
+                <path
+                  d="M60 6 L63 14 L60 12 L57 14 Z"
                   fill="#c4a574"
-                  className="animate-gallery-glow"
-                  opacity="0.72"
-                />
-                <path
-                  d="M9 44C18 36 26 48 32 40C38 50 48 38 55 46V71H9V44Z"
-                  fill="#3a2e24"
-                />
-                <path
-                  d="M9 52C20 46 34 58 55 48V71H9V52Z"
-                  fill="#2a2218"
                   opacity="0.85"
                 />
+                <path
+                  d="M60 114 L63 106 L60 108 L57 106 Z"
+                  fill="#c4a574"
+                  opacity="0.55"
+                />
+                <path
+                  d="M6 60 L14 57 L12 60 L14 63 Z"
+                  fill="#c4a574"
+                  opacity="0.55"
+                />
+                <path
+                  d="M114 60 L106 57 L108 60 L106 63 Z"
+                  fill="#c4a574"
+                  opacity="0.55"
+                />
+              </svg>
+
+              {/* Classic parchment scroll */}
+              <svg
+                viewBox="0 0 72 96"
+                className="relative h-[5.75rem] w-[4.35rem] drop-shadow-[0_10px_28px_rgba(196,165,116,0.28)]"
+                aria-hidden
+              >
+                {/* Soft gold glow behind the scroll */}
+                <ellipse
+                  cx="36"
+                  cy="48"
+                  rx="28"
+                  ry="36"
+                  fill="#c4a574"
+                  className="animate-gallery-glow"
+                  opacity="0.12"
+                />
+
+                {/* Main parchment body */}
+                <g
+                  className="animate-gallery-unfurl"
+                  style={{ transformOrigin: "36px 48px", transformBox: "fill-box" }}
+                >
+                  <path
+                    d="M14 18 H58 Q64 18 64 24 V72 Q64 78 58 78 H14 Q8 78 8 72 V24 Q8 18 14 18 Z"
+                    fill="#e4d9c8"
+                  />
+                  <path
+                    d="M14 18 H58 Q64 18 64 24 V72 Q64 78 58 78 H14 Q8 78 8 72 V24 Q8 18 14 18 Z"
+                    fill="url(#scrollShade)"
+                    opacity="0.35"
+                  />
+                  {/* Illuminated manuscript lines */}
+                  <rect x="16" y="28" width="18" height="3.5" rx="1" fill="#9a7b4a" opacity="0.55" />
+                  <rect x="16" y="36" width="40" height="2" rx="1" fill="#3a2e24" opacity="0.28" />
+                  <rect x="16" y="42" width="36" height="2" rx="1" fill="#3a2e24" opacity="0.22" />
+                  <rect x="16" y="48" width="38" height="2" rx="1" fill="#3a2e24" opacity="0.22" />
+                  <rect x="16" y="54" width="28" height="2" rx="1" fill="#3a2e24" opacity="0.18" />
+                  <rect x="16" y="62" width="34" height="2" rx="1" fill="#3a2e24" opacity="0.16" />
+                  {/* Tiny fleuron / illuminated initial mark */}
+                  <path
+                    d="M52 30 L54 28 L56 30 L54 32 Z"
+                    fill="#c4a574"
+                    opacity="0.8"
+                  />
+                </g>
+
+                {/* Top roller */}
+                <rect x="4" y="12" width="64" height="10" rx="5" fill="#c4a574" />
+                <rect x="6" y="14" width="60" height="6" rx="3" fill="#9a7b4a" />
+                <circle cx="8" cy="17" r="3.2" fill="#e4d9c8" opacity="0.55" />
+                <circle cx="64" cy="17" r="3.2" fill="#e4d9c8" opacity="0.55" />
+
+                {/* Bottom roller */}
+                <rect x="4" y="74" width="64" height="10" rx="5" fill="#c4a574" />
+                <rect x="6" y="76" width="60" height="6" rx="3" fill="#9a7b4a" />
+                <circle cx="8" cy="79" r="3.2" fill="#e4d9c8" opacity="0.55" />
+                <circle cx="64" cy="79" r="3.2" fill="#e4d9c8" opacity="0.55" />
+
+                {/* Wax seal */}
+                <circle cx="36" cy="70" r="7" fill="#7a2e24" opacity="0.92" />
+                <circle
+                  cx="36"
+                  cy="70"
+                  r="5"
+                  fill="none"
+                  stroke="#c4a574"
+                  strokeWidth="0.8"
+                  opacity="0.7"
+                />
+                <path
+                  d="M36 66.5 L37.2 69.2 L40.2 69.4 L37.9 71.2 L38.6 74 L36 72.5 L33.4 74 L34.1 71.2 L31.8 69.4 L34.8 69.2 Z"
+                  fill="#c4a574"
+                  opacity="0.9"
+                />
+
+                <defs>
+                  <linearGradient id="scrollShade" x1="8" y1="18" x2="64" y2="78">
+                    <stop offset="0%" stopColor="#f4efe6" stopOpacity="0.5" />
+                    <stop offset="55%" stopColor="#c4a574" stopOpacity="0.15" />
+                    <stop offset="100%" stopColor="#3a2e24" stopOpacity="0.35" />
+                  </linearGradient>
+                </defs>
               </svg>
             </div>
-            <p className="mt-5 font-serif text-[15px] tracking-wide text-accent/85">
-              Opening the gallery…
+            <p className="mt-5 font-serif text-[15px] tracking-[0.08em] text-accent/90">
+              Unfurling the collection…
             </p>
           </div>
 
