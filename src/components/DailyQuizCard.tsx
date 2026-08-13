@@ -17,9 +17,9 @@ interface DailyQuizCardProps {
 }
 
 /**
- * The Daily Quiz entry point on Discover — a Duolingo-style card showing the
- * streak and today's status. Re-reads localStorage whenever `refreshKey`
- * changes (i.e. after the quiz overlay closes) so a fresh completion shows.
+ * Daily quiz entry on Discover. Hidden after today's assessment is complete;
+ * review lives on the Assessment tab. Re-reads localStorage when `refreshKey`
+ * changes so a fresh completion (or resume) updates immediately.
  */
 export default function DailyQuizCard({
   onStart,
@@ -36,7 +36,11 @@ export default function DailyQuizCard({
 
   const streak = effectiveStreak(progress);
   const done = hasPlayedToday(progress);
-  const cta = inProgress ? "Resume" : done ? "Review" : "Play";
+  const cta = inProgress ? "Resume" : "Play";
+
+  // Once today's assessment is finished, Discover doesn't need the card —
+  // review lives on the Assessment tab.
+  if (done && !inProgress) return null;
 
   return (
     <button
@@ -54,25 +58,17 @@ export default function DailyQuizCard({
         <p className="font-serif text-lg leading-tight text-white">
           {inProgress
             ? `${WORLD.royalAssessment} — in progress`
-            : done
-              ? `${WORLD.royalAssessment} done`
-              : WORLD.royalAssessment}
+            : WORLD.royalAssessment}
         </p>
         <p className="mt-0.5 text-[12px] text-white/55">
           {inProgress
             ? "Pick up where you left off"
             : streak > 0
-              ? `${streak} day streak · ${done ? "back tomorrow" : "play to keep it"}`
-              : done
-                ? "See you tomorrow"
-                : "Test your eye on today's works"}
+              ? `${streak} day streak · play to keep it`
+              : "Test your eye on today's works"}
         </p>
       </div>
-      <span
-        className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${
-          done && !inProgress ? "bg-white/10 text-white/70" : "bg-accent text-ink"
-        }`}
-      >
+      <span className="shrink-0 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-ink">
         {cta}
       </span>
     </button>
