@@ -50,7 +50,7 @@ export default function TopTabs({
                 {isActive && (
                   <motion.span
                     layoutId="top-tab-pill"
-                    transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                    transition={{ type: "spring", stiffness: 700, damping: 42 }}
                     className="absolute inset-0 rounded-full border border-accent/35 bg-accent/20 shadow-[inset_0_1px_0_rgba(196,165,116,0.25)] backdrop-blur-xl"
                   />
                 )}
@@ -73,7 +73,7 @@ export default function TopTabs({
             {isSearchActive && (
               <motion.span
                 layoutId="top-tab-pill"
-                transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                transition={{ type: "spring", stiffness: 700, damping: 42 }}
                 className="absolute inset-0 rounded-full border border-accent/35 bg-accent/20 shadow-[inset_0_1px_0_rgba(196,165,116,0.25)] backdrop-blur-xl"
               />
             )}

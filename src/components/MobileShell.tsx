@@ -68,6 +68,11 @@ export default function MobileShell() {
 
   const [toast, setToast] = useState<ToastState | null>(null);
   const [screen, setScreen] = useState<Screen>("for-you");
+  // Keep each tab mounted after first visit so switching (For You ↔ Discover,
+  // Gallery, Search, etc.) is instant — no remount, no feed rebuild, scroll kept.
+  const [visitedScreens, setVisitedScreens] = useState<ReadonlySet<Screen>>(
+    () => new Set<Screen>(["for-you"]),
+  );
   // For You source toggle (client sketch: "Mix of historical and freelance → add toggle").
   const [feedFilter, setFeedFilter] = useState<FeedFilter>("all");
   // Once a source is chosen the toggle hides; it returns when For You is re-selected.
@@ -190,6 +195,16 @@ export default function MobileShell() {
     },
     [tutorialActive]
   );
+
+  // Mark the active screen visited (covers navigate + direct setScreen jumps).
+  useEffect(() => {
+    setVisitedScreens((prev) => {
+      if (prev.has(screen)) return prev;
+      const next = new Set(prev);
+      next.add(screen);
+      return next;
+    });
+  }, [screen]);
 
   // ── Preference modal triggers ──────────────────────────────────────
   const handleViewIndex = useCallback(
@@ -358,35 +373,39 @@ export default function MobileShell() {
           )}
         </AnimatePresence>
 
-        {/* Screens */}
-        {/* Crossfade screens: the incoming screen mounts immediately (no
-            mode="wait") and both layers overlap via `absolute inset-0`, so
-            navigation feels instant instead of waiting on the exit animation. */}
-        <AnimatePresence>
-          <motion.div
-            key={screen}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className="absolute inset-0 bg-ink"
-          >
-            {screen === "for-you" && (
-              <div className="absolute inset-0 bg-ink">
-                <ArtFeed
-                  key={`feed-${feedFilter}`}
-                  showToast={showToast}
-                  onOpenArtist={openArtist}
-                  clean={clean}
-                  onCleanChange={setClean}
-                  onViewIndex={handleViewIndex}
-                  filter={feedFilter}
-                  tutorial={tutorialBridge}
-                />
-              </div>
-            )}
+        {/* Screens — keep-alive after first visit. Hide inactive tabs with
+            `hidden` instead of unmounting so tab switches stay instant and
+            For You does not rebuild its feed when you come back. */}
+        <div className="absolute inset-0 bg-ink">
+          {visitedScreens.has("for-you") && (
+            <div
+              className={
+                screen === "for-you" ? "absolute inset-0" : "hidden"
+              }
+              aria-hidden={screen !== "for-you"}
+              inert={screen !== "for-you" ? true : undefined}
+            >
+              <ArtFeed
+                key={`feed-${feedFilter}`}
+                showToast={showToast}
+                onOpenArtist={openArtist}
+                clean={clean}
+                onCleanChange={setClean}
+                onViewIndex={handleViewIndex}
+                filter={feedFilter}
+                tutorial={tutorialBridge}
+              />
+            </div>
+          )}
 
-            {screen === "discover" && (
+          {visitedScreens.has("discover") && (
+            <div
+              className={
+                screen === "discover" ? "absolute inset-0" : "hidden"
+              }
+              aria-hidden={screen !== "discover"}
+              inert={screen !== "discover" ? true : undefined}
+            >
               <DiscoverView
                 onOpenArtist={openArtist}
                 onOpenArtwork={openArtwork}
@@ -394,18 +413,42 @@ export default function MobileShell() {
                 onOpenQuiz={() => setQuizOpen(true)}
                 quizRefresh={quizRefresh}
               />
-            )}
+            </div>
+          )}
 
-            {screen === "buy" && <BuyView showToast={showToast} />}
+          {visitedScreens.has("buy") && (
+            <div
+              className={screen === "buy" ? "absolute inset-0" : "hidden"}
+              aria-hidden={screen !== "buy"}
+              inert={screen !== "buy" ? true : undefined}
+            >
+              <BuyView showToast={showToast} />
+            </div>
+          )}
 
-            {screen === "search" && (
+          {visitedScreens.has("search") && (
+            <div
+              className={
+                screen === "search" ? "absolute inset-0" : "hidden"
+              }
+              aria-hidden={screen !== "search"}
+              inert={screen !== "search" ? true : undefined}
+            >
               <SearchView
                 onOpenArtwork={openArtwork}
                 showToast={showToast}
               />
-            )}
+            </div>
+          )}
 
-            {screen === "create" && (
+          {visitedScreens.has("create") && (
+            <div
+              className={
+                screen === "create" ? "absolute inset-0" : "hidden"
+              }
+              aria-hidden={screen !== "create"}
+              inert={screen !== "create" ? true : undefined}
+            >
               <CreateView
                 showToast={showToast}
                 onPublished={() => {
@@ -416,17 +459,35 @@ export default function MobileShell() {
                   setScreen("for-you");
                 }}
               />
-            )}
+            </div>
+          )}
 
-            {screen === "saved" && (
+          {visitedScreens.has("saved") && (
+            <div
+              className={
+                screen === "saved" ? "absolute inset-0" : "hidden"
+              }
+              aria-hidden={screen !== "saved"}
+              inert={screen !== "saved" ? true : undefined}
+            >
               <SavedView
                 onOpenArtwork={openArtwork}
                 onNavigate={navigate}
                 showToast={showToast}
               />
-            )}
+            </div>
+          )}
 
-            {screen === "you" && !adminOpen && (
+          {visitedScreens.has("you") && (
+            <div
+              className={
+                screen === "you" && !adminOpen
+                  ? "absolute inset-0"
+                  : "hidden"
+              }
+              aria-hidden={screen !== "you" || adminOpen}
+              inert={screen !== "you" || adminOpen ? true : undefined}
+            >
               <YouView
                 onOpenArtwork={openArtwork}
                 onOpenArtist={openArtist}
@@ -448,16 +509,18 @@ export default function MobileShell() {
                 isAdmin={isAdmin}
                 showToast={showToast}
               />
-            )}
+            </div>
+          )}
 
-            {screen === "you" && adminOpen && (
+          {screen === "you" && adminOpen && (
+            <div className="absolute inset-0">
               <AdminView
                 onBack={() => setAdminOpen(false)}
                 showToast={showToast}
               />
-            )}
-          </motion.div>
-        </AnimatePresence>
+            </div>
+          )}
+        </div>
 
         {/* Bottom navigation */}
         <AnimatePresence>

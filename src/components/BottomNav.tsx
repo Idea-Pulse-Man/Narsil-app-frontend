@@ -42,7 +42,7 @@ export default function BottomNav({
               {isActive && (
                 <motion.span
                   layoutId="bottom-pill"
-                  transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                  transition={{ type: "spring", stiffness: 700, damping: 42 }}
                   className="absolute inset-0 rounded-full bg-accent/18 ring-1 ring-accent/25"
                 />
               )}
