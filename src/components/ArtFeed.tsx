@@ -4,6 +4,7 @@ import { useCatalog } from "@/data/catalog";
 import { buildSessionFeed } from "@/lib/feed-utils";
 import { useAppState } from "./AppState";
 import ArtworkCard from "./ArtworkCard";
+import { artworkFooterClass } from "./artwork-layout";
 import HistoryPlacard from "./HistoryPlacard";
 import type { ToastState } from "./Toast";
 import type { TutorialBridge } from "./tutorial";
@@ -160,22 +161,39 @@ export default function ArtFeed({
   // empty state if the gallery couldn't be reached. Never show mock/fake data.
   // (Placed after all hooks so hook order stays stable — Rules of Hooks.)
   if (items.length === 0) {
+    if (loading) {
+      return (
+        <div
+          role="status"
+          aria-label="Loading the gallery"
+          className="relative h-full w-full overflow-hidden bg-ink"
+        >
+          <div className="absolute inset-0 bg-white/[0.04]">
+            <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+          </div>
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-black/55 to-transparent" />
+            <div className="absolute inset-x-0 bottom-0 h-[55%] bg-gradient-to-t from-black/80 via-black/35 to-transparent" />
+          </div>
+          <div className={`absolute inset-x-0 bottom-0 ${artworkFooterClass}`}>
+            <div className="h-7 w-[70%] rounded-md bg-white/15" />
+            <div className="mt-3 flex items-center gap-2">
+              <div className="h-6 w-6 shrink-0 rounded-full bg-white/15" />
+              <div className="h-3.5 w-[38%] rounded-full bg-white/10" />
+            </div>
+            <div className="mt-4 h-9 w-28 rounded-full bg-white/10" />
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex h-full w-full flex-col items-center justify-center gap-4 bg-ink px-8 text-center">
-        {loading ? (
-          <>
-            <span className="h-9 w-9 animate-spin rounded-full border-2 border-white/20 border-t-white/80" />
-            <p className="text-sm text-white/55">Loading the gallery…</p>
-          </>
-        ) : (
-          <>
-            <p className="font-serif text-lg text-white">No artworks to show</p>
-            <p className="max-w-[16rem] text-sm text-white/50">
-              We couldn&apos;t reach the gallery. Check your connection and try
-              again.
-            </p>
-          </>
-        )}
+        <p className="font-serif text-lg text-white">No artworks to show</p>
+        <p className="max-w-[16rem] text-sm text-white/50">
+          We couldn&apos;t reach the gallery. Check your connection and try
+          again.
+        </p>
       </div>
     );
   }
