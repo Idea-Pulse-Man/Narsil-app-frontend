@@ -5,7 +5,7 @@ import { buildSessionFeed } from "@/lib/feed-utils";
 import { useAppState } from "./AppState";
 import ArtworkCard from "./ArtworkCard";
 import { artworkFooterClass } from "./artwork-layout";
-import GalleryScrollMark from "./GalleryScrollMark";
+import GalleryFrameMark from "./GalleryFrameMark";
 import HistoryPlacard from "./HistoryPlacard";
 import type { ToastState } from "./Toast";
 import type { TutorialBridge } from "./tutorial";
@@ -178,59 +178,37 @@ export default function ArtFeed({
           </div>
 
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center pb-24">
-            <div className="animate-gallery-float relative flex h-[14.5rem] w-[12.5rem] items-center justify-center">
-              {/* Soft gold orbit — keeps the old spinner motion around the scroll */}
+            <div className="animate-gallery-float relative flex h-[9.5rem] w-[9.5rem] items-center justify-center">
               <svg
-                viewBox="0 0 160 160"
+                viewBox="0 0 96 96"
                 className="animate-gallery-spin absolute inset-0 h-full w-full"
                 aria-hidden
               >
                 <circle
-                  cx="80"
-                  cy="80"
-                  r="74"
+                  cx="48"
+                  cy="48"
+                  r="44"
                   fill="none"
                   stroke="#c4a574"
-                  strokeWidth="1"
+                  strokeWidth="1.2"
                   opacity="0.18"
                 />
                 <circle
-                  cx="80"
-                  cy="80"
-                  r="74"
+                  cx="48"
+                  cy="48"
+                  r="44"
                   fill="none"
                   stroke="#c4a574"
-                  strokeWidth="1.5"
+                  strokeWidth="1.8"
                   strokeLinecap="round"
-                  strokeDasharray="20 32 10 48 14 60"
-                  opacity="0.85"
-                />
-                <path
-                  d="M80 4 L83.2 13 L80 10.5 L76.8 13 Z"
-                  fill="#c4a574"
-                  opacity="0.85"
-                />
-                <path
-                  d="M80 156 L83.2 147 L80 149.5 L76.8 147 Z"
-                  fill="#c4a574"
-                  opacity="0.5"
-                />
-                <path
-                  d="M4 80 L13 76.8 L10.5 80 L13 83.2 Z"
-                  fill="#c4a574"
-                  opacity="0.5"
-                />
-                <path
-                  d="M156 80 L147 76.8 L149.5 80 L147 83.2 Z"
-                  fill="#c4a574"
-                  opacity="0.5"
+                  strokeDasharray="36 240"
+                  opacity="0.95"
                 />
               </svg>
-
-              <GalleryScrollMark />
+              <GalleryFrameMark />
             </div>
-            <p className="mt-5 font-serif text-[15px] tracking-[0.08em] text-accent/90">
-              Unfurling the collection…
+            <p className="mt-5 font-serif text-[15px] tracking-[0.06em] text-accent/90">
+              Preparing the gallery…
             </p>
           </div>
 
