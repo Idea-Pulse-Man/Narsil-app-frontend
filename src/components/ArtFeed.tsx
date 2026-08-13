@@ -5,6 +5,7 @@ import { buildSessionFeed } from "@/lib/feed-utils";
 import { useAppState } from "./AppState";
 import ArtworkCard from "./ArtworkCard";
 import { artworkFooterClass } from "./artwork-layout";
+import GalleryScrollMark from "./GalleryScrollMark";
 import HistoryPlacard from "./HistoryPlacard";
 import type { ToastState } from "./Toast";
 import type { TutorialBridge } from "./tutorial";
@@ -177,7 +178,7 @@ export default function ArtFeed({
           </div>
 
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center pb-24">
-            <div className="animate-gallery-float relative flex h-[13.5rem] w-[13.5rem] items-center justify-center">
+            <div className="animate-gallery-float relative flex h-[14.5rem] w-[12.5rem] items-center justify-center">
               {/* Soft gold orbit — keeps the old spinner motion around the scroll */}
               <svg
                 viewBox="0 0 160 160"
@@ -226,14 +227,7 @@ export default function ArtFeed({
                 />
               </svg>
 
-              <div className="animate-gallery-glow relative flex h-[11rem] w-[11rem] items-center justify-center overflow-hidden rounded-[1.5rem]">
-                <img
-                  src="/loading-scroll.png"
-                  alt=""
-                  draggable={false}
-                  className="h-full w-full object-contain drop-shadow-[0_10px_28px_rgba(196,165,116,0.28)]"
-                />
-              </div>
+              <GalleryScrollMark />
             </div>
             <p className="mt-5 font-serif text-[15px] tracking-[0.08em] text-accent/90">
               Unfurling the collection…
