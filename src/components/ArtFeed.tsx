@@ -175,6 +175,85 @@ export default function ArtFeed({
             <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-black/55 to-transparent" />
             <div className="absolute inset-x-0 bottom-0 h-[55%] bg-gradient-to-t from-black/80 via-black/35 to-transparent" />
           </div>
+
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center pb-24">
+            <div className="animate-gallery-float relative flex h-[7.25rem] w-[7.25rem] items-center justify-center">
+              <svg
+                viewBox="0 0 96 96"
+                className="animate-gallery-spin absolute inset-0 h-full w-full"
+                aria-hidden
+              >
+                <circle
+                  cx="48"
+                  cy="48"
+                  r="44"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  className="text-accent/20"
+                />
+                <circle
+                  cx="48"
+                  cy="48"
+                  r="44"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  strokeLinecap="round"
+                  strokeDasharray="42 234"
+                  className="text-accent"
+                />
+              </svg>
+              <svg
+                viewBox="0 0 64 80"
+                className="relative h-[4.35rem] w-[3.5rem] drop-shadow-[0_8px_24px_rgba(196,165,116,0.22)]"
+                aria-hidden
+              >
+                <rect
+                  x="2"
+                  y="2"
+                  width="60"
+                  height="76"
+                  rx="3"
+                  fill="#1a1410"
+                  stroke="#c4a574"
+                  strokeWidth="2.4"
+                />
+                <rect
+                  x="6.5"
+                  y="6.5"
+                  width="51"
+                  height="67"
+                  rx="1.5"
+                  fill="#241c16"
+                  stroke="#9a7b4a"
+                  strokeWidth="0.9"
+                />
+                <rect x="9" y="9" width="46" height="62" fill="#2c241c" />
+                <circle
+                  cx="38"
+                  cy="26"
+                  r="7"
+                  fill="#c4a574"
+                  className="animate-gallery-glow"
+                  opacity="0.72"
+                />
+                <path
+                  d="M9 44C18 36 26 48 32 40C38 50 48 38 55 46V71H9V44Z"
+                  fill="#3a2e24"
+                />
+                <path
+                  d="M9 52C20 46 34 58 55 48V71H9V52Z"
+                  fill="#2a2218"
+                  opacity="0.85"
+                />
+              </svg>
+            </div>
+            <p className="mt-5 font-serif text-[15px] tracking-wide text-accent/85">
+              Opening the gallery…
+            </p>
+          </div>
+
           <div className={`absolute inset-x-0 bottom-0 ${artworkFooterClass}`}>
             <div className="h-7 w-[70%] rounded-md bg-white/15" />
             <div className="mt-3 flex items-center gap-2">
