@@ -2,7 +2,7 @@
  * Narsil navigation model.
  *
  * Eight screens are reachable through two persistent bars (see MobileShell):
- *  - TOP tabs (content browsing): Discover · For You · The Gallery · Search
+ *  - TOP tabs (content browsing): Discover · For You · The Gallery (+ Search icon)
  *  - BOTTOM bar (app sections):   The Vault · Create · Member
  *
  * Screen ids stay stable; labels are lore copy from worldCopy.

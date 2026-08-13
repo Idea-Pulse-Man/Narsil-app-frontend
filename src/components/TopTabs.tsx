@@ -20,9 +20,9 @@ export default function TopTabs({
 
   return (
     <div className="pointer-events-none absolute inset-x-0 top-0 z-30 pt-[env(safe-area-inset-top)]">
-      <div className="pointer-events-auto flex items-center justify-between gap-2 px-4 pt-3">
+      <div className="pointer-events-auto flex items-center justify-between gap-1 px-3 pt-3">
         {/* Brand lockup — stacked N over NARSIL in the top-left corner */}
-        <div className="mt-1 flex w-[56px] shrink-0 flex-col items-center gap-1">
+        <div className="mt-1 flex w-10 shrink-0 flex-col items-center gap-1">
           {showBrand && (
             <>
               <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-accent text-[9px] font-bold text-ink shadow-sm">
@@ -35,7 +35,7 @@ export default function TopTabs({
           )}
         </div>
 
-        <div className="flex flex-1 items-center justify-center gap-0">
+        <div className="flex min-w-0 flex-1 items-center justify-center">
           {navTabs.map((tab) => {
             const isActive = tab.id === active;
             return (
@@ -44,7 +44,7 @@ export default function TopTabs({
                 onClick={() => onChange?.(tab.id)}
                 whileTap={{ scale: 0.94 }}
                 aria-current={isActive ? "page" : undefined}
-                className="relative rounded-full px-5 py-1.5 text-[13px] font-medium text-white"
+                className="relative rounded-full px-2.5 py-1.5 text-[12px] font-medium text-white sm:px-3 sm:text-[13px]"
               >
                 {isActive && (
                   <motion.span
@@ -61,17 +61,17 @@ export default function TopTabs({
               </motion.button>
             );
           })}
+        </div>
 
-          {/* Search sits inline, right after The Gallery tab */}
+        {/* Search — right chrome slot so long tab labels can't clip it */}
+        <div className="flex w-10 shrink-0 justify-center">
           <motion.button
             onClick={() => onChange?.("search")}
             whileTap={{ scale: 0.94 }}
             aria-label={WORLD.discover}
             aria-current={isSearchActive ? "page" : undefined}
-            className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white"
+            className="relative flex h-8 w-8 items-center justify-center rounded-full text-white"
           >
-            {/* Same pill as the text tabs — with uniform white text it is the
-                only thing marking Search as the active screen. */}
             {isSearchActive && (
               <motion.span
                 layoutId="top-tab-pill"
@@ -84,9 +84,6 @@ export default function TopTabs({
             />
           </motion.button>
         </div>
-
-        {/* Right spacer to keep the tab cluster visually centered */}
-        <div className="w-[56px] shrink-0" />
       </div>
     </div>
   );
