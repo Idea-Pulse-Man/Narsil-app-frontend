@@ -18,6 +18,7 @@ import type {
 import type { HistoryEra } from "./history";
 import type { Category, CategoryGroup } from "./categories";
 import type { CanvasSize, CanvasOption, CanvasProduct } from "./shop";
+import { placeOfArtwork, uniquePlaceFacets } from "./places";
 
 export {
   artworks,
@@ -36,6 +37,13 @@ export {
   priceForSize,
   priceFromId,
 };
+
+export { placeOfArtwork, placeTreeOf, uniquePlaceFacets } from "./places";
+export type {
+  ArtworkPlace,
+  PlaceCityNode,
+  PlaceCountryNode,
+} from "./places";
 
 export {
   WORLD,
@@ -120,6 +128,7 @@ export const searchFacets = {
     new Set(artworks.map((a) => a.empire).filter((e): e is string => !!e))
   ).sort(),
   categories: categories.map((c) => c.id),
+  ...uniquePlaceFacets(artworks),
 };
 
 export interface ArtworkSearchQuery {
@@ -134,6 +143,9 @@ export interface ArtworkSearchQuery {
   empires?: string[];
   categories?: CategoryId[];
   artistIds?: string[];
+  countries?: string[];
+  cities?: string[];
+  museums?: string[];
   /** When true, only portrait-like works (Search facet). */
   portraitsOnly?: boolean;
 }
@@ -153,12 +165,21 @@ export const searchArtworks = (query: ArtworkSearchQuery): Artwork[] => {
     const empires = toSelectionList(query.empire, query.empires);
     const cats = toSelectionList(query.category, query.categories);
     const artistIds = toSelectionList(query.artistId, query.artistIds);
+    const countries = toSelectionList(undefined, query.countries);
+    const cities = toSelectionList(undefined, query.cities);
+    const museums = toSelectionList(undefined, query.museums);
+    const place = placeOfArtwork(art);
     if (periods.length && !periods.includes(art.period)) return false;
     if (empires.length && !(art.empire && empires.includes(art.empire)))
       return false;
     if (cats.length && !cats.some((id) => artworkMatchesCategory(art, id)))
       return false;
     if (artistIds.length && !artistIds.includes(art.artistId)) return false;
+    if (countries.length && !(place.country && countries.includes(place.country)))
+      return false;
+    if (cities.length && !(place.city && cities.includes(place.city)))
+      return false;
+    if (museums.length && !museums.includes(place.museum)) return false;
     if (text) {
       const artist = artistMap[art.artistId];
       const haystack = [
@@ -166,6 +187,10 @@ export const searchArtworks = (query: ArtworkSearchQuery): Artwork[] => {
         art.period,
         art.medium,
         art.empire ?? "",
+        art.source,
+        place.museum,
+        place.city ?? "",
+        place.country ?? "",
         artist?.name ?? "",
         ...art.tags,
       ]

@@ -25,6 +25,8 @@ import {
   artists as mockArtists,
   artworkMatchesCategory,
   toSelectionList,
+  placeOfArtwork,
+  uniquePlaceFacets,
 } from "./index";
 import type { Artwork, Artist, CategoryId, ArtworkSearchQuery } from "./index";
 import { fetchSupabaseCatalog } from "@/lib/catalog";
@@ -51,6 +53,9 @@ interface CatalogValue {
     periods: string[];
     empires: string[];
     categories: CategoryId[];
+    countries: string[];
+    cities: string[];
+    museums: string[];
   };
   source: CatalogSource;
   loading: boolean;
@@ -174,6 +179,7 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
       categories: Array.from(
         new Set(browseArtworks.map((a) => a.category)),
       ) as CategoryId[],
+      ...uniquePlaceFacets(browseArtworks),
     };
 
     const searchArtworks = (query: ArtworkSearchQuery): Artwork[] => {
@@ -182,7 +188,11 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
       const empireList = toSelectionList(query.empire, query.empires);
       const categoryList = toSelectionList(query.category, query.categories);
       const artistList = toSelectionList(query.artistId, query.artistIds);
+      const countryList = toSelectionList(undefined, query.countries);
+      const cityList = toSelectionList(undefined, query.cities);
+      const museumList = toSelectionList(undefined, query.museums);
       return browseArtworks.filter((art) => {
+        const place = placeOfArtwork(art);
         if (query.portraitsOnly && !isPortraitArtwork(art)) return false;
         if (periodList.length && !periodList.includes(art.period)) return false;
         if (empireList.length && !(art.empire && empireList.includes(art.empire)))
@@ -194,6 +204,15 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
           return false;
         if (artistList.length && !artistList.includes(art.artistId))
           return false;
+        if (
+          countryList.length &&
+          !(place.country && countryList.includes(place.country))
+        )
+          return false;
+        if (cityList.length && !(place.city && cityList.includes(place.city)))
+          return false;
+        if (museumList.length && !museumList.includes(place.museum))
+          return false;
         if (text) {
           const artist = artistMap[art.artistId];
           const haystack = [
@@ -203,6 +222,10 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
             art.year,
             art.medium,
             art.empire ?? "",
+            art.source,
+            place.museum,
+            place.city ?? "",
+            place.country ?? "",
             artist?.name ?? "",
             ...art.tags,
           ]

@@ -4,6 +4,7 @@ import {
   categories as allCategories,
   categoryMap,
   WORLD,
+  placeTreeOf,
   type CategoryGroup,
   type CategoryId,
 } from "@/data";
@@ -32,6 +33,9 @@ interface Selection {
   periods: string[];
   empires: string[];
   artistIds: string[];
+  countries: string[];
+  cities: string[];
+  museums: string[];
   portraitsOnly: boolean;
 }
 
@@ -40,6 +44,9 @@ const EMPTY_SELECTION: Selection = {
   periods: [],
   empires: [],
   artistIds: [],
+  countries: [],
+  cities: [],
+  museums: [],
   portraitsOnly: false,
 };
 
@@ -56,6 +63,10 @@ type FilterNode =
   | { kind: "collection-group"; group: CategoryGroup }
   | { kind: "period" }
   | { kind: "empire" }
+  | { kind: "place" }
+  | { kind: "country"; country: string }
+  | { kind: "city"; country: string; city: string }
+  | { kind: "place-other" }
   | { kind: "artist" }
   | { kind: "artist-letter"; letter: string };
 
@@ -79,6 +90,9 @@ export default function SearchView({
         periods: sel.periods.length ? sel.periods : undefined,
         empires: sel.empires.length ? sel.empires : undefined,
         artistIds: sel.artistIds.length ? sel.artistIds : undefined,
+        countries: sel.countries.length ? sel.countries : undefined,
+        cities: sel.cities.length ? sel.cities : undefined,
+        museums: sel.museums.length ? sel.museums : undefined,
         portraitsOnly: sel.portraitsOnly || undefined,
       }),
     [text, sel, searchArtworks]
@@ -133,6 +147,8 @@ export default function SearchView({
       .filter((g) => g.items.length > 0);
   }, [searchFacets.categories]);
 
+  const placeTree = useMemo(() => placeTreeOf(artworks), [artworks]);
+
   const activeArtwork = results.find((a) => a.id === canvasId) ?? null;
 
   const toggle = (kind: keyof Selection, value: string) => {
@@ -150,6 +166,9 @@ export default function SearchView({
     sel.periods.length +
     sel.empires.length +
     sel.artistIds.length +
+    sel.countries.length +
+    sel.cities.length +
+    sel.museums.length +
     (sel.portraitsOnly ? 1 : 0);
   const hasFilters = totalSelected > 0;
 
@@ -172,6 +191,13 @@ export default function SearchView({
         break;
       case "artist-letter":
         setNode({ kind: "artist" });
+        break;
+      case "country":
+      case "place-other":
+        setNode({ kind: "place" });
+        break;
+      case "city":
+        setNode({ kind: "country", country: node.country });
         break;
       case "root":
         break;
@@ -198,6 +224,9 @@ export default function SearchView({
       searchableArtists.find((a) => a.id === sel.artistIds[0])?.name ?? "",
       "artists"
     );
+    add(sel.countries, sel.countries[0] ?? "", "countries");
+    add(sel.cities, sel.cities[0] ?? "", "cities");
+    add(sel.museums, sel.museums[0] ?? "", "museums");
     if (sel.portraitsOnly) parts.push("Portraits");
     return parts.length ? parts.join(" · ") : "All categories";
   })();
@@ -216,6 +245,14 @@ export default function SearchView({
         return "Period";
       case "empire":
         return "Empire";
+      case "place":
+        return "Place";
+      case "country":
+        return node.country;
+      case "city":
+        return node.city;
+      case "place-other":
+        return "Other museums";
       case "artist":
         return "Artist";
       case "artist-letter":
@@ -336,6 +373,23 @@ export default function SearchView({
                           count={sel.empires.length}
                           onClick={() => setNode({ kind: "empire" })}
                         />
+                        {(placeTree.countries.length > 0 ||
+                          placeTree.otherMuseums.length > 0) && (
+                          <BranchRow
+                            label="Place"
+                            detail={
+                              placeTree.countries.length
+                                ? `${placeTree.countries.length} countries · ${searchFacets.museums.length} museums`
+                                : `${searchFacets.museums.length} museums`
+                            }
+                            count={
+                              sel.countries.length +
+                              sel.cities.length +
+                              sel.museums.length
+                            }
+                            onClick={() => setNode({ kind: "place" })}
+                          />
+                        )}
                         <BranchRow
                           label="Artist"
                           detail={`${searchableArtists.length} artists · A–Z`}
@@ -428,6 +482,131 @@ export default function SearchView({
                             onClick={() => toggle("empires", e)}
                           >
                             {e}
+                          </OptionRow>
+                        ))}
+                      </OptionList>
+                    )}
+
+                    {node.kind === "place" && (
+                      <div className="space-y-1">
+                        {placeTree.countries.map((country) => {
+                          const citySet = new Set(
+                            country.cities.map((c) => c.city)
+                          );
+                          const museumSet = new Set(
+                            country.cities.flatMap((c) => c.museums)
+                          );
+                          const selectedHere =
+                            (sel.countries.includes(country.country) ? 1 : 0) +
+                            sel.cities.filter((c) => citySet.has(c)).length +
+                            sel.museums.filter((m) => museumSet.has(m)).length;
+                          return (
+                            <BranchRow
+                              key={country.country}
+                              label={country.country}
+                              detail={`${country.cities.length} ${
+                                country.cities.length === 1 ? "city" : "cities"
+                              }`}
+                              count={selectedHere}
+                              onClick={() =>
+                                setNode({
+                                  kind: "country",
+                                  country: country.country,
+                                })
+                              }
+                            />
+                          );
+                        })}
+                        {placeTree.otherMuseums.length > 0 && (
+                          <BranchRow
+                            label="Other museums"
+                            detail={`${placeTree.otherMuseums.length} museums`}
+                            count={
+                              sel.museums.filter((m) =>
+                                placeTree.otherMuseums.includes(m)
+                              ).length
+                            }
+                            onClick={() => setNode({ kind: "place-other" })}
+                          />
+                        )}
+                      </div>
+                    )}
+
+                    {node.kind === "country" && (
+                      <div className="space-y-1">
+                        <OptionRow
+                          active={sel.countries.includes(node.country)}
+                          onClick={() => toggle("countries", node.country)}
+                        >
+                          All of {node.country}
+                        </OptionRow>
+                        {(
+                          placeTree.countries.find(
+                            (c) => c.country === node.country
+                          )?.cities ?? []
+                        ).map((city) => {
+                          const selectedHere =
+                            (sel.cities.includes(city.city) ? 1 : 0) +
+                            sel.museums.filter((m) =>
+                              city.museums.includes(m)
+                            ).length;
+                          return (
+                            <BranchRow
+                              key={city.city}
+                              label={city.city}
+                              detail={`${city.museums.length} ${
+                                city.museums.length === 1
+                                  ? "museum"
+                                  : "museums"
+                              }`}
+                              count={selectedHere}
+                              onClick={() =>
+                                setNode({
+                                  kind: "city",
+                                  country: node.country,
+                                  city: city.city,
+                                })
+                              }
+                            />
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {node.kind === "city" && (
+                      <OptionList>
+                        <OptionRow
+                          active={sel.cities.includes(node.city)}
+                          onClick={() => toggle("cities", node.city)}
+                        >
+                          All of {node.city}
+                        </OptionRow>
+                        {(
+                          placeTree.countries
+                            .find((c) => c.country === node.country)
+                            ?.cities.find((c) => c.city === node.city)
+                            ?.museums ?? []
+                        ).map((museum) => (
+                          <OptionRow
+                            key={museum}
+                            active={sel.museums.includes(museum)}
+                            onClick={() => toggle("museums", museum)}
+                          >
+                            {museum}
+                          </OptionRow>
+                        ))}
+                      </OptionList>
+                    )}
+
+                    {node.kind === "place-other" && (
+                      <OptionList>
+                        {placeTree.otherMuseums.map((museum) => (
+                          <OptionRow
+                            key={museum}
+                            active={sel.museums.includes(museum)}
+                            onClick={() => toggle("museums", museum)}
+                          >
+                            {museum}
                           </OptionRow>
                         ))}
                       </OptionList>
