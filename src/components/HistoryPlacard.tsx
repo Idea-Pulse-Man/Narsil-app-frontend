@@ -144,22 +144,11 @@ export default function HistoryPlacard({
                 <div className="h-1.5 w-11 rounded-full bg-ink/15" />
               </div>
 
-              <div className="mt-4 flex items-center gap-2">
-                <span className="rounded-full bg-ink/8 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-ink/55">
-                  Museum Placard
-                </span>
-              </div>
-
               <h2 className="mt-4 font-serif text-[26px] leading-tight text-ink">
                 {artwork.title}
               </h2>
               <p className="mt-1 text-[15px] text-ink/70">
                 {artist.name} · {artwork.year}
-              </p>
-              <p className="mt-3 text-[11px] text-ink/40">
-                {passThroughBackdrop
-                  ? "Swipe the artwork above for the next piece"
-                  : "Swipe down here to close"}
               </p>
             </div>
 
