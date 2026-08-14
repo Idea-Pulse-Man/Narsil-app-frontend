@@ -1,7 +1,6 @@
 import { motion } from "framer-motion";
 import type { QuizQuestion as Question } from "@/lib/quiz";
-import { MODE_LABEL, promptFor } from "@/lib/quiz";
-import { useCatalog } from "@/data/catalog";
+import { MODE_LABEL } from "@/lib/quiz";
 import BlurImage from "./BlurImage";
 import { CheckIcon, CloseIcon } from "./Icons";
 
@@ -27,9 +26,6 @@ export default function QuizQuestion({
   onSelect,
 }: QuizQuestionProps) {
   const answered = selected !== null;
-  const { getArtist } = useCatalog();
-  const artistDisplay = getArtist(question.artwork.artistId)?.name;
-  const prompt = promptFor(question.mode, question.artwork, artistDisplay);
 
   return (
     // Scrolls: on short screens the image + four options exceed the viewport,
@@ -72,8 +68,8 @@ export default function QuizQuestion({
 
       {/* Prompt + options */}
       <div className="mt-5 px-5">
-        <p className="text-center font-serif text-[18px] leading-snug text-white">
-          {prompt}
+        <p className="text-center font-serif text-[19px] leading-snug text-white">
+          {question.prompt}
         </p>
 
         <div className="mt-4 space-y-2.5">

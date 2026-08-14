@@ -13,7 +13,6 @@ export {
   generateQuestion,
   pickRandomMode,
   playableModesFor,
-  promptFor,
 } from "./generator";
 export { buildDailyQuiz, todayKey, DAILY_COUNT } from "./daily";
 

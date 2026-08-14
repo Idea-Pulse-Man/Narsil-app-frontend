@@ -6,8 +6,7 @@
  * correct answer and each other.
  */
 
-import type { Artwork, CategoryId } from "@/data";
-import { artistMap } from "@/data";
+import type { Artwork } from "@/data";
 import type { QuizMode, QuizQuestion } from "./types";
 import { MODE_PROMPT, QUIZ_MODES } from "./types";
 import { answerFor, answerKey, eligibleFor, isModePlayable } from "./pool";
@@ -15,101 +14,6 @@ import type { Rng } from "./random";
 import { shuffle } from "./random";
 
 const OPTION_COUNT = 4;
-
-const KIND_BY_CATEGORY: Partial<Record<CategoryId, string>> = {
-  paintings: "painting",
-  sculptures: "sculpture",
-  pottery: "pottery",
-  "etching-writing-books": "print",
-};
-
-/** Short kind of work for prompts ("painting", "sculpture") — not the full medium string. */
-function kindOfWork(artwork: Artwork): string {
-  const medium = artwork.medium?.trim() ?? "";
-  const m = medium.toLowerCase();
-
-  if (m && m !== "—") {
-    if (/\bfresco\b/.test(m)) return "fresco";
-    if (/\b(oil|tempera|acrylic|watercolor|gouache)\b/.test(m)) return "painting";
-    if (/\b(woodblock|ukiyo-e|etching|engraving|lithograph|print)\b/.test(m)) {
-      return "print";
-    }
-    if (/\b(marble|bronze|alabaster|ivory)\b/.test(m)) return "sculpture";
-    if (/\b(ceramic|pottery|terracotta|earthenware|porcelain)\b/.test(m)) {
-      return "pottery";
-    }
-    if (/\b(photograph|daguerreotype)\b/.test(m)) return "photograph";
-    if (/\b(drawing|silverpoint|charcoal)\b/.test(m) && !/\bcanvas\b/.test(m)) {
-      return "drawing";
-    }
-  }
-
-  return KIND_BY_CATEGORY[artwork.category] ?? "artwork";
-}
-
-function artistName(artwork: Artwork, override?: string): string {
-  const name =
-    (override?.trim() || artistMap[artwork.artistId]?.name)?.trim() ?? "";
-  if (!name || name === "—" || /^(unknown|anonymous|unidentified)\b/i.test(name)) {
-    return "";
-  }
-  return name;
-}
-
-function workTitle(artwork: Artwork): string {
-  const title = artwork.title?.trim().replace(/\s+/g, " ") ?? "";
-  if (!title || title === "—" || /^untitled$/i.test(title)) return "";
-  return title.length > 48 ? `${title.slice(0, 47).trimEnd()}…` : title;
-}
-
-function possessive(name: string): string {
-  return /s$/i.test(name) ? `${name}'` : `${name}'s`;
-}
-
-function isCollective(name: string): boolean {
-  return /workshop|circle of|school of|studio of|followers of/i.test(name);
-}
-
-/** "Vincent van Gogh's painting The Starry Night" / "the sculpture by the Royal Workshop of Thebes". */
-function namedWork(artist: string, kind: string, title: string): string {
-  const collective = artist ? isCollective(artist) : false;
-
-  if (artist && title && !collective) return `${possessive(artist)} ${kind} ${title}`;
-  if (artist && title && collective) return `the ${kind} ${title} by ${artist}`;
-  if (artist && !title) {
-    return collective ? `this ${kind} by ${artist}` : `${possessive(artist)} ${kind}`;
-  }
-  if (title) return `the ${kind} ${title}`;
-  return `this ${kind}`;
-}
-
-/**
- * Specific prompt for this artwork. "What" asks for the title, so the title is
- * omitted there; where/when name the work so the question isn't a stock phrase.
- *
- * Pass `artistDisplay` when the live catalog has the maker (static `artistMap`
- * only covers the curated mock set).
- */
-export function promptFor(
-  mode: QuizMode,
-  artwork: Artwork,
-  artistDisplay?: string,
-): string {
-  const kind = kindOfWork(artwork);
-  const artist = artistName(artwork, artistDisplay);
-  const title = workTitle(artwork);
-
-  if (mode === "what") {
-    return artist
-      ? `What is the name of this ${kind} by ${artist}?`
-      : `What is the name of this ${kind}?`;
-  }
-
-  const subject = namedWork(artist, kind, title);
-  if (mode === "age") return `When was ${subject} made?`;
-  if (mode === "where") return `Where is ${subject} from?`;
-  return MODE_PROMPT[mode];
-}
 
 /** Long museum titles overflow the mobile buttons — cap them with an ellipsis. */
 function trimOption(value: string, max = 60): string {
@@ -177,7 +81,7 @@ export function buildQuestion(
     mode,
     artworkId: target.id,
     artwork: target,
-    prompt: promptFor(mode, target),
+    prompt: MODE_PROMPT[mode],
     options,
     correctIndex,
   };

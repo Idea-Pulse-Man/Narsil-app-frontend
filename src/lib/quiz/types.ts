@@ -23,7 +23,7 @@ export const MODE_LABEL: Record<QuizMode, string> = {
   age: "When",
 };
 
-/** Generic fallbacks — `promptFor` names the work when metadata is available. */
+/** The prompt shown above the four answer buttons for each mode. */
 export const MODE_PROMPT: Record<QuizMode, string> = {
   where: "Where is it from?",
   what: "What is it?",
