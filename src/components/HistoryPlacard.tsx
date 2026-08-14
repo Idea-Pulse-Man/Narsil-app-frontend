@@ -119,9 +119,9 @@ export default function HistoryPlacard({
             transition={{ type: "spring", stiffness: 320, damping: 36 }}
             className="pointer-events-auto absolute inset-x-0 bottom-0 z-50 flex max-h-[82%] flex-col overflow-hidden rounded-t-[28px] border-t border-white/15 bg-canvas/95 text-ink shadow-placard backdrop-blur-2xl"
           >
-            {/* Top third — fixed; swipe down here closes without shifting layout */}
+            {/* Header — content-sized so artwork above stays swipeable; swipe down closes */}
             <div
-              className="flex-[0_0_33%] shrink-0 touch-none px-6 pb-3 pt-3"
+              className="shrink-0 touch-none px-6 pb-3 pt-3"
               onPointerDown={(e) => {
                 headerDragStart.current = { y: e.clientY, t: Date.now() };
               }}
@@ -142,6 +142,12 @@ export default function HistoryPlacard({
             >
               <div className="flex flex-col items-center">
                 <div className="h-1.5 w-11 rounded-full bg-ink/15" />
+              </div>
+
+              <div className="mt-4 flex items-center gap-2">
+                <span className="rounded-full bg-ink/8 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-ink/55">
+                  Museum Placard
+                </span>
               </div>
 
               <h2 className="mt-4 font-serif text-[26px] leading-tight text-ink">
