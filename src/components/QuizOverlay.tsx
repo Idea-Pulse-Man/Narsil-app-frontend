@@ -3,22 +3,21 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   buildDailyQuiz,
   generateQuestion,
-  isModePlayable,
+  playableModesFor,
   todayKey,
   useQuizPool,
   useQuizProgress,
   QUIZ_MODES,
-  MODE_LABEL,
   DAILY_COUNT,
   loadDailySession,
   saveDailySession,
+  clearDailySession,
   newDailySession,
   firstUnanswered,
   sessionCorrectness,
   quizSalt,
   FREE_PRACTICE_QUESTIONS,
   type DailySession,
-  type QuizMode,
   type QuizQuestion,
 } from "@/lib/quiz";
 import { WORLD } from "@/data/worldCopy";
@@ -72,7 +71,8 @@ export default function QuizOverlay({
 
   const [stage, setStage] = useState<Stage>("hub");
   const [isDaily, setIsDaily] = useState(true);
-  const [practiceMode, setPracticeMode] = useState<QuizMode | null>(null);
+  /** Practice is always a mixed Where/What/When run (no per-mode drill). */
+  const [practicing, setPracticing] = useState(false);
 
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [qIndex, setQIndex] = useState(0);
@@ -103,28 +103,30 @@ export default function QuizOverlay({
     setSelected(null);
     setCorrect([]);
     setResults(null);
-    setPracticeMode(null);
+    setPracticing(false);
     excludeRef.current = new Set();
   }, [open]);
 
   useEffect(() => clearTimer, []);
 
   const playableModes = useMemo(
-    () =>
-      QUIZ_MODES.reduce<Record<QuizMode, boolean>>(
-        (acc, mode) => {
-          acc[mode] = isModePlayable(pool, mode);
-          return acc;
-        },
-        { name: false, type: false, age: false },
-      ),
+    () => playableModesFor(pool),
     [pool],
   );
 
-  const dailyReady = useMemo(
-    () => QUIZ_MODES.some((m) => playableModes[m]),
-    [playableModes],
-  );
+  const dailyReady = playableModes.length > 0;
+
+  // Drop a mid-day session built under the old name/type/age schema so we
+  // don't render unknown mode labels after this quiz reshape.
+  useEffect(() => {
+    if (!dailySession) return;
+    const ok = dailySession.questions.every((q) =>
+      (QUIZ_MODES as readonly string[]).includes(q.mode),
+    );
+    if (ok) return;
+    clearDailySession();
+    setDailySession(null);
+  }, [dailySession]);
 
   // What the daily CTA should do, given the saved session and progress.
   const dailyMode: DailyMode = dailySession?.completed
@@ -177,7 +179,7 @@ export default function QuizOverlay({
     }
 
     setIsDaily(true);
-    setPracticeMode(null);
+    setPracticing(false);
 
     if (dailyMode === "resume" && dailySession) {
       const start = firstUnanswered(dailySession);
@@ -202,44 +204,36 @@ export default function QuizOverlay({
     setQIndex(0);
     setSelected(null);
     setStage("playing");
-  }, [dailyMode, dailySession, openReview, pool]);
+  }, [dailyMode, dailySession, openReview, pool, user]);
 
-  const startPractice = useCallback(
-    (mode: QuizMode) => {
-      excludeRef.current = new Set();
-      const first = generateQuestion(mode, pool, Math.random, excludeRef.current);
-      if (!first) return;
-      excludeRef.current.add(first.artworkId);
-      setIsDaily(false);
-      setPracticeMode(mode);
-      setQuestions([first]);
-      setQIndex(0);
-      setSelected(null);
-      setCorrect([]);
-      setStage("playing");
-    },
-    [pool],
-  );
+  const startPractice = useCallback(() => {
+    excludeRef.current = new Set();
+    const first = generateQuestion(pool, Math.random, excludeRef.current);
+    if (!first) return;
+    excludeRef.current.add(first.artworkId);
+    setIsDaily(false);
+    setPracticing(true);
+    setQuestions([first]);
+    setQIndex(0);
+    setSelected(null);
+    setCorrect([]);
+    setStage("playing");
+  }, [pool]);
 
   const nextPractice = useCallback(() => {
-    if (!practiceMode) return;
+    if (!practicing) return;
     // Loop the pool once exhausted so practice stays endless.
-    let q = generateQuestion(
-      practiceMode,
-      pool,
-      Math.random,
-      excludeRef.current,
-    );
+    let q = generateQuestion(pool, Math.random, excludeRef.current);
     if (!q) {
       excludeRef.current = new Set();
-      q = generateQuestion(practiceMode, pool, Math.random, excludeRef.current);
+      q = generateQuestion(pool, Math.random, excludeRef.current);
     }
     if (!q) return;
     excludeRef.current.add(q.artworkId);
     setQuestions([q]);
     setQIndex(0);
     setSelected(null);
-  }, [practiceMode, pool]);
+  }, [practicing, pool]);
 
   // Declared before `handleSelect`, which lists it as a dependency — a `const`
   // referenced in a dependency array must already be initialised.
@@ -250,7 +244,7 @@ export default function QuizOverlay({
     setQIndex(0);
     setSelected(null);
     setCorrect([]);
-    setPracticeMode(null);
+    setPracticing(false);
   }, []);
 
   const handleSelect = useCallback(
@@ -351,7 +345,7 @@ export default function QuizOverlay({
                     ? WORLD.royalAssessment
                     : isDaily
                       ? WORLD.royalAssessment
-                      : `${WORLD.unchartedArchives} · ${practiceMode ? MODE_LABEL[practiceMode] : ""}`}
+                      : WORLD.unchartedArchives}
                 </p>
               </div>
               {stage === "playing" && (
@@ -370,7 +364,7 @@ export default function QuizOverlay({
                 streak={streak}
                 dailyMode={dailyMode}
                 dailyReady={dailyReady}
-                playableModes={playableModes}
+                practiceReady={dailyReady}
                 isPro={isPro}
                 onDaily={startDaily}
                 onStartPractice={startPractice}
@@ -411,13 +405,13 @@ export default function QuizOverlay({
   );
 }
 
-/** The landing screen: streak, daily CTA, and the three practice modes. */
+/** The landing screen: streak, daily CTA, and mixed practice. */
 function QuizHub({
   loading,
   streak,
   dailyMode,
   dailyReady,
-  playableModes,
+  practiceReady,
   isPro,
   onDaily,
   onStartPractice,
@@ -426,10 +420,10 @@ function QuizHub({
   streak: number;
   dailyMode: DailyMode;
   dailyReady: boolean;
-  playableModes: Record<QuizMode, boolean>;
+  practiceReady: boolean;
   isPro: boolean;
   onDaily: () => void;
-  onStartPractice: (mode: QuizMode) => void;
+  onStartPractice: () => void;
 }) {
   const done = dailyMode === "review" || dailyMode === "locked";
   const dailyCta =
@@ -446,7 +440,7 @@ function QuizHub({
         ? "See how you did today"
         : dailyMode === "locked"
           ? "Come back tomorrow for a new set"
-          : `${DAILY_COUNT} questions · builds your streak`;
+          : `${DAILY_COUNT} questions · where, what & when · builds your streak`;
 
   return (
     <div className="h-full overflow-y-auto overscroll-contain px-5 pb-[calc(env(safe-area-inset-bottom)+2rem)] pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -454,7 +448,7 @@ function QuizHub({
         Test your eye
       </h1>
       <p className="mt-1.5 text-sm text-white/50">
-        Guess the name, type, and age of works from the collection.
+        Where is it from, what is it, and when was it made — mixed at random.
       </p>
 
       {/* Streak */}
@@ -512,40 +506,27 @@ function QuizHub({
       </h2>
       <p className="mt-1 text-[12px] text-white/45">
         {isPro
-          ? "Endless questions — doesn't affect your streak."
+          ? "Endless mixed questions — doesn't affect your streak."
           : `${FREE_PRACTICE_QUESTIONS} free questions per round · ${WORLD.explorersGuild} plays endless.`}
       </p>
-      <div className="mt-3 space-y-2.5">
-        {QUIZ_MODES.map((mode) => {
-          const label = MODE_LABEL[mode];
-          const desc =
-            mode === "name"
-              ? "Name the artwork"
-              : mode === "type"
-                ? "Identify the type of art"
-                : "Guess when it was made";
-          const enabled = !loading && playableModes[mode];
-          return (
-            <button
-              key={mode}
-              type="button"
-              disabled={!enabled}
-              onClick={() => onStartPractice(mode)}
-              className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3.5 text-left transition-colors enabled:hover:bg-white/[0.06] disabled:opacity-50"
-            >
-              <span>
-                <span className="block text-sm font-medium text-white">
-                  {label}
-                </span>
-                <span className="mt-0.5 block text-[12px] text-white/45">
-                  {enabled ? desc : "Not enough artworks yet"}
-                </span>
-              </span>
-              <span className="text-white/30">›</span>
-            </button>
-          );
-        })}
-      </div>
+      <button
+        type="button"
+        disabled={loading || !practiceReady}
+        onClick={onStartPractice}
+        className="mt-3 flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3.5 text-left transition-colors enabled:hover:bg-white/[0.06] disabled:opacity-50"
+      >
+        <span>
+          <span className="block text-sm font-medium text-white">
+            Mixed practice
+          </span>
+          <span className="mt-0.5 block text-[12px] text-white/45">
+            {practiceReady
+              ? "Where · What · When — randomized each question"
+              : "Not enough artworks yet"}
+          </span>
+        </span>
+        <span className="text-white/30">›</span>
+      </button>
     </div>
   );
 }

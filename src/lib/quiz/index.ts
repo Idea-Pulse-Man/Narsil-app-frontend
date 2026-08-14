@@ -7,8 +7,14 @@ export {
   MODE_PROMPT,
   EMPTY_PROGRESS,
 } from "./types";
-export { eligibleFor, isModePlayable, answerFor } from "./pool";
-export { buildQuestion, generateQuestion } from "./generator";
+export { eligibleFor, isModePlayable, answerFor, whereFrom } from "./pool";
+export {
+  buildQuestion,
+  generateQuestion,
+  pickRandomMode,
+  playableModesFor,
+  promptFor,
+} from "./generator";
 export { buildDailyQuiz, todayKey, DAILY_COUNT } from "./daily";
 
 /**

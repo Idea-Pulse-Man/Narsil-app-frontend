@@ -8,23 +8,26 @@
 
 import type { Artwork } from "@/data";
 
-/** The three things we quiz on — mirrors the artwork fields we have. */
-export type QuizMode = "name" | "type" | "age";
+/**
+ * The three things we quiz on — where it's from, what it is, and when it was
+ * made. Every daily / practice run mixes these at random.
+ */
+export type QuizMode = "where" | "what" | "age";
 
-export const QUIZ_MODES: QuizMode[] = ["name", "type", "age"];
+export const QUIZ_MODES: QuizMode[] = ["where", "what", "age"];
 
-/** Human-facing labels for each mode (hub buttons, results). */
+/** Human-facing labels for each mode (badge on the question card, results). */
 export const MODE_LABEL: Record<QuizMode, string> = {
-  name: "Name",
-  type: "Type",
-  age: "Age",
+  where: "Where",
+  what: "What",
+  age: "When",
 };
 
-/** The prompt shown above the four answer buttons for each mode. */
+/** Generic fallbacks — `promptFor` names the work when metadata is available. */
 export const MODE_PROMPT: Record<QuizMode, string> = {
-  name: "What is this artwork called?",
-  type: "What type of art is this?",
-  age: "When was this made?",
+  where: "Where is it from?",
+  what: "What is it?",
+  age: "When was it made?",
 };
 
 export interface QuizQuestion {

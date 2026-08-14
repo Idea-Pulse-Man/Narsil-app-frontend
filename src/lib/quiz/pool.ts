@@ -11,16 +11,37 @@
  */
 
 import type { Artwork } from "@/data";
-import { categoryMap } from "@/data";
+import { artistMap, placeOfArtwork } from "@/data";
 import type { QuizMode } from "./types";
+
+/**
+ * Cultural / geographic origin for "Where is it from?"
+ * Prefer empire (Roman, Greek…), then holding-country, then artist nationality.
+ */
+export function whereFrom(artwork: Artwork): string {
+  const empire = artwork.empire?.trim();
+  if (empire) return empire;
+
+  const country = placeOfArtwork(artwork).country?.trim();
+  if (country) return country;
+
+  const nationality = artistMap[artwork.artistId]?.nationality?.trim();
+  if (nationality) {
+    // "Independent · Lisbon" style freelance tags aren't a useful origin.
+    if (/^independent/i.test(nationality)) return "";
+    // Take the primary label before an en-dash qualifier ("Etruscan · Roman").
+    return nationality.split("·")[0]?.trim() || nationality;
+  }
+  return "";
+}
 
 /** The correct, display-ready answer for `mode` on `artwork` (or "" if none). */
 export function answerFor(artwork: Artwork, mode: QuizMode): string {
   switch (mode) {
-    case "name":
+    case "where":
+      return whereFrom(artwork);
+    case "what":
       return artwork.title?.trim() ?? "";
-    case "type":
-      return categoryMap[artwork.category]?.label ?? "";
     case "age":
       // Prefer a concrete year; fall back to the art-historical period.
       return (artwork.year?.trim() || artwork.period?.trim()) ?? "";
@@ -46,13 +67,11 @@ export function eligibleFor(pool: Artwork[], mode: QuizMode): Artwork[] {
 /**
  * Minimum eligible artworks before a mode is playable. We need one target plus
  * three distractors, but ask for a little headroom so questions don't feel
- * repetitive. `type` is exempt — its distractors come from the fixed category
- * label list, not the pool (see `generator.ts`).
+ * repetitive.
  */
 export const MIN_POOL = 8;
 
 /** Whether `mode` has enough material in `pool` to generate questions. */
 export function isModePlayable(pool: Artwork[], mode: QuizMode): boolean {
-  if (mode === "type") return eligibleFor(pool, mode).length >= 4;
   return eligibleFor(pool, mode).length >= MIN_POOL;
 }
