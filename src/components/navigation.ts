@@ -2,7 +2,7 @@
  * Narsil navigation model.
  *
  * Eight screens are reachable through two persistent bars (see MobileShell):
- *  - TOP tabs (content browsing): Discover · For You · The Gallery · Search
+ *  - TOP tabs (content browsing): Discover · Narsil · The Gallery · Search
  *  - BOTTOM bar (app sections):   The Vault · Create · Member
  *
  * Screen ids stay stable; labels are lore copy from worldCopy.
@@ -21,7 +21,7 @@ export type Screen =
 
 export const TOP_TABS: { id: Screen; label: string }[] = [
   { id: "discover", label: "Discover" },
-  { id: "for-you", label: "For You" },
+  { id: "for-you", label: "Narsil" },
   { id: "buy", label: WORLD.gallery },
   { id: "search", label: "Search" },
 ];

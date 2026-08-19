@@ -1,22 +1,29 @@
 import { motion } from "framer-motion";
 import { appraisalFor, WORLD } from "@/data/worldCopy";
-import type { QuizQuestion } from "@/lib/quiz";
+import type { QuizQuestion, DailyPointsBreakdown } from "@/lib/quiz";
+import { levelTitle, nextThreshold } from "@/lib/quiz";
+import type { LevelBoard } from "@/lib/quizRemote";
+import { scrollForLevel } from "@/lib/quiz/scrolls";
 import BlurImage from "./BlurImage";
 import { FlameIcon } from "./Icons";
+import QuizRanking from "./QuizRanking";
+import QuizScrollFrame from "./QuizScrollFrame";
 import StreakCelebration from "./StreakCelebration";
 
 interface QuizResultsProps {
   score: number;
   total: number;
-  /** Current streak after this session (daily only). */
   streak: number;
   isDaily: boolean;
-  /** Milestone streak reached this session (triggers the celebration), else null. */
   milestone: number | null;
-  /** The questions just played, so results can link back to each artwork. */
   questions: QuizQuestion[];
-  /** Per-question correctness, index-aligned with `questions`. */
   correct: boolean[];
+  points: DailyPointsBreakdown | null;
+  totalPoints: number;
+  levelId: number;
+  leveledUp: boolean;
+  board: LevelBoard | null;
+  boardLocked: boolean;
   onOpenArtwork: (artworkId: string) => void;
   onDone: () => void;
 }
@@ -29,108 +36,193 @@ export default function QuizResults({
   milestone,
   questions,
   correct,
+  points,
+  totalPoints,
+  levelId,
+  leveledUp,
+  board,
+  boardLocked,
   onOpenArtwork,
   onDone,
 }: QuizResultsProps) {
   const appraisal = appraisalFor(score, total, isDaily);
+  const title = levelTitle(levelId);
+  const next = nextThreshold(levelId);
+  const { ink } = scrollForLevel(levelId);
+  const dark = ink === "dark";
+
+  const heading = dark ? "text-[#2a1c0c]" : "text-[#f6ead0]";
+  const muted = dark ? "text-[#5c3d12]/75" : "text-[#f3e6c8]/70";
+  const accent = dark ? "text-[#6b4a12]" : "text-amber-200";
+  const box = dark
+    ? "border-[#5c3d12]/25 bg-[#efe2c4]/70"
+    : "border-white/10 bg-black/30";
+  const plus = dark ? "text-[#2f6b3a]" : "text-emerald-300";
 
   return (
-    <div className="relative flex h-full flex-col">
-      {milestone !== null && <StreakCelebration streak={milestone} />}
-      <div
-        className={`flex-1 overflow-y-auto overscroll-contain px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
-          milestone !== null ? "pt-28" : "pt-10"
-        }`}
-      >
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35 }}
-          className="text-center"
-        >
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-300/80">
-            {isDaily
-              ? `${WORLD.royalAssessment} complete`
-              : `${WORLD.unchartedArchives} complete`}
-          </p>
-          <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
-            {WORLD.appraisal}
-          </p>
-          <p className="mt-3 font-serif text-[56px] leading-none text-white">
-            {score}
-            <span className="text-white/40">/{total}</span>
-          </p>
-          {appraisal.title && (
-            <p className="mt-4 font-serif text-xl leading-snug text-white">
-              {appraisal.title}
-            </p>
-          )}
-          <p className="mt-3 text-sm leading-relaxed text-white/55">
-            {appraisal.message}
-          </p>
-
-          {isDaily && (
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.25, type: "spring", stiffness: 300, damping: 18 }}
-              className="mt-6 inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-300/10 px-4 py-2"
-            >
-              <FlameIcon filled className="h-5 w-5 text-amber-300" />
-              <span className="text-sm font-semibold text-white">
-                {streak} day{streak === 1 ? "" : "s"} streak
-              </span>
-            </motion.div>
-          )}
-        </motion.div>
-
-        {/* Review the works */}
-        <div className="mt-8 space-y-2.5 pb-4">
-          {questions.map((q, i) => (
-            <button
-              key={q.id}
-              type="button"
-              onClick={() => onOpenArtwork(q.artworkId)}
-              className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-2.5 text-left transition-colors hover:bg-white/[0.06]"
-            >
-              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl">
-                <BlurImage
-                  src={q.artwork.image}
-                  alt={q.artwork.title}
-                  accent={q.artwork.accent}
-                  thumbWidth={120}
-                />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-white">
-                  {q.artwork.title}
-                </p>
-                <p className="truncate text-[12px] text-white/45">
-                  {q.artwork.year}
-                </p>
-              </div>
-              <span
-                className={`shrink-0 text-[11px] font-semibold ${
-                  correct[i] ? "text-emerald-300" : "text-red-300/80"
-                }`}
-              >
-                {correct[i] ? "Correct" : "Missed"}
-              </span>
-            </button>
-          ))}
+    <QuizScrollFrame
+      levelId={levelId}
+      className={milestone !== null ? "pt-4" : ""}
+      footer={
+        <div className="relative px-[13%] pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2">
+          <button
+            type="button"
+            onClick={onDone}
+            className="w-full rounded-2xl bg-[#2a1c0c] py-3.5 text-center text-sm font-semibold text-[#f6ead0] shadow-[0_8px_20px_rgba(0,0,0,0.35)] transition-transform active:scale-[0.99]"
+          >
+            Done
+          </button>
         </div>
-      </div>
+      }
+    >
+      {milestone !== null && <StreakCelebration streak={milestone} />}
 
-      {/* Actions */}
-      <div className="border-t border-white/10 bg-ink/90 px-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-4 backdrop-blur-xl">
-        <button
-          type="button"
-          onClick={onDone}
-          className="w-full rounded-2xl bg-white py-3.5 text-center text-sm font-semibold text-ink transition-transform active:scale-[0.99]"
-        >
-          Done
-        </button>
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35 }}
+        className="text-center"
+      >
+        {leveledUp && (
+          <p className={`mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] ${accent}`}>
+            Level up
+          </p>
+        )}
+        <p className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${accent}`}>
+          {isDaily
+            ? `${WORLD.royalAssessment} complete`
+            : `${WORLD.unchartedArchives} complete`}
+        </p>
+
+        <p className={`mt-3 font-serif text-3xl ${heading}`}>{title}</p>
+        <p className={`mt-1 text-sm ${muted}`}>
+          {totalPoints.toLocaleString()} pts
+          {next != null && (
+            <span>
+              {" "}
+              · next {next.toLocaleString()}
+            </span>
+          )}
+        </p>
+
+        {points && (
+          <div className={`mx-auto mt-4 max-w-xs rounded-2xl border px-4 py-3 text-left text-sm ${box}`}>
+            <div className={`flex justify-between ${muted}`}>
+              <span>Base</span>
+              <span className={`tabular-nums ${heading}`}>{points.base}</span>
+            </div>
+            <div className={`mt-1 flex justify-between ${muted}`}>
+              <span>Time bonus</span>
+              <span className={`tabular-nums ${plus}`}>+{points.time}</span>
+            </div>
+            <div className={`mt-1 flex justify-between ${muted}`}>
+              <span>Continue bonus</span>
+              <span className={`tabular-nums ${plus}`}>+{points.continue}</span>
+            </div>
+            {points.perfectBonus > 0 && (
+              <div className={`mt-1 flex justify-between ${muted}`}>
+                <span>Perfect</span>
+                <span className={`tabular-nums ${accent}`}>
+                  +{points.perfectBonus}
+                </span>
+              </div>
+            )}
+            <div
+              className={`mt-2 flex justify-between border-t pt-2 font-semibold ${heading} ${
+                dark ? "border-[#5c3d12]/20" : "border-white/10"
+              }`}
+            >
+              <span>Today</span>
+              <span className="tabular-nums">
+                +{points.total.toLocaleString()}
+              </span>
+            </div>
+          </div>
+        )}
+
+        <p className={`mt-4 text-[11px] font-semibold uppercase tracking-[0.18em] ${muted}`}>
+          {WORLD.appraisal}
+        </p>
+        <p className={`mt-2 font-serif text-[40px] leading-none ${heading}`}>
+          {score}
+          <span className={muted}>/{total}</span>
+        </p>
+        {appraisal.title && (
+          <p className={`mt-3 font-serif text-lg leading-snug ${heading}`}>
+            {appraisal.title}
+          </p>
+        )}
+        <p className={`mt-2 text-sm leading-relaxed ${muted}`}>
+          {appraisal.message}
+        </p>
+
+        {isDaily && (
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.25, type: "spring", stiffness: 300, damping: 18 }}
+            className={`mt-4 inline-flex items-center gap-2 rounded-full border px-4 py-2 ${box}`}
+          >
+            <FlameIcon filled className={`h-5 w-5 ${accent}`} />
+            <span className={`text-sm font-semibold ${heading}`}>
+              {streak} day{streak === 1 ? "" : "s"} streak
+            </span>
+          </motion.div>
+        )}
+      </motion.div>
+
+      {isDaily && (
+        <div className="mt-7">
+          <QuizRanking
+            levelId={levelId}
+            board={board}
+            boardLocked={boardLocked}
+            ink={ink}
+          />
+        </div>
+      )}
+
+      <div className="mt-7 space-y-2.5 pb-2">
+        <p className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${muted}`}>
+          Review works
+        </p>
+        {questions.map((q, i) => (
+          <button
+            key={q.id}
+            type="button"
+            onClick={() => onOpenArtwork(q.artworkId)}
+            className={`flex w-full items-center gap-3 rounded-xl border p-2.5 text-left ${box}`}
+          >
+            <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl">
+              <BlurImage
+                src={q.artwork.image}
+                alt={q.artwork.title}
+                accent={q.artwork.accent}
+                thumbWidth={120}
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className={`truncate text-sm font-medium ${heading}`}>
+                {q.artwork.title}
+              </p>
+              <p className={`truncate text-[12px] ${muted}`}>{q.artwork.year}</p>
+            </div>
+            <span
+              className={`shrink-0 text-[11px] font-semibold ${
+                correct[i]
+                  ? dark
+                    ? "text-[#2f6b3a]"
+                    : "text-emerald-300"
+                  : dark
+                    ? "text-[#8b2e2e]"
+                    : "text-red-300/80"
+              }`}
+            >
+              {correct[i] ? "Correct" : "Missed"}
+            </span>
+          </button>
+        ))}
       </div>
-    </div>
+    </QuizScrollFrame>
   );
 }

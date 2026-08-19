@@ -37,6 +37,24 @@ export function previousKey(key: string): string {
   return dateKey(date);
 }
 
+/** The local calendar day after `key`. */
+export function nextKey(key: string): string {
+  const [y, m, d] = key.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  date.setDate(date.getDate() + 1);
+  return dateKey(date);
+}
+
+/** Inclusive count of calendar days from `from` to `to` (0 if from > to). */
+export function daysInclusive(from: string, to: string): number {
+  if (from > to) return 0;
+  const [y1, m1, d1] = from.split("-").map(Number);
+  const [y2, m2, d2] = to.split("-").map(Number);
+  const a = Date.UTC(y1, m1 - 1, d1);
+  const b = Date.UTC(y2, m2 - 1, d2);
+  return Math.floor((b - a) / 86_400_000) + 1;
+}
+
 /**
  * Build today's (or any day's) quiz. Each slot draws a random playable mode
  * and a seeded shuffle of eligible artworks, never reusing a work. Returns as

@@ -16,14 +16,25 @@ import {
   firstUnanswered,
   sessionCorrectness,
   quizSalt,
+  scoreDaily,
   FREE_PRACTICE_QUESTIONS,
+  levelTitle,
   type DailySession,
   type QuizQuestion,
+  type DailyPointsBreakdown,
 } from "@/lib/quiz";
+import {
+  submitDailyQuizResult,
+  fetchLevelBoard,
+  type LevelBoard,
+} from "@/lib/quizRemote";
 import { WORLD } from "@/data/worldCopy";
 import { useAppState } from "./AppState";
 import QuizQuestionView from "./QuizQuestion";
 import QuizResults from "./QuizResults";
+import QuizRanking from "./QuizRanking";
+import QuizScrollFrame from "./QuizScrollFrame";
+import { scrollForLevel } from "@/lib/quiz/scrolls";
 import { ArrowLeftIcon, CloseIcon, FlameIcon } from "./Icons";
 
 interface QuizOverlayProps {
@@ -47,6 +58,12 @@ interface Results {
   questions: QuizQuestion[];
   isDaily: boolean;
   milestone: number | null;
+  points: DailyPointsBreakdown | null;
+  totalPoints: number;
+  levelId: number;
+  leveledUp: boolean;
+  board: LevelBoard | null;
+  boardLocked: boolean;
 }
 
 /**
@@ -65,9 +82,15 @@ export default function QuizOverlay({
   onOpenArtwork,
 }: QuizOverlayProps) {
   const { pool, loading } = useQuizPool();
-  const { user, isPro, requestPro } = useAppState();
-  const { streak, playedToday, recordDaily, recordPractice, previewDaily } =
-    useQuizProgress(user?.id ?? null);
+  const { user, isGuest, isPro, requestPro } = useAppState();
+  const {
+    progress,
+    streak,
+    playedToday,
+    recordDaily,
+    recordPractice,
+    previewDaily,
+  } = useQuizProgress(user?.id ?? null);
 
   const [stage, setStage] = useState<Stage>("hub");
   const [isDaily, setIsDaily] = useState(true);
@@ -80,9 +103,12 @@ export default function QuizOverlay({
   const [correct, setCorrect] = useState<boolean[]>([]);
   const [results, setResults] = useState<Results | null>(null);
   const [dailySession, setDailySession] = useState<DailySession | null>(null);
+  const [hubBoard, setHubBoard] = useState<LevelBoard | null>(null);
 
   const excludeRef = useRef<Set<string>>(new Set());
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** When the current question became visible (for time bonus). */
+  const questionShownAt = useRef<number>(Date.now());
 
   const clearTimer = () => {
     if (advanceTimer.current) clearTimeout(advanceTimer.current);
@@ -94,6 +120,13 @@ export default function QuizOverlay({
   useEffect(() => {
     if (open) {
       setDailySession(loadDailySession());
+      if (!isGuest) {
+        void fetchLevelBoard(todayKey()).then((board) => {
+          setHubBoard(board);
+        });
+      } else {
+        setHubBoard(null);
+      }
       return;
     }
     clearTimer();
@@ -104,8 +137,9 @@ export default function QuizOverlay({
     setCorrect([]);
     setResults(null);
     setPracticing(false);
+    setHubBoard(null);
     excludeRef.current = new Set();
-  }, [open]);
+  }, [open, isGuest]);
 
   useEffect(() => clearTimer, []);
 
@@ -138,37 +172,100 @@ export default function QuizOverlay({
         : "new";
 
   const finishDaily = useCallback(
-    (finalCorrect: boolean[], finalQuestions: QuizQuestion[]) => {
+    async (
+      finalCorrect: boolean[],
+      finalQuestions: QuizQuestion[],
+      answerMs: (number | null)[],
+    ) => {
       const score = finalCorrect.filter(Boolean).length;
       const total = finalQuestions.length;
-      // Compute the milestone from *current* progress before recording mutates it.
-      const { milestone } = previewDaily(score, total);
-      recordDaily(score, total);
+      const breakdown = scoreDaily(
+        finalQuestions.map((_, i) => ({
+          correct: finalCorrect[i] ?? false,
+          elapsedMs: answerMs[i] ?? 10_000,
+        })),
+      );
+      const input = {
+        correctCount: score,
+        total,
+        points: breakdown.total,
+        breakdown,
+      };
+      const preview = previewDaily(input);
+      const recorded = recordDaily(input);
+
+      let board: LevelBoard | null = null;
+      let leveledUp = recorded.leveledUp;
+      let totalPoints = recorded.progress.totalPoints;
+      let levelId = recorded.progress.levelId;
+
+      if (!isGuest) {
+        const day = todayKey();
+        const remote = await submitDailyQuizResult(
+          breakdown.total,
+          score,
+          total,
+          day,
+        );
+        if (remote) {
+          leveledUp = remote.leveledUp;
+          totalPoints = remote.totalPoints;
+          levelId = remote.levelId;
+        }
+        board = await fetchLevelBoard(day);
+        setHubBoard(board);
+      }
+
       setResults({
         score,
         total,
         correct: finalCorrect,
         questions: finalQuestions,
         isDaily: true,
-        milestone,
+        milestone: preview.milestone,
+        points: breakdown,
+        totalPoints,
+        levelId,
+        leveledUp,
+        board,
+        boardLocked: isGuest,
       });
       setStage("results");
     },
-    [previewDaily, recordDaily],
+    [previewDaily, recordDaily, isGuest],
   );
 
-  const openReview = useCallback((session: DailySession) => {
-    const corr = sessionCorrectness(session);
-    setResults({
-      score: corr.filter(Boolean).length,
-      total: session.questions.length,
-      correct: corr,
-      questions: session.questions,
-      isDaily: true,
-      milestone: null, // no celebration when merely reviewing
-    });
-    setStage("results");
-  }, []);
+  const openReview = useCallback(
+    async (session: DailySession) => {
+      const corr = sessionCorrectness(session);
+      const breakdown = scoreDaily(
+        session.questions.map((_, i) => ({
+          correct: corr[i] ?? false,
+          elapsedMs: session.answerMs?.[i] ?? 10_000,
+        })),
+      );
+      let board: LevelBoard | null = null;
+      if (!isGuest) {
+        board = await fetchLevelBoard(todayKey());
+      }
+      setResults({
+        score: corr.filter(Boolean).length,
+        total: session.questions.length,
+        correct: corr,
+        questions: session.questions,
+        isDaily: true,
+        milestone: null,
+        points: breakdown,
+        totalPoints: progress.totalPoints,
+        levelId: progress.levelId,
+        leveledUp: false,
+        board,
+        boardLocked: isGuest,
+      });
+      setStage("results");
+    },
+    [isGuest, progress.levelId, progress.totalPoints],
+  );
 
   const startDaily = useCallback(() => {
     if (dailyMode === "locked") return;
@@ -187,6 +284,7 @@ export default function QuizOverlay({
       setCorrect(sessionCorrectness(dailySession).slice(0, start));
       setQIndex(start);
       setSelected(null);
+      questionShownAt.current = Date.now();
       setStage("playing");
       return;
     }
@@ -203,6 +301,7 @@ export default function QuizOverlay({
     setCorrect([]);
     setQIndex(0);
     setSelected(null);
+    questionShownAt.current = Date.now();
     setStage("playing");
   }, [dailyMode, dailySession, openReview, pool, user]);
 
@@ -245,7 +344,10 @@ export default function QuizOverlay({
     setSelected(null);
     setCorrect([]);
     setPracticing(false);
-  }, []);
+    if (!isGuest) {
+      void fetchLevelBoard(todayKey()).then((board) => setHubBoard(board));
+    }
+  }, [isGuest]);
 
   const handleSelect = useCallback(
     (choice: number) => {
@@ -256,16 +358,25 @@ export default function QuizOverlay({
       setSelected(choice);
 
       if (isDaily) {
-        // Persist the answer immediately so an exit resumes here, not restarts.
-        setDailySession((prev) => {
-          if (!prev) return prev;
-          const answers = [...prev.answers];
-          answers[qIndex] = choice;
-          const completed = qIndex + 1 >= prev.questions.length;
-          const next = { ...prev, answers, completed };
-          saveDailySession(next);
-          return next;
-        });
+        const elapsedMs = Math.max(0, Date.now() - questionShownAt.current);
+        const prev = dailySession;
+        const baseAnswers = prev?.answers ?? questions.map(() => null);
+        const baseMs =
+          prev?.answerMs ?? questions.map(() => null as number | null);
+        const answers = [...baseAnswers];
+        const answerMs = [...baseMs];
+        answers[qIndex] = choice;
+        answerMs[qIndex] = elapsedMs;
+        const completed = qIndex + 1 >= questions.length;
+        const nextSession: DailySession = {
+          date: prev?.date ?? todayKey(),
+          questions: prev?.questions ?? questions,
+          answers,
+          answerMs,
+          completed,
+        };
+        saveDailySession(nextSession);
+        setDailySession(nextSession);
 
         const nextCorrect = [...correct, wasCorrect];
         setCorrect(nextCorrect);
@@ -273,8 +384,9 @@ export default function QuizOverlay({
           if (qIndex + 1 < questions.length) {
             setQIndex((i) => i + 1);
             setSelected(null);
+            questionShownAt.current = Date.now();
           } else {
-            finishDaily(nextCorrect, questions);
+            void finishDaily(nextCorrect, questions, answerMs);
           }
         }, REVEAL_MS);
       } else {
@@ -303,6 +415,7 @@ export default function QuizOverlay({
       qIndex,
       isDaily,
       correct,
+      dailySession,
       finishDaily,
       nextPractice,
       recordPractice,
@@ -323,29 +436,21 @@ export default function QuizOverlay({
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: 24 }}
           transition={{ duration: 0.22, ease: "easeOut" }}
-          className="absolute inset-0 z-[65] flex flex-col bg-ink"
+          className="absolute inset-0 z-[65] flex flex-col bg-[#1a120c]"
         >
-          {/* Header (hidden on the results screen, which has its own actions) */}
-          {stage !== "results" && (
+          {/* Header — playing only; hub/results use the parchment frame */}
+          {stage === "playing" && (
             <div className="flex items-center gap-3 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
               <button
-                onClick={stage === "hub" ? onClose : backToHub}
-                aria-label={stage === "hub" ? "Close quiz" : "Back to quiz menu"}
+                onClick={backToHub}
+                aria-label="Back to quiz menu"
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white transition-colors hover:bg-white/10"
               >
-                {stage === "hub" ? (
-                  <CloseIcon className="h-4 w-4" />
-                ) : (
-                  <ArrowLeftIcon className="h-4 w-4" />
-                )}
+                <ArrowLeftIcon className="h-4 w-4" />
               </button>
               <div className="min-w-0 flex-1">
                 <p className="truncate font-serif text-[17px] leading-tight text-white">
-                  {stage === "hub"
-                    ? WORLD.royalAssessment
-                    : isDaily
-                      ? WORLD.royalAssessment
-                      : WORLD.unchartedArchives}
+                  {isDaily ? WORLD.royalAssessment : WORLD.unchartedArchives}
                 </p>
               </div>
               {stage === "playing" && (
@@ -366,8 +471,13 @@ export default function QuizOverlay({
                 dailyReady={dailyReady}
                 practiceReady={dailyReady}
                 isPro={isPro}
+                levelId={progress.levelId}
+                totalPoints={progress.totalPoints}
+                board={hubBoard}
+                boardLocked={isGuest}
                 onDaily={startDaily}
                 onStartPractice={startPractice}
+                onClose={onClose}
               />
             )}
 
@@ -391,6 +501,12 @@ export default function QuizOverlay({
                 milestone={results.milestone}
                 questions={results.questions}
                 correct={results.correct}
+                points={results.points}
+                totalPoints={results.totalPoints}
+                levelId={results.levelId}
+                leveledUp={results.leveledUp}
+                board={results.board}
+                boardLocked={results.boardLocked}
                 onOpenArtwork={(id) => {
                   onClose();
                   onOpenArtwork(id);
@@ -405,7 +521,7 @@ export default function QuizOverlay({
   );
 }
 
-/** The landing screen: streak, daily CTA, and mixed practice. */
+/** The landing screen: parchment scroll, same-level ranking, daily CTA. */
 function QuizHub({
   loading,
   streak,
@@ -413,8 +529,13 @@ function QuizHub({
   dailyReady,
   practiceReady,
   isPro,
+  levelId,
+  totalPoints,
+  board,
+  boardLocked,
   onDaily,
   onStartPractice,
+  onClose,
 }: {
   loading: boolean;
   streak: number;
@@ -422,8 +543,13 @@ function QuizHub({
   dailyReady: boolean;
   practiceReady: boolean;
   isPro: boolean;
+  levelId: number;
+  totalPoints: number;
+  board: LevelBoard | null;
+  boardLocked: boolean;
   onDaily: () => void;
   onStartPractice: () => void;
+  onClose: () => void;
 }) {
   const done = dailyMode === "review" || dailyMode === "locked";
   const dailyCta =
@@ -442,69 +568,107 @@ function QuizHub({
           ? "Come back tomorrow for a new set"
           : `${DAILY_COUNT} questions · where, what & when · builds your streak`;
 
+  const { ink } = scrollForLevel(levelId);
+  const dark = ink === "dark";
+  const heading = dark ? "text-[#2a1c0c]" : "text-[#f6ead0]";
+  const muted = dark ? "text-[#5c3d12]/75" : "text-[#f3e6c8]/70";
+  const box = dark
+    ? "border-[#5c3d12]/25 bg-[#efe2c4]/70"
+    : "border-white/10 bg-black/30";
+  const cta = dark
+    ? "border-[#5c3d12]/40 bg-[#2a1c0c] text-[#f6ead0]"
+    : "border-amber-200/30 bg-[#f6ead0] text-[#2a1c0c]";
+
   return (
-    <div className="h-full overflow-y-auto overscroll-contain px-5 pb-[calc(env(safe-area-inset-bottom)+2rem)] pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      <h1 className="font-serif text-[30px] leading-tight text-white">
-        Test your eye
+    <QuizScrollFrame
+      levelId={levelId}
+      footer={
+        <div className="relative px-[13%] pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-1">
+          <button
+            type="button"
+            disabled={
+              loading || dailyMode === "locked" || (!dailyReady && dailyMode === "new")
+            }
+            onClick={onDaily}
+            className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3.5 text-left disabled:opacity-55 ${cta}`}
+          >
+            <span>
+              <span className="block font-serif text-lg">
+                {dailyMode === "resume"
+                  ? `${WORLD.royalAssessment} — in progress`
+                  : done
+                    ? `${WORLD.royalAssessment} complete`
+                    : WORLD.royalAssessment}
+              </span>
+              <span className="mt-0.5 block text-[12px] opacity-75">
+                {dailySubtitle}
+              </span>
+            </span>
+            {dailyMode !== "locked" && (
+              <span
+                className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${
+                  dark ? "bg-[#f6ead0] text-[#2a1c0c]" : "bg-[#2a1c0c] text-[#f6ead0]"
+                }`}
+              >
+                {dailyCta}
+              </span>
+            )}
+          </button>
+        </div>
+      }
+    >
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close quiz"
+        className={`mb-3 flex h-9 w-9 items-center justify-center rounded-full border ${box} ${heading}`}
+      >
+        <CloseIcon className="h-4 w-4" />
+      </button>
+
+      <h1 className={`font-serif text-[28px] leading-tight ${heading}`}>
+        {WORLD.royalAssessment}
       </h1>
-      <p className="mt-1.5 text-sm text-white/50">
-        Where is it from, what is it, and when was it made — mixed at random.
+      <p className={`mt-1 text-sm ${muted}`}>
+        {levelTitle(levelId)} · {totalPoints.toLocaleString()} pts
       </p>
 
-      {/* Streak */}
-      <div className="mt-6 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3.5">
+      <div className={`mt-4 flex items-center gap-3 rounded-xl border px-3 py-3 ${box}`}>
         <FlameIcon
           filled={streak > 0}
-          className={`h-6 w-6 ${streak > 0 ? "text-amber-300" : "text-white/30"}`}
+          className={`h-5 w-5 ${streak > 0 ? "text-amber-700" : muted}`}
         />
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-white">
+          <p className={`text-sm font-semibold ${heading}`}>
             {streak > 0 ? `${streak} day streak` : "No streak yet"}
           </p>
-          <p className="text-[12px] text-white/45">
+          <p className={`text-[12px] ${muted}`}>
             {done
-              ? `Today's ${WORLD.royalAssessment} is done — see you tomorrow.`
-              : `Play ${WORLD.royalAssessment} to keep it going.`}
+              ? "Today's assessment is done — see you tomorrow."
+              : "Play to keep your streak and climb the Hall."}
           </p>
         </div>
       </div>
 
-      {/* Daily CTA */}
-      <button
-        type="button"
-        disabled={loading || dailyMode === "locked" || (!dailyReady && dailyMode === "new")}
-        onClick={onDaily}
-        className="mt-4 flex w-full items-center justify-between gap-3 rounded-2xl border border-emerald-300/25 bg-gradient-to-br from-emerald-400/15 to-emerald-400/5 px-5 py-4 text-left transition-colors enabled:hover:border-emerald-300/40 disabled:opacity-60"
-      >
-        <span>
-          <span className="block font-serif text-lg text-white">
-            {dailyMode === "resume"
-              ? `${WORLD.royalAssessment} — in progress`
-              : done
-                ? `${WORLD.royalAssessment} complete`
-                : WORLD.royalAssessment}
-          </span>
-          <span className="mt-0.5 block text-[12px] text-white/55">
-            {dailySubtitle}
-          </span>
-        </span>
-        {dailyMode !== "locked" && (
-          <span className="shrink-0 rounded-full bg-white px-4 py-2 text-sm font-semibold text-ink">
-            {dailyCta}
-          </span>
-        )}
-      </button>
+      <div className="mt-5">
+        <QuizRanking
+          levelId={levelId}
+          board={board}
+          boardLocked={boardLocked}
+          ink={ink}
+          compact
+        />
+      </div>
 
-      {/* Practice / Uncharted Archives */}
-      <h2 className="mt-8 flex items-center gap-2 font-serif text-lg text-white">
+      <h2 className={`mt-6 font-serif text-lg ${heading}`}>
         {WORLD.unchartedArchives}
         {!isPro && (
-          <span className="rounded-full bg-amber-300/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-300">
+          <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${box}`}>
             Guild
           </span>
         )}
       </h2>
-      <p className="mt-1 text-[12px] text-white/45">
+      <p className={`mt-1 text-[12px] ${muted}`}>
         {isPro
           ? "Endless mixed questions — doesn't affect your streak."
           : `${FREE_PRACTICE_QUESTIONS} free questions per round · ${WORLD.explorersGuild} plays endless.`}
@@ -513,20 +677,21 @@ function QuizHub({
         type="button"
         disabled={loading || !practiceReady}
         onClick={onStartPractice}
-        className="mt-3 flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3.5 text-left transition-colors enabled:hover:bg-white/[0.06] disabled:opacity-50"
+        className={`mt-2 flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left disabled:opacity-50 ${box}`}
       >
         <span>
-          <span className="block text-sm font-medium text-white">
+          <span className={`block text-sm font-medium ${heading}`}>
             Mixed practice
           </span>
-          <span className="mt-0.5 block text-[12px] text-white/45">
+          <span className={`mt-0.5 block text-[12px] ${muted}`}>
             {practiceReady
               ? "Where · What · When — randomized each question"
               : "Not enough artworks yet"}
           </span>
         </span>
-        <span className="text-white/30">›</span>
+        <span className={muted}>›</span>
       </button>
-    </div>
+    </QuizScrollFrame>
   );
 }
+

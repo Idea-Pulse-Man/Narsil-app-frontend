@@ -6,36 +6,16 @@ import { SearchIcon } from "./Icons";
 interface TopTabsProps {
   active: Screen;
   onChange?: (screen: Screen) => void;
-  /** Stacked N + NARSIL lockup in the top-left corner (feed screens). */
-  showBrand?: boolean;
 }
 
-export default function TopTabs({
-  active,
-  onChange,
-  showBrand = false,
-}: TopTabsProps) {
+export default function TopTabs({ active, onChange }: TopTabsProps) {
   const navTabs = TOP_TABS.filter((tab) => tab.id !== "search");
   const isSearchActive = active === "search";
 
   return (
     <div className="pointer-events-none absolute inset-x-0 top-0 z-30 pt-[env(safe-area-inset-top)]">
-      <div className="pointer-events-auto flex items-center gap-1 px-2.5 pt-3">
-        {/* Brand lockup — stacked N over NARSIL in the top-left corner */}
-        <div className="mt-1 flex w-9 shrink-0 flex-col items-center gap-1">
-          {showBrand && (
-            <>
-              <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-accent text-[9px] font-bold text-ink shadow-sm">
-                N
-              </span>
-              <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-accent">
-                Narsil
-              </span>
-            </>
-          )}
-        </div>
-
-        {/* One evenly spaced cluster: Discover · For You · The Gallery · Search */}
+      <div className="pointer-events-auto flex items-center px-2.5 pt-3">
+        {/* One evenly spaced cluster: Discover · Narsil · The Gallery · Search */}
         <div className="flex min-w-0 flex-1 items-center justify-evenly">
           {navTabs.map((tab) => {
             const isActive = tab.id === active;
@@ -82,9 +62,6 @@ export default function TopTabs({
             />
           </motion.button>
         </div>
-
-        {/* Balances the brand so the tab cluster stays optically centered */}
-        <div className="w-9 shrink-0" aria-hidden />
       </div>
     </div>
   );

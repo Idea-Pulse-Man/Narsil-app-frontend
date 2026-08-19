@@ -23,6 +23,11 @@ export interface DailySession {
   questions: QuizQuestion[];
   /** Chosen option per question (null = not yet answered). Answered in order. */
   answers: (number | null)[];
+  /**
+   * Milliseconds from question show → answer, aligned with `answers`.
+   * Null when unanswered (or legacy sessions without timing).
+   */
+  answerMs: (number | null)[];
   completed: boolean;
 }
 
@@ -30,6 +35,15 @@ export interface DailySession {
 export function loadDailySession(): DailySession | null {
   const stored = readJSON<DailySession | null>(STORAGE_KEYS.quizDaily, null);
   if (!stored || stored.date !== todayKey()) return null;
+  // Legacy sessions (pre-timing) get empty answerMs so scoring still runs.
+  if (!stored.answerMs || stored.answerMs.length !== stored.questions.length) {
+    return {
+      ...stored,
+      answerMs: stored.questions.map((_, i) =>
+        stored.answers[i] != null ? 10_000 : null,
+      ),
+    };
+  }
   return stored;
 }
 
@@ -48,6 +62,7 @@ export function newDailySession(questions: QuizQuestion[]): DailySession {
     date: todayKey(),
     questions,
     answers: questions.map(() => null),
+    answerMs: questions.map(() => null),
     completed: false,
   };
 }

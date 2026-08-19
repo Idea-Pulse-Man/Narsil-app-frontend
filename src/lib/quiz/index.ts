@@ -14,7 +14,13 @@ export {
   pickRandomMode,
   playableModesFor,
 } from "./generator";
-export { buildDailyQuiz, todayKey, DAILY_COUNT } from "./daily";
+export {
+  buildDailyQuiz,
+  todayKey,
+  previousKey,
+  nextKey,
+  DAILY_COUNT,
+} from "./daily";
 
 /**
  * Questions a non-subscriber may answer per practice run before the paywall.
@@ -36,6 +42,24 @@ export {
   MILESTONES,
   resetQuizData,
 } from "./progress";
+export type { ApplyDailyInput } from "./progress";
+export {
+  scoreDaily,
+  scoreCorrectAnswer,
+  levelFromPoints,
+  levelTitle,
+  nextThreshold,
+  thresholdFor,
+  LEVEL_THRESHOLDS,
+  LEVEL_TITLES,
+  BASE_POINTS,
+  MISS_DAY_PENALTY,
+} from "./levels";
+export type {
+  DailyPointsBreakdown,
+  AnswerPoints,
+  LevelId,
+} from "./levels";
 export { useQuizPool } from "./usePool";
 export { getQuizInstallId, quizSalt } from "./install";
 export type { DailySession } from "./session";

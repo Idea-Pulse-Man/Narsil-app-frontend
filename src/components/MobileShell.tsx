@@ -331,7 +331,7 @@ export default function MobileShell() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
             >
-              <TopTabs active={screen} onChange={navigate} showBrand />
+              <TopTabs active={screen} onChange={navigate} />
             </motion.div>
           )}
         </AnimatePresence>

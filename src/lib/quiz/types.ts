@@ -55,6 +55,17 @@ export interface QuizProgress {
   lastDailyTotal: number | null;
   /** Lifetime questions answered (daily + practice). */
   totalAnswered: number;
+  /** Competition points (level is derived from this only). */
+  totalPoints: number;
+  /** Lasting ladder tier 0–4 (Peasant → Grand Archivist). */
+  levelId: number;
+  /** Points earned on the most recent daily (base+time+continue). */
+  lastDailyPoints: number | null;
+  /**
+   * Last calendar day we've already charged miss penalties through
+   * ("YYYY-MM-DD"). Prevents double-charging on every app open.
+   */
+  absenceAppliedThrough: string | null;
 }
 
 export const EMPTY_PROGRESS: QuizProgress = {
@@ -63,4 +74,8 @@ export const EMPTY_PROGRESS: QuizProgress = {
   lastDailyScore: null,
   lastDailyTotal: null,
   totalAnswered: 0,
+  totalPoints: 0,
+  levelId: 0,
+  lastDailyPoints: null,
+  absenceAppliedThrough: null,
 };

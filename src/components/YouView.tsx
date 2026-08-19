@@ -10,6 +10,7 @@ import {
   loadProgress,
   resetQuizData,
   EMPTY_PROGRESS,
+  levelTitle,
   type QuizProgress,
 } from "@/lib/quiz";
 import { useAudio } from "@/lib/audio/AudioProvider";
@@ -237,8 +238,8 @@ export default function YouView({
             </p>
             <p className="mt-0.5 text-xs text-white/50">
               {quizProgress.lastDailyScore != null
-                ? `Last ${WORLD.appraisal.toLowerCase()} ${quizProgress.lastDailyScore}/${quizProgress.lastDailyTotal}`
-                : "Test your eye on the collection"}
+                ? `${levelTitle(quizProgress.levelId)} · ${quizProgress.totalPoints.toLocaleString()} pts · last ${quizProgress.lastDailyScore}/${quizProgress.lastDailyTotal}`
+                : `${levelTitle(quizProgress.levelId)} · ${quizProgress.totalPoints.toLocaleString()} pts`}
             </p>
           </div>
           <span className="shrink-0 text-xs font-medium text-emerald-300/90">
