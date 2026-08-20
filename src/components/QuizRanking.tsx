@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { BoardRow, LevelBoard } from "@/lib/quizRemote";
 import { levelTitle } from "@/lib/quiz";
-import type { ScrollInk } from "@/lib/quiz/scrolls";
+import { scrollPalette, type ScrollInk } from "@/lib/quiz/scrolls";
 
 function MemberAvatar({
   name,
@@ -18,11 +18,11 @@ function MemberAvatar({
   const ring =
     ink === "dark"
       ? highlight
-        ? "border-[#5c3d12] bg-[#c9a227]/25 text-[#3a2a12]"
-        : "border-[#5c3d12]/40 bg-[#efe2c4] text-[#3a2a12]"
+        ? "border-[#5c3d12] bg-[#c9a227]/35 text-[#1a1208]"
+        : "border-[#5c3d12]/50 bg-[#efe2c4] text-[#1a1208]"
       : highlight
-        ? "border-amber-300/60 bg-amber-300/15 text-amber-100"
-        : "border-white/20 bg-white/10 text-[#f3e6c8]";
+        ? "border-amber-300/60 bg-amber-300/20 text-amber-100"
+        : "border-white/25 bg-white/15 text-[#f8efd8]";
   return (
     <div
       className={`flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border font-serif text-sm ${ring}`}
@@ -38,16 +38,7 @@ function MemberAvatar({
 
 function BoardRows({ rows, ink }: { rows: BoardRow[]; ink: ScrollInk }) {
   const nodes: ReactNode[] = [];
-  const you =
-    ink === "dark"
-      ? "border-[#c9a227]/70 bg-[#c9a227]/20"
-      : "border-amber-300/40 bg-amber-300/10";
-  const peer =
-    ink === "dark"
-      ? "border-[#5c3d12]/25 bg-[#3a2a12]/5"
-      : "border-white/10 bg-black/20";
-  const muted = ink === "dark" ? "text-[#5c3d12]/55" : "text-white/45";
-  const strong = ink === "dark" ? "text-[#2a1c0c]" : "text-[#f3e6c8]";
+  const { muted, strong, youRow, peerRow } = scrollPalette(ink);
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
@@ -66,7 +57,7 @@ function BoardRows({ rows, ink }: { rows: BoardRow[]; ink: ScrollInk }) {
       <div
         key={`${row.rank}-${row.userId}`}
         className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${
-          row.isYou ? you : peer
+          row.isYou ? youRow : peerRow
         }`}
       >
         <span className={`w-6 shrink-0 text-center text-xs font-semibold tabular-nums ${muted}`}>
@@ -109,12 +100,7 @@ export default function QuizRanking({
   compact,
 }: QuizRankingProps) {
   const title = levelTitle(levelId);
-  const label = ink === "dark" ? "text-[#5c3d12]/70" : "text-[#f3e6c8]/70";
-  const body = ink === "dark" ? "text-[#3a2a12]/80" : "text-[#f3e6c8]/80";
-  const box =
-    ink === "dark"
-      ? "border-[#5c3d12]/20 bg-[#efe2c4]/55"
-      : "border-white/10 bg-black/25";
+  const { label, body, box } = scrollPalette(ink);
 
   return (
     <section>

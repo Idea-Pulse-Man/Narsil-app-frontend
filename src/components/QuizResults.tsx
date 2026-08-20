@@ -3,7 +3,7 @@ import { appraisalFor, WORLD } from "@/data/worldCopy";
 import type { QuizQuestion, DailyPointsBreakdown } from "@/lib/quiz";
 import { levelTitle, nextThreshold } from "@/lib/quiz";
 import type { LevelBoard } from "@/lib/quizRemote";
-import { scrollForLevel } from "@/lib/quiz/scrolls";
+import { scrollForLevel, scrollPalette } from "@/lib/quiz/scrolls";
 import BlurImage from "./BlurImage";
 import { FlameIcon } from "./Icons";
 import QuizRanking from "./QuizRanking";
@@ -50,14 +50,8 @@ export default function QuizResults({
   const next = nextThreshold(levelId);
   const { ink } = scrollForLevel(levelId);
   const dark = ink === "dark";
-
-  const heading = dark ? "text-[#2a1c0c]" : "text-[#f6ead0]";
-  const muted = dark ? "text-[#5c3d12]/75" : "text-[#f3e6c8]/70";
-  const accent = dark ? "text-[#6b4a12]" : "text-amber-200";
-  const box = dark
-    ? "border-[#5c3d12]/25 bg-[#efe2c4]/70"
-    : "border-white/10 bg-black/30";
-  const plus = dark ? "text-[#2f6b3a]" : "text-emerald-300";
+  const { heading, muted, accent, box } = scrollPalette(ink);
+  const plus = dark ? "text-[#1f5a2c]" : "text-emerald-300";
 
   return (
     <QuizScrollFrame

@@ -34,7 +34,7 @@ import QuizQuestionView from "./QuizQuestion";
 import QuizResults from "./QuizResults";
 import QuizRanking from "./QuizRanking";
 import QuizScrollFrame from "./QuizScrollFrame";
-import { scrollForLevel } from "@/lib/quiz/scrolls";
+import { scrollForLevel, scrollPalette } from "@/lib/quiz/scrolls";
 import { ArrowLeftIcon, CloseIcon, FlameIcon } from "./Icons";
 
 interface QuizOverlayProps {
@@ -570,11 +570,7 @@ function QuizHub({
 
   const { ink } = scrollForLevel(levelId);
   const dark = ink === "dark";
-  const heading = dark ? "text-[#2a1c0c]" : "text-[#f6ead0]";
-  const muted = dark ? "text-[#5c3d12]/75" : "text-[#f3e6c8]/70";
-  const box = dark
-    ? "border-[#5c3d12]/25 bg-[#efe2c4]/70"
-    : "border-white/10 bg-black/30";
+  const { heading, muted, box } = scrollPalette(ink);
   const cta = dark
     ? "border-[#5c3d12]/40 bg-[#2a1c0c] text-[#f6ead0]"
     : "border-amber-200/30 bg-[#f6ead0] text-[#2a1c0c]";
@@ -600,7 +596,7 @@ function QuizHub({
                     ? `${WORLD.royalAssessment} complete`
                     : WORLD.royalAssessment}
               </span>
-              <span className="mt-0.5 block text-[12px] opacity-75">
+              <span className="mt-0.5 block text-[12px] opacity-90">
                 {dailySubtitle}
               </span>
             </span>
