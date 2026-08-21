@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { sizedImageUrl } from "@/lib/imageUrl";
+import { sizedImageUrl, previewImageUrl } from "@/lib/imageUrl";
+import { resolveCachedImage } from "@/lib/imageCache";
 import { isNgrokUrl, resolveNgrokImageSrc } from "@/lib/ngrok";
 
 interface BlurImageProps {
@@ -35,16 +36,6 @@ const ZOOM_TRANSITION = {
 
 /** How many times a thumbnail retries (with a direct-URL fallback) before giving up. */
 const MAX_IMAGE_ATTEMPTS = 3;
-
-// A tiny (~24px) variant of the same Wikimedia URL. It downloads almost
-// instantly and is shown blurred as a placeholder so the user sees the artwork
-// take shape immediately, instead of an empty frame, while the full-resolution
-// image streams in behind it.
-function previewOf(src: string): string | null {
-  return /[?&]width=\d+/.test(src)
-    ? src.replace(/([?&]width=)\d+/, "$124")
-    : null;
-}
 
 function Shimmer() {
   return (
@@ -84,10 +75,11 @@ export default function BlurImage({
   const containRef = useRef<HTMLImageElement>(null);
   const isContain = fit === "contain";
   const renderSrc =
-    !zoomable && thumbWidth
+    !zoomable && thumbWidth && !displaySrc.startsWith("blob:")
       ? sizedImageUrl(displaySrc, thumbWidth)
       : displaySrc;
-  const previewSrc = previewOf(renderSrc);
+  // Preview from the original URL so a blob/cache hit still has a tiny stand-in.
+  const previewSrc = previewImageUrl(src);
 
   // A single S3/CDN request can transiently time out (net::ERR_TIMED_OUT). Retry
   // the tile a few times instead of leaving it stuck on the accent placeholder:
@@ -109,25 +101,25 @@ export default function BlurImage({
 
   useEffect(() => {
     let active = true;
-
-    if (!isNgrokUrl(src)) {
-      setDisplaySrc(src);
-      return;
-    }
-
     setDisplaySrc(src);
     setLoaded(false);
 
-    // Resolved blob URLs are cached and shared across every mount (see
-    // resolveNgrokImageSrc), so we must NOT revoke them on unmount — doing so
-    // would break other components still showing the same image.
-    resolveNgrokImageSrc(src)
-      .then((resolved) => {
-        if (active) setDisplaySrc(resolved);
-      })
-      .catch(() => {
-        if (active) setDisplaySrc(src);
-      });
+    if (isNgrokUrl(src)) {
+      resolveNgrokImageSrc(src)
+        .then((resolved) => {
+          if (active) setDisplaySrc(resolved);
+        })
+        .catch(() => {
+          if (active) setDisplaySrc(src);
+        });
+      return () => {
+        active = false;
+      };
+    }
+
+    void resolveCachedImage(src).then((resolved) => {
+      if (active) setDisplaySrc(resolved);
+    });
 
     return () => {
       active = false;
@@ -229,6 +221,7 @@ export default function BlurImage({
           alt={alt}
           draggable={false}
           loading={priority ? "eager" : "lazy"}
+          fetchPriority={priority ? "high" : "auto"}
           decoding="async"
           onLoad={markLoaded}
           onError={handleError}
@@ -291,6 +284,7 @@ export default function BlurImage({
         aria-hidden
         draggable={false}
         loading={priority ? "eager" : "lazy"}
+        fetchPriority={priority ? "high" : "auto"}
         decoding="async"
         onLoad={markLoaded}
         className="absolute inset-0 h-full w-full object-contain will-change-transform"
@@ -309,6 +303,7 @@ export default function BlurImage({
         alt={alt}
         draggable={false}
         loading={priority ? "eager" : "lazy"}
+        fetchPriority={priority ? "high" : "auto"}
         decoding="async"
         onLoad={markLoaded}
         className="relative h-full w-full object-cover will-change-transform"

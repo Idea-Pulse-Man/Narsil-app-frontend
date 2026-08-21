@@ -16,6 +16,11 @@ interface ArtworkCardProps {
   artwork: Artwork;
   artist: Artist;
   priority?: boolean;
+  /**
+   * Dual-layer Fill/Fit animation. Only the on-screen card needs this — neighbours
+   * render a single image so the feed doesn't decode the same JPEG twice.
+   */
+  zoomable?: boolean;
   showToast: (message: string, variant?: ToastState["variant"]) => void;
   onOpenArtist: (artistId: string) => void;
   /** Shared across the feed — stays on while swiping artworks. */
@@ -34,6 +39,7 @@ export default function ArtworkCard({
   artwork,
   artist,
   priority = false,
+  zoomable = true,
   showToast,
   onOpenArtist,
   clean,
@@ -271,7 +277,7 @@ export default function ArtworkCard({
           accent={artwork.accent}
           priority={priority}
           fit={fit}
-          zoomable
+          zoomable={zoomable}
           syncToken={resetToken}
         />
       </div>

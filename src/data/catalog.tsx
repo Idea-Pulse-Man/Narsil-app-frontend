@@ -1,11 +1,13 @@
 /**
  * Live catalog provider.
  * ---------------------------------------------------------------------------
- * Starts with the bundled mock data so the app renders instantly and works
- * offline, then fetches real public-domain artworks from the backend and MERGES
- * them in (dedup by id). Merging — rather than replacing — keeps the curated
- * History timeline (which references specific mock artwork ids) working while
- * the feed, search and discover screens fill up with real museum art.
+ * Hydrates from a local snapshot (last visit's first ~80 feed works) so the
+ * For You screen can paint immediately, then:
+ *   1. fetches a popular preview page if there was no snapshot
+ *   2. fetches the full catalog in the background
+ *
+ * Browse surfaces never show bundled mock artworks; History lookups still
+ * merge mocks so curated timeline ids resolve.
  *
  * Components read everything dynamic (artworks, artists, lookups, search) from
  * `useCatalog()` so they re-render once the backend data arrives. Static config
@@ -18,6 +20,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
@@ -29,7 +32,16 @@ import {
   uniquePlaceFacets,
 } from "./index";
 import type { Artwork, Artist, CategoryId, ArtworkSearchQuery } from "./index";
-import { fetchSupabaseCatalog } from "@/lib/catalog";
+import {
+  fetchCatalogPreview,
+  fetchSupabaseCatalog,
+  type RemoteCatalog,
+} from "@/lib/catalog";
+import {
+  readCatalogSnapshot,
+  writeCatalogSnapshot,
+} from "@/lib/catalogCache";
+import { warmFeedImages } from "@/lib/imageCache";
 import {
   isDefaultFeedEligible,
   isGenericMakerName,
@@ -109,42 +121,91 @@ function buildFeed(
   return out;
 }
 
-export function CatalogProvider({ children }: { children: React.ReactNode }) {
-  const [remote, setRemote] = useState<{
-    artworks: Artwork[];
-    artists: Artist[];
-  } | null>(null);
-  const [source, setSource] = useState<CatalogSource>("mock");
-  const [loading, setLoading] = useState(true);
+/** Persist the first feed window + warm those image bytes for the next launch. */
+function persistFeedWindow(
+  artworks: Artwork[],
+  artists: Artist[],
+  artistMap: Record<string, Artist>,
+): void {
+  const isUnknownArtist = (artistId: string): boolean => {
+    const name = artistMap[artistId]?.name ?? "";
+    return !name || /^(unknown|anonymous|unidentified)/i.test(name);
+  };
+  const feed = buildFeed(
+    artworks.filter((a) => !isUnknownArtist(a.artistId)).filter(isDefaultFeedEligible),
+    artistMap,
+  ).slice(0, FEED_LIMIT);
+  const artistIds = new Set(feed.map((a) => a.artistId));
+  writeCatalogSnapshot({
+    artworks: feed,
+    artists: artists.filter((a) => artistIds.has(a.id)),
+  });
+  warmFeedImages(feed.map((a) => a.image));
+}
 
-  const load = useCallback(async (signal?: AbortSignal) => {
-    try {
-      const data = await fetchSupabaseCatalog(signal);
-      if (signal?.aborted) return;
-      // Only switch to live data if Supabase actually returned artworks.
-      if (data.artworks.length > 0) {
-        setRemote(data);
-        setSource("supabase");
-      }
-    } catch (err) {
-      if (signal?.aborted) return;
-      // Supabase unreachable — stay on mock data so the app still works.
-      console.warn("Catalog: using mock data (Supabase unavailable).", err);
-    } finally {
-      if (!signal?.aborted) setLoading(false);
-    }
+export function CatalogProvider({ children }: { children: React.ReactNode }) {
+  const snapshotRef = useRef(readCatalogSnapshot());
+  const snapshot = snapshotRef.current;
+  const [remote, setRemote] = useState<RemoteCatalog | null>(snapshot);
+  const [source, setSource] = useState<CatalogSource>(
+    snapshot ? "supabase" : "mock",
+  );
+  const [loading, setLoading] = useState(!snapshot);
+
+  const applyRemote = useCallback((data: RemoteCatalog) => {
+    if (data.artworks.length === 0) return;
+    setRemote(data);
+    setSource("supabase");
+    setLoading(false);
   }, []);
+
+  const load = useCallback(
+    async (signal?: AbortSignal, opts?: { skipPreview?: boolean }) => {
+      try {
+        // First visit: a single popular page unblocks the feed. Return visits
+        // already painted from the snapshot, so skip straight to the full table.
+        if (!opts?.skipPreview) {
+          try {
+            const preview = await fetchCatalogPreview(signal);
+            if (signal?.aborted) return;
+            applyRemote(preview);
+          } catch (err) {
+            if (signal?.aborted) return;
+            console.warn("Catalog preview failed, trying full catalog.", err);
+          }
+        }
+        const full = await fetchSupabaseCatalog(signal);
+        if (signal?.aborted) return;
+        applyRemote(full);
+      } catch (err) {
+        if (signal?.aborted) return;
+        console.warn("Catalog: using cached or mock data (Supabase unavailable).", err);
+      } finally {
+        if (!signal?.aborted) setLoading(false);
+      }
+    },
+    [applyRemote],
+  );
 
   useEffect(() => {
     const controller = new AbortController();
-    void load(controller.signal);
+    void load(controller.signal, {
+      skipPreview: Boolean(snapshotRef.current),
+    });
     return () => controller.abort();
   }, [load]);
+
+  // After any live catalog lands, remember the opening feed + its images.
+  useEffect(() => {
+    if (!remote || source !== "supabase") return;
+    const artistMap = Object.fromEntries(remote.artists.map((a) => [a.id, a]));
+    persistFeedWindow(remote.artworks, remote.artists, artistMap);
+  }, [remote, source]);
 
   // Pull fresh rows on demand (e.g. right after a user publishes new art) so the
   // new post shows up immediately instead of only after a full app reload.
   const refresh = useCallback(async () => {
-    await load();
+    await load(undefined, { skipPreview: false });
   }, [load]);
 
   const value = useMemo<CatalogValue>(() => {

@@ -9,6 +9,10 @@
  *
  * Public catalog tables are world-readable (RLS `using(true)`), so the app's
  * anon key is enough — no secret ever reaches the client.
+ *
+ * Loading is two-phase so the For You feed can paint before every row arrives:
+ *   1. `fetchCatalogPreview` — one page of popular works + their artists
+ *   2. `fetchSupabaseCatalog` — the rest of the tables (background)
  */
 import { supabase } from "./supabase";
 import { fetchCommunityTags } from "./tags";
@@ -20,6 +24,19 @@ export interface RemoteCatalog {
 }
 
 const PAGE_SIZE = 1000;
+/** First-paint window — larger than the 80-item feed so unknown/portrait filters still fill it. */
+export const CATALOG_PREVIEW_COUNT = 400;
+const ARTIST_IN_BATCH = 80;
+
+const ARTWORK_PREVIEW_COLUMNS =
+  "id, title, description, image_url, artist_id, category, origin, year, period, medium, source, accent, tags, empire, like_count, save_count, featured, hidden, for_sale";
+
+const ARTWORK_FULL_COLUMNS = `${ARTWORK_PREVIEW_COLUMNS}, ai_description`;
+
+const ARTIST_PREVIEW_COLUMNS =
+  "id, name, initials, profile_type, avatar_url, lifespan, nationality, period, style, known_for, accent, followers, likes, saves, sell_opt_in, revenue_share_pct";
+
+const ARTIST_FULL_COLUMNS = `${ARTIST_PREVIEW_COLUMNS}, bio`;
 
 // ── Row shapes (snake_case, as stored in Supabase) ──────────────────────────
 
@@ -43,7 +60,7 @@ interface ArtworkRow {
   featured: boolean | null;
   hidden: boolean | null;
   for_sale: boolean | null;
-  ai_description: string | null;
+  ai_description?: string | null;
 }
 
 interface ArtistRow {
@@ -51,7 +68,7 @@ interface ArtistRow {
   name: string;
   initials: string | null;
   profile_type: string | null;
-  bio: string | null;
+  bio?: string | null;
   avatar_url: string | null;
   lifespan: string | null;
   nationality: string | null;
@@ -122,6 +139,7 @@ function mapArtist(row: ArtistRow): Artist {
 
 async function fetchTable<T>(
   table: string,
+  columns: string,
   order: { column: string; ascending: boolean },
   signal?: AbortSignal,
 ): Promise<T[]> {
@@ -130,18 +148,82 @@ async function fetchTable<T>(
   for (let from = 0; ; from += PAGE_SIZE) {
     let query = supabase
       .from(table)
-      .select("*")
+      .select(columns)
       .order(order.column, { ascending: order.ascending })
       .range(from, from + PAGE_SIZE - 1);
     if (signal) query = query.abortSignal(signal);
 
     const { data, error } = await query;
     if (error) throw error;
-    const rows = (data ?? []) as T[];
+    const rows = (data ?? []) as unknown as T[];
     out.push(...rows);
     if (rows.length < PAGE_SIZE) break;
   }
   return out;
+}
+
+async function fetchArtistsByIds(
+  ids: string[],
+  columns: string,
+  signal?: AbortSignal,
+): Promise<ArtistRow[]> {
+  if (!supabase || ids.length === 0) return [];
+  const client = supabase;
+  const unique = [...new Set(ids)];
+  const chunks: string[][] = [];
+  for (let i = 0; i < unique.length; i += ARTIST_IN_BATCH) {
+    chunks.push(unique.slice(i, i + ARTIST_IN_BATCH));
+  }
+
+  const pages = await Promise.all(
+    chunks.map(async (chunk) => {
+      let query = client.from("artists").select(columns).in("id", chunk);
+      if (signal) query = query.abortSignal(signal);
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data ?? []) as unknown as ArtistRow[];
+    }),
+  );
+  return pages.flat();
+}
+
+/**
+ * One round-trip of popular, image-backed artworks plus the artists they
+ * reference. Enough to fill the For You feed; not the whole museum.
+ */
+export async function fetchCatalogPreview(
+  signal?: AbortSignal,
+): Promise<RemoteCatalog> {
+  if (!supabase) return { artworks: [], artists: [] };
+
+  let query = supabase
+    .from("artworks")
+    .select(ARTWORK_PREVIEW_COLUMNS)
+    .not("image_url", "is", null)
+    .order("featured", { ascending: false, nullsFirst: false })
+    .order("like_count", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false })
+    .range(0, CATALOG_PREVIEW_COUNT - 1);
+  if (signal) query = query.abortSignal(signal);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  const artworkRows = ((data ?? []) as unknown as ArtworkRow[]).filter(
+    (r) => r.image_url,
+  );
+  const artistIds = artworkRows
+    .map((r) => r.artist_id)
+    .filter((id): id is string => Boolean(id));
+  const artistRows = await fetchArtistsByIds(
+    artistIds,
+    ARTIST_PREVIEW_COLUMNS,
+    signal,
+  );
+
+  return {
+    artworks: artworkRows.map((r) => mapArtwork(r)),
+    artists: artistRows.map(mapArtist),
+  };
 }
 
 /**
@@ -154,8 +236,18 @@ export async function fetchSupabaseCatalog(
   if (!supabase) return { artworks: [], artists: [] };
 
   const [artworkRows, artistRows, tagMap] = await Promise.all([
-    fetchTable<ArtworkRow>("artworks", { column: "created_at", ascending: false }, signal),
-    fetchTable<ArtistRow>("artists", { column: "name", ascending: true }, signal),
+    fetchTable<ArtworkRow>(
+      "artworks",
+      ARTWORK_FULL_COLUMNS,
+      { column: "created_at", ascending: false },
+      signal,
+    ),
+    fetchTable<ArtistRow>(
+      "artists",
+      ARTIST_FULL_COLUMNS,
+      { column: "name", ascending: true },
+      signal,
+    ),
     fetchCommunityTags(signal),
   ]);
 

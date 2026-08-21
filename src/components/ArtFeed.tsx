@@ -13,9 +13,9 @@ import type { TutorialBridge } from "./tutorial";
 export type FeedFilter = "all" | "museum" | "freelance";
 
 /** How many more cards to mount each time the user nears the end of the feed. */
-const FEED_PAGE = 12;
+const FEED_PAGE = 3;
 /** Grow the window this many cards before the user reaches the last mounted one. */
-const FEED_LOOKAHEAD = 4;
+const FEED_LOOKAHEAD = 2;
 
 interface ArtFeedProps {
   showToast: (message: string, variant?: ToastState["variant"]) => void;
@@ -61,6 +61,11 @@ export default function ArtFeed({
   }
   const seenSnapshot = frozenSeen.current;
 
+  // Freeze the on-screen order after the first non-empty pool so a background
+  // catalog refresh (snapshot → preview → full) appends new works instead of
+  // jumping the card the user is looking at.
+  const frozenOrder = useRef<Artwork[] | null>(null);
+
   // Build the feed: filter by source, then rank into popularity batches shuffled
   // within each batch, with unseen works promoted ahead of already-seen ones.
   const items = useMemo<Artwork[]>(() => {
@@ -69,7 +74,7 @@ export default function ArtFeed({
       if (filter === "freelance") return art.origin === "artist-original";
       return true;
     });
-    return buildSessionFeed(filtered, {
+    const ranked = buildSessionFeed(filtered, {
       // Uncapped: the whole ranked pool is the feed. Progressive rendering
       // (below) keeps only a growing window mounted so it stays fast.
       limit: filtered.length,
@@ -77,6 +82,20 @@ export default function ArtFeed({
       artistMap,
       seed: sessionSeed,
     });
+
+    if (ranked.length === 0) return frozenOrder.current ?? ranked;
+    if (frozenOrder.current === null) {
+      frozenOrder.current = ranked;
+      return ranked;
+    }
+    const byId = new Map(ranked.map((art) => [art.id, art]));
+    const have = new Set(frozenOrder.current.map((art) => art.id));
+    const extra = ranked.filter((art) => !have.has(art.id));
+    frozenOrder.current = [
+      ...frozenOrder.current.map((art) => byId.get(art.id) ?? art),
+      ...extra,
+    ];
+    return frozenOrder.current;
   }, [feedPool, filter, seenSnapshot, artistMap, sessionSeed]);
 
   // Infinite scroll: mount a small window of cards and grow it as the user
@@ -84,11 +103,6 @@ export default function ArtFeed({
   // front. Full-screen snap cards make an index threshold simpler (and snap-
   // safe) than a sentinel element inside the scroll container.
   const [renderCount, setRenderCount] = useState(FEED_PAGE);
-
-  // Collapse back to the first window whenever the feed itself changes.
-  useEffect(() => {
-    setRenderCount(FEED_PAGE);
-  }, [items]);
 
   useEffect(() => {
     if (currentIndex >= renderCount - FEED_LOOKAHEAD && renderCount < items.length) {
@@ -252,7 +266,8 @@ export default function ArtFeed({
               key={artwork.id}
               artwork={artwork}
               artist={artist}
-              priority={index === 0}
+              priority={index === currentIndex}
+              zoomable={index === currentIndex}
               showToast={showToast}
               onOpenArtist={onOpenArtist}
               clean={clean}
