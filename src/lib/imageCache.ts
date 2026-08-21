@@ -4,9 +4,15 @@
  *
  * Two layers:
  *  1. `new Image()` warms the HTTP cache (S3 objects are immutable for a year).
- *  2. Cache API stores the bytes when CORS allows — used as a blob URL next
- *     launch if the HTTP cache was evicted (common in WKWebView).
+ *  2. Cache API stores the bytes when a CORS-safe fetch succeeds — used as a
+ *     blob URL next launch if the HTTP cache was evicted (common in WKWebView).
+ *
+ * S3 is fetched via wsrv.nl for (2): the bucket often lacks CORS for Capacitor
+ * (`capacitor://localhost` / `https://localhost`) and Vercel, and a direct
+ * `fetch` would spam the console even when caught.
  */
+
+import { corsFetchImageUrl } from "./imageUrl";
 
 const CACHE_NAME = "narsil-feed-images-v1";
 const MAX_CACHED = 8;
@@ -22,10 +28,13 @@ async function persist(url: string): Promise<void> {
   try {
     const cache = await caches.open(CACHE_NAME);
     if (await cache.match(url)) return;
-    const res = await fetch(url, { mode: "cors", credentials: "omit" });
+    const res = await fetch(corsFetchImageUrl(url), {
+      mode: "cors",
+      credentials: "omit",
+    });
     if (res.ok) await cache.put(url, res);
   } catch {
-    /* CORS or quota — HTTP cache from the Image() warm is enough. */
+    /* Network or quota — HTTP cache from the Image() warm is enough. */
   }
 }
 

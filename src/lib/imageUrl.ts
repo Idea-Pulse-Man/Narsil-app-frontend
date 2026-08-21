@@ -5,8 +5,19 @@
  * — those objects are immutable and cache for a year.
  */
 
-function isS3Url(src: string): boolean {
+export function isS3Url(src: string): boolean {
   return /^https?:\/\/[^/]*\.amazonaws\.com\//.test(src);
+}
+
+/**
+ * URL that can be `fetch(..., { mode: "cors" })`'d when the source host (e.g.
+ * S3) does not send Access-Control-Allow-Origin for our Capacitor / Vercel
+ * origins. Display `<img>` can still use the raw S3 URL.
+ */
+export function corsFetchImageUrl(src: string, cssPx = 843): string {
+  if (!isS3Url(src)) return src;
+  const w = Math.min(1280, Math.max(32, Math.round(cssPx)));
+  return `https://wsrv.nl/?url=${encodeURIComponent(src)}&w=${w}&output=webp&we`;
 }
 
 export function sizedImageUrl(src: string, cssPx: number): string {
