@@ -254,7 +254,7 @@ export default function BlurImage({
         transition={ZOOM_TRANSITION}
       />
       <motion.div
-        className="absolute inset-0 bg-black/40"
+        className="absolute inset-0 bg-ink/40"
         initial={false}
         animate={{ opacity: isContain ? 1 : 0 }}
         transition={ZOOM_TRANSITION}

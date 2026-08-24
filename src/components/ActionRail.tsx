@@ -3,7 +3,6 @@ import { shouldResolvePortrait, WORLD, type Artist } from "@/data";
 import { useCatalog } from "@/data/catalog";
 import ArtistAvatar from "./ArtistAvatar";
 import {
-  HeartIcon,
   DownloadIcon,
   CommentIcon,
   BookmarkIcon,
@@ -60,11 +59,9 @@ export default function ActionRail({
   showToast,
   highlight = false,
 }: ActionRailProps) {
-  const { isLiked, toggleLiked, isSaved, toggleSaved, requestDownload } =
-    useAppState();
+  const { isSaved, toggleSaved, requestDownload } = useAppState();
   const { getArtistAvatar, getArtwork } = useCatalog();
 
-  const liked = isLiked(artworkId);
   const saved = isSaved(artworkId);
 
   // Opens the extract sheet (Standard / Master File / Share link). The sheet
@@ -105,23 +102,7 @@ export default function ActionRail({
         </motion.button>
       </div>
 
-      {/* 2. Like */}
-      <RailButton
-        label="Like"
-        active={liked}
-        activeColor="text-rose-500 bg-rose-500/15 border-rose-500/30"
-        onClick={() => toggleLiked(artworkId)}
-      >
-        <motion.span
-          key={liked ? "liked" : "unliked"}
-          animate={liked ? { scale: [1, 1.35, 1] } : {}}
-          transition={{ duration: 0.4 }}
-        >
-          <HeartIcon filled={liked} className="h-5 w-5" />
-        </motion.span>
-      </RailButton>
-
-      {/* 3. Save / bookmark — adds the artwork to The Vault. */}
+      {/* 2. Save / bookmark — adds the artwork to The Vault. */}
       <RailButton
         label={saved ? "Remove from vault" : "Save to vault"}
         active={saved}
@@ -142,12 +123,12 @@ export default function ActionRail({
         </motion.span>
       </RailButton>
 
-      {/* 4. Comments / Art Discussion */}
+      {/* 3. Comments / Art Discussion */}
       <RailButton label="Art discussion" onClick={onOpenComments}>
         <CommentIcon className="h-5 w-5" />
       </RailButton>
 
-      {/* 5. Extract from Archive — opens Standard / Master File / Share link. */}
+      {/* 4. Extract from Archive — opens Standard / Master File / Share link. */}
       <RailButton label={WORLD.extractFromArchive} onClick={handleDownload}>
         <DownloadIcon className="h-5 w-5" />
       </RailButton>

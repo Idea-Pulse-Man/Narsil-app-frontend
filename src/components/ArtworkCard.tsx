@@ -34,6 +34,8 @@ interface ArtworkCardProps {
 
 const SWIPE_DISTANCE = 40;
 const LONG_PRESS_MS = 400;
+/** Match `--color-ink` so letterboxing / load flashes don't swap per-artwork accents. */
+const FEED_BACKDROP = "#14100e";
 
 export default function ArtworkCard({
   artwork,
@@ -274,7 +276,7 @@ export default function ArtworkCard({
         <BlurImage
           src={artwork.image}
           alt={`${artwork.title} by ${artist.name}`}
-          accent={artwork.accent}
+          accent={FEED_BACKDROP}
           priority={priority}
           fit={fit}
           zoomable={zoomable}

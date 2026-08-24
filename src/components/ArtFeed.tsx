@@ -250,11 +250,11 @@ export default function ArtFeed({
   }
 
   return (
-    <div className="relative h-full w-full">
+    <div className="relative h-full w-full bg-ink">
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className={`h-full w-full snap-y snap-mandatory overscroll-contain scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+        className={`h-full w-full snap-y snap-mandatory overscroll-contain scroll-smooth bg-ink [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
           lockScroll ? "overflow-hidden" : "overflow-y-scroll"
         }`}
       >

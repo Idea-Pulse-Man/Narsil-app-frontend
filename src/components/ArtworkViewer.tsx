@@ -8,7 +8,6 @@ import HistoryPlacard from "./HistoryPlacard";
 import ArtDiscussion from "./ArtDiscussion";
 import {
   CloseIcon,
-  HeartIcon,
   BookmarkIcon,
   DownloadIcon,
   CommentIcon,
@@ -59,7 +58,7 @@ function ActionButton({
 
 /**
  * Full-screen "view mode" for a single artwork: a zoomable canvas to inspect the
- * work up close, quick actions (like / save / extract / discuss), and
+ * work up close, quick actions (save / extract / discuss), and
  * the museum placard as a slide-up info layer. Opened from grid tiles (Saved,
  * History, Search, You) so a saved piece is something you can actually study,
  * not just read about.
@@ -72,8 +71,7 @@ export default function ArtworkViewer({
   showToast,
   onOpenArtist,
 }: ArtworkViewerProps) {
-  const { isLiked, toggleLiked, isSaved, toggleSaved, requestDownload } =
-    useAppState();
+  const { isSaved, toggleSaved, requestDownload } = useAppState();
   const zoomRef = useRef<ZoomableImageHandle>(null);
 
   const [chrome, setChrome] = useState(true);
@@ -84,7 +82,6 @@ export default function ArtworkViewer({
   const [dragY, setDragY] = useState(0);
   const [dragging, setDragging] = useState(false);
 
-  const liked = isLiked(artwork.id);
   const saved = isSaved(artwork.id);
 
   // Reset transient UI each time a new artwork opens.
@@ -261,15 +258,6 @@ export default function ArtworkViewer({
                   </button>
   
                   <div className="flex items-center gap-3">
-                    <ActionButton
-                      label="Like"
-                      active={liked}
-                      activeColor="text-rose-500 bg-rose-500/15 border-rose-500/30"
-                      onClick={() => toggleLiked(artwork.id)}
-                    >
-                      <HeartIcon filled={liked} className="h-5 w-5" />
-                    </ActionButton>
-  
                     <ActionButton
                       label={saved ? "Remove from vault" : "Save to vault"}
                       active={saved}
