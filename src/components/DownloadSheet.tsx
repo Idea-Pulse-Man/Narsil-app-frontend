@@ -6,6 +6,7 @@ import {
   downloadArtwork,
   ProRequiredError,
   shareArtwork,
+  type DownloadProgress,
   type DownloadTier,
 } from "@/lib/download";
 import { WORLD } from "@/data/worldCopy";
@@ -21,6 +22,19 @@ interface DownloadSheetProps {
 }
 
 type SheetBusy = DownloadTier | "share";
+
+function formatProgress(progress: DownloadProgress | null): string {
+  if (!progress) return "…";
+  if (progress.total > 0) {
+    const pct = Math.min(100, Math.round((progress.received / progress.total) * 100));
+    return `${pct}%`;
+  }
+  if (progress.received > 0) {
+    const mb = progress.received / (1024 * 1024);
+    return mb >= 1 ? `${mb.toFixed(1)} MB` : `${Math.round(progress.received / 1024)} KB`;
+  }
+  return "…";
+}
 
 /**
  * Extract sheet: Standard download, Master File (Pro), and share link.
@@ -40,12 +54,14 @@ export default function DownloadSheet({
 }: DownloadSheetProps) {
   const { isPro, requestPro } = useAppState();
   const [busy, setBusy] = useState<SheetBusy | null>(null);
+  const [progress, setProgress] = useState<DownloadProgress | null>(null);
 
   const run = async (tier: DownloadTier) => {
     if (!artwork) return;
     setBusy(tier);
+    setProgress({ received: 0, total: 0 });
     try {
-      await downloadArtwork(artwork, showToast, tier);
+      await downloadArtwork(artwork, showToast, tier, setProgress);
       onClose();
     } catch (err) {
       if (err instanceof ProRequiredError) {
@@ -56,6 +72,7 @@ export default function DownloadSheet({
       showToast(err instanceof Error ? err.message : "Extract failed");
     } finally {
       setBusy(null);
+      setProgress(null);
     }
   };
 
@@ -81,6 +98,8 @@ export default function DownloadSheet({
     }
   };
 
+  const progressLabel = formatProgress(progress);
+
   return (
     <AnimatePresence>
       {artwork && (
@@ -89,7 +108,7 @@ export default function DownloadSheet({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          onClick={onClose}
+          onClick={busy ? undefined : onClose}
         >
           <motion.section
             className="w-full max-w-md rounded-t-3xl bg-[#1b1b1f] px-5 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-5 text-white"
@@ -114,12 +133,29 @@ export default function DownloadSheet({
               <button
                 type="button"
                 onClick={onClose}
+                disabled={busy !== null && busy !== "share"}
                 aria-label="Close"
-                className="shrink-0 rounded-full p-2 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
+                className="shrink-0 rounded-full p-2 text-white/50 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-40"
               >
                 <CloseIcon className="h-4 w-4" />
               </button>
             </header>
+
+            {busy && busy !== "share" && (
+              <div className="mb-3 overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-1 rounded-full bg-accent transition-[width] duration-200"
+                  style={{
+                    width:
+                      progress && progress.total > 0
+                        ? `${Math.min(100, (progress.received / progress.total) * 100)}%`
+                        : progress && progress.received > 0
+                          ? "35%"
+                          : "8%",
+                  }}
+                />
+              </div>
+            )}
 
             <div className="space-y-2.5">
               <button
@@ -139,7 +175,9 @@ export default function DownloadSheet({
                 </span>
                 <span className="shrink-0 text-amber-300">
                   {busy === "high" ? (
-                    "…"
+                    <span className="tabular-nums text-[12px] font-medium">
+                      {progressLabel}
+                    </span>
                   ) : isPro ? (
                     <DownloadIcon className="h-5 w-5" />
                   ) : (
@@ -163,7 +201,13 @@ export default function DownloadSheet({
                   </span>
                 </span>
                 <span className="shrink-0 text-white/40">
-                  {busy === "standard" ? "…" : <DownloadIcon className="h-5 w-5" />}
+                  {busy === "standard" ? (
+                    <span className="tabular-nums text-[12px] font-medium text-white/70">
+                      {progressLabel}
+                    </span>
+                  ) : (
+                    <DownloadIcon className="h-5 w-5" />
+                  )}
                 </span>
               </button>
 

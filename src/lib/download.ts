@@ -1,3 +1,6 @@
+import { Capacitor } from "@capacitor/core";
+import { Directory, Filesystem } from "@capacitor/filesystem";
+import { Share } from "@capacitor/share";
 import type { Artwork } from "@/data";
 import type { ToastState } from "@/components/Toast";
 import { API_URL } from "@/lib/api";
@@ -5,6 +8,13 @@ import { ngrokFetch } from "@/lib/ngrok";
 import { supabase } from "@/lib/supabase";
 
 type ShowToast = (message: string, variant?: ToastState["variant"]) => void;
+
+export type DownloadProgress = {
+  /** Bytes received so far. */
+  received: number;
+  /** Total from Content-Length when known; 0 if unknown. */
+  total: number;
+};
 
 /**
  * Bearer token when signed in, nothing when not. The standard tier is public,
@@ -46,6 +56,18 @@ export async function shareArtwork(
 ): Promise<void> {
   const url = buildArtworkShareUrl(artworkId);
   try {
+    if (Capacitor.isNativePlatform()) {
+      const { value } = await Share.canShare();
+      if (value) {
+        await Share.share({
+          title: artworkTitle,
+          text: `${artworkTitle} — on Narsil`,
+          url,
+          dialogTitle: "Share artwork",
+        });
+        return;
+      }
+    }
     if (typeof navigator !== "undefined" && navigator.share) {
       await navigator.share({
         title: artworkTitle,
@@ -63,19 +85,6 @@ export async function shareArtwork(
   } catch {
     // User dismissed the native share sheet — no toast needed.
   }
-}
-
-/**
- * Return the largest available version of the image. Wikimedia's
- * `Special:FilePath` serves the full original when no `?width=` is present, so
- * we strip any sizing param we added for display. Other hosts (S3, etc.) are
- * already full-size, so they're returned unchanged.
- */
-function fullResUrl(src: string): string {
-  if (src.includes("commons.wikimedia.org/wiki/Special:FilePath")) {
-    return src.replace(/([?&])width=\d+/g, "$1").replace(/[?&]$/, "");
-  }
-  return src;
 }
 
 /** Turn a title into a filesystem-friendly base name. */
@@ -101,19 +110,28 @@ function extForType(type: string): string {
 }
 
 // The File System Access API (showSaveFilePicker) isn't in the default TS lib.
+interface FileSystemWritable {
+  write: (data: BufferSource | Blob) => Promise<void>;
+  close: () => Promise<void>;
+  abort: () => Promise<void>;
+}
+
 interface SaveFilePickerWindow {
   showSaveFilePicker?: (options?: {
     suggestedName?: string;
     types?: { description?: string; accept: Record<string, string[]> }[];
   }) => Promise<{
-    createWritable: () => Promise<{
-      write: (data: Blob) => Promise<void>;
-      close: () => Promise<void>;
-    }>;
+    createWritable: () => Promise<FileSystemWritable>;
   }>;
 }
 
-/** Trigger a classic browser download to the default folder (fallback path). */
+type SaveOutcome = "saved" | "shared" | "cancelled" | "unavailable";
+
+/**
+ * Classic <a download> fallback for desktop browsers. Delay revoke — some
+ * browsers cancel the download if the blob URL disappears immediately.
+ * Does NOT work reliably inside iOS WKWebView.
+ */
 function anchorDownload(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -122,7 +140,91 @@ function anchorDownload(blob: Blob, filename: string): void {
   document.body.appendChild(a);
   a.click();
   a.remove();
-  URL.revokeObjectURL(url);
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+/** Raw base64 (no data: prefix) for Capacitor Filesystem on native. */
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error ?? new Error("Could not read image"));
+    reader.onload = () => {
+      const result = String(reader.result || "");
+      const comma = result.indexOf(",");
+      resolve(comma >= 0 ? result.slice(comma + 1) : result);
+    };
+    reader.readAsDataURL(blob);
+  });
+}
+
+function isAbortError(err: unknown): boolean {
+  if (err instanceof DOMException && err.name === "AbortError") return true;
+  const msg = err instanceof Error ? err.message : String(err);
+  return /cancel|dismiss|abort/i.test(msg);
+}
+
+/**
+ * iOS / Android (and mobile Safari): hand the image to the system share sheet
+ * so the user can Save Image, Save to Files, AirDrop, etc.
+ *
+ * Prefer Web Share Level 2 with a File (no base64 doubling). Fall back to
+ * Capacitor Filesystem + Share for WKWebView builds where canShare(files)
+ * is missing.
+ */
+async function saveViaShareSheet(
+  blob: Blob,
+  filename: string,
+  title: string,
+): Promise<SaveOutcome> {
+  const type = blob.type || "image/jpeg";
+  const file = new File([blob], filename, { type });
+
+  const nav = navigator as Navigator & {
+    canShare?: (data?: ShareData) => boolean;
+  };
+
+  if (typeof nav.share === "function" && nav.canShare?.({ files: [file] })) {
+    try {
+      await nav.share({ files: [file], title });
+      return "shared";
+    } catch (err) {
+      if (isAbortError(err)) return "cancelled";
+      // Fall through to Capacitor plugins.
+    }
+  }
+
+  if (!Capacitor.isNativePlatform()) {
+    return "unavailable";
+  }
+
+  const base64 = await blobToBase64(blob);
+  const path = `extracts/${Date.now()}-${filename}`;
+  const written = await Filesystem.writeFile({
+    path,
+    data: base64,
+    directory: Directory.Cache,
+    recursive: true,
+  });
+
+  try {
+    await Share.share({
+      title,
+      files: [written.uri],
+      dialogTitle: "Save artwork",
+    });
+    return "shared";
+  } catch (err) {
+    if (isAbortError(err)) return "cancelled";
+    throw err;
+  } finally {
+    // Share reads the file asynchronously — delete after a grace period.
+    window.setTimeout(() => {
+      void Filesystem.deleteFile({
+        path,
+        directory: Directory.Cache,
+      }).catch(() => {});
+    }, 120_000);
+  }
 }
 
 /** Which of the two download tiers to request. */
@@ -153,20 +255,137 @@ export function describeTier(artwork: Artwork, tier: DownloadTier): string {
   return "Full resolution";
 }
 
+function parseFilename(disposition: string | null, fallback: string): string {
+  if (!disposition) return fallback;
+  const utf = /filename\*=UTF-8''([^;]+)/i.exec(disposition);
+  if (utf?.[1]) {
+    try {
+      return decodeURIComponent(utf[1].trim());
+    } catch {
+      /* fall through */
+    }
+  }
+  const plain = /filename="?([^";]+)"?/i.exec(disposition);
+  return plain?.[1]?.trim() || fallback;
+}
+
 /**
- * Download an artwork image to the user's device via the backend proxy so S3
- * CORS does not block the fetch. In browsers that support the File System Access
- * API the user gets a "Save As" dialog; elsewhere it falls back to a standard
- * download. Freelance originals require the artist's permission and are blocked.
+ * Read a fetch body in chunks, reporting progress. Prefer this over
+ * `res.blob()` so the UI can show activity and large masters don't feel hung.
+ */
+async function readBody(
+  res: Response,
+  onProgress?: (p: DownloadProgress) => void,
+): Promise<Blob> {
+  const total = Number(res.headers.get("content-length")) || 0;
+  const type = res.headers.get("content-type") || "image/jpeg";
+
+  if (!res.body) {
+    const blob = await res.blob();
+    onProgress?.({ received: blob.size, total: blob.size });
+    return blob;
+  }
+
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let received = 0;
+
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+    chunks.push(value);
+    received += value.byteLength;
+    onProgress?.({ received, total });
+  }
+
+  const bytes = new Uint8Array(received);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new Blob([bytes], { type });
+}
+
+/**
+ * Desktop Chromium: stream into Save As. Skipped on native / iOS — the picker
+ * API is absent there, and buffering into an <a download> is unreliable in
+ * WKWebView.
+ */
+async function streamToSavePicker(
+  res: Response,
+  filename: string,
+  contentType: string,
+  onProgress?: (p: DownloadProgress) => void,
+): Promise<boolean> {
+  if (Capacitor.isNativePlatform()) return false;
+
+  const picker = (window as unknown as SaveFilePickerWindow).showSaveFilePicker;
+  if (!picker || !res.body) return false;
+
+  const ext = extForType(contentType);
+  let handle;
+  try {
+    handle = await picker({
+      suggestedName: filename,
+      types: [
+        {
+          description: "Image",
+          accept: { [contentType || "image/jpeg"]: [`.${ext}`] },
+        },
+      ],
+    });
+  } catch (err) {
+    if (isAbortError(err)) throw err;
+    return false;
+  }
+
+  const writable = await handle.createWritable();
+  const total = Number(res.headers.get("content-length")) || 0;
+  const reader = res.body.getReader();
+  let received = 0;
+
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      await writable.write(value);
+      received += value.byteLength;
+      onProgress?.({ received, total });
+    }
+    await writable.close();
+    return true;
+  } catch (err) {
+    try {
+      await writable.abort();
+    } catch {
+      /* ignore */
+    }
+    throw err;
+  }
+}
+
+function prefersShareSheetSave(): boolean {
+  if (Capacitor.isNativePlatform()) return true;
+  // iPhone / iPad Safari (not Capacitor) — <a download> is ignored; share works.
+  const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
+  return /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && "ontouchend" in document);
+}
+
+/**
+ * Download an artwork image via the backend proxy (avoids S3 CORS).
  *
- * `tier: "high"` requests the museum master and requires an active Narsil Pro
- * subscription — the backend checks entitlement itself and answers 402, which
- * surfaces here as `ProRequiredError` for the caller to turn into a paywall.
+ *  - Desktop Chromium → Save As (streamed)
+ *  - iOS / Capacitor WebView → system share sheet (Save Image / Files)
+ *  - Other browsers → classic download
  */
 export async function downloadArtwork(
   artwork: Artwork,
   showToast: ShowToast,
   tier: DownloadTier = "standard",
+  onProgress?: (p: DownloadProgress) => void,
 ): Promise<void> {
   if (artwork.origin === "artist-original") {
     showToast("Extract needs the artist's permission");
@@ -177,58 +396,101 @@ export async function downloadArtwork(
     `${API_URL}/api/artworks/${encodeURIComponent(artwork.id)}/download` +
     `?res=${tier}`;
 
-  let blob: Blob;
+  let res: Response;
   try {
-    const res = await ngrokFetch(downloadUrl, {
+    res = await ngrokFetch(downloadUrl, {
       mode: "cors",
       headers: await authHeaders(),
     });
-    if (res.status === 403) {
-      showToast("Extract needs the artist's permission");
-      return;
-    }
-    if (res.status === 402) {
-      // Let the caller open the paywall — a toast here would bury the offer.
-      throw new ProRequiredError();
-    }
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    blob = await res.blob();
-  } catch (err) {
-    if (err instanceof ProRequiredError) throw err;
-    // Last resort — open the display image so the user can save manually.
-    const fallback = fullResUrl(artwork.image);
-    if (typeof window !== "undefined") window.open(fallback, "_blank", "noopener");
-    showToast("Opened image in a new tab to save");
+  } catch {
+    showToast("Could not reach the archive — try again");
     return;
   }
 
-  const ext = extForType(blob.type);
-  const filename = `${slugify(artwork.title)}${tier === "high" ? "-hires" : ""}.${ext}`;
-  const picker = (window as unknown as SaveFilePickerWindow).showSaveFilePicker;
+  if (res.status === 403) {
+    showToast("Extract needs the artist's permission");
+    return;
+  }
+  if (res.status === 402) {
+    throw new ProRequiredError();
+  }
+  if (!res.ok) {
+    showToast(`Extract failed (${res.status})`);
+    return;
+  }
 
-  if (picker) {
+  const contentType = res.headers.get("content-type") || "image/jpeg";
+  const ext = extForType(contentType);
+  const fallbackName = `${slugify(artwork.title)}${tier === "high" ? "-hires" : ""}.${ext}`;
+  const filename = parseFilename(
+    res.headers.get("content-disposition"),
+    fallbackName,
+  );
+
+  // Desktop Save As — stream without holding a second full copy when possible.
+  if (!prefersShareSheetSave()) {
     try {
-      const handle = await picker({
-        suggestedName: filename,
-        types: [
-          {
-            description: "Image",
-            accept: { [blob.type || "image/jpeg"]: [`.${ext}`] },
-          },
-        ],
-      });
-      const writable = await handle.createWritable();
-      await writable.write(blob);
-      await writable.close();
-      showToast(`"${artwork.title}" saved`);
-      return;
+      const streamed = await streamToSavePicker(
+        res,
+        filename,
+        contentType,
+        onProgress,
+      );
+      if (streamed) {
+        showToast(`"${artwork.title}" saved`);
+        return;
+      }
     } catch (err) {
-      // AbortError = user cancelled the dialog; stay silent in that case.
-      if (err instanceof DOMException && err.name === "AbortError") return;
-      // Any other picker failure falls through to the classic download.
+      if (isAbortError(err)) return;
+      try {
+        res = await ngrokFetch(downloadUrl, {
+          mode: "cors",
+          headers: await authHeaders(),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      } catch {
+        showToast("Extract failed while saving");
+        return;
+      }
     }
   }
 
-  anchorDownload(blob, filename);
-  showToast(`"${artwork.title}" downloaded`);
+  let blob: Blob;
+  try {
+    blob = await readBody(res, onProgress);
+  } catch {
+    showToast("Extract failed while downloading");
+    return;
+  }
+
+  if (blob.size === 0) {
+    showToast("Extract returned an empty file");
+    return;
+  }
+
+  if (prefersShareSheetSave()) {
+    try {
+      const outcome = await saveViaShareSheet(blob, filename, artwork.title);
+      if (outcome === "cancelled") return;
+      if (outcome !== "unavailable") {
+        showToast(
+          outcome === "shared"
+            ? `"${artwork.title}" ready to save`
+            : `"${artwork.title}" saved`,
+        );
+        return;
+      }
+      // Rare: iOS UA without canShare(files) and not Capacitor — try anchor.
+    } catch {
+      showToast("Extract failed while saving");
+      return;
+    }
+  }
+
+  try {
+    anchorDownload(blob, filename);
+    showToast(`"${artwork.title}" downloaded`);
+  } catch {
+    showToast("Extract failed while saving");
+  }
 }
