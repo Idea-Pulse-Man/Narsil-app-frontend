@@ -10,8 +10,8 @@ import { historyEras } from "@/data/history";
 import { useCatalog } from "@/data/catalog";
 import TopTabs from "./TopTabs";
 import BottomNav from "./BottomNav";
-import { isFeedScreen, type Screen } from "./navigation";
-import ArtFeed, { type FeedFilter } from "./ArtFeed";
+import { type Screen } from "./navigation";
+import ArtFeed from "./ArtFeed";
 import BuyView from "./BuyView";
 import CreateView from "./CreateView";
 import DiscoverView from "./DiscoverView";
@@ -73,10 +73,6 @@ export default function MobileShell() {
   const [visitedScreens, setVisitedScreens] = useState<ReadonlySet<Screen>>(
     () => new Set<Screen>(["for-you"]),
   );
-  // For You source toggle (client sketch: "Mix of historical and freelance → add toggle").
-  const [feedFilter, setFeedFilter] = useState<FeedFilter>("all");
-  // Once a source is chosen the toggle hides; it returns when For You is re-selected.
-  const [showFeedToggle, setShowFeedToggle] = useState(true);
   const [activeArtist, setActiveArtist] = useState<Artist | null>(null);
   const [activeArtworkId, setActiveArtworkId] = useState<string | null>(null);
   /** The age opened to its own full-screen list from the Discover timeline. */
@@ -191,7 +187,6 @@ export default function MobileShell() {
       if (tutorialActive) return;
       setScreen(next);
       setClean(false);
-      if (next === "for-you") setShowFeedToggle(true);
     },
     [tutorialActive]
   );
@@ -336,43 +331,6 @@ export default function MobileShell() {
           )}
         </AnimatePresence>
 
-        {/* Feed source toggle — mix / museum / freelance */}
-        <AnimatePresence>
-          {showChrome && isFeedScreen(screen) && showFeedToggle && (
-            <motion.div
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              className="absolute inset-x-0 top-[calc(env(safe-area-inset-top)+3.25rem)] z-30 flex justify-center"
-            >
-              <div className="flex items-center rounded-full border border-accent/25 bg-ink/55 p-1 backdrop-blur-xl">
-                {(
-                  [
-                    { id: "all", label: "Mix" },
-                    { id: "museum", label: "Museum" },
-                    { id: "freelance", label: "Freelance" },
-                  ] as { id: FeedFilter; label: string }[]
-                ).map((opt) => (
-                  <button
-                    key={opt.id}
-                    onClick={() => {
-                      setFeedFilter(opt.id);
-                      setShowFeedToggle(false);
-                    }}
-                    className={`rounded-full px-4 py-1.5 text-[12px] font-medium transition-all ${
-                      feedFilter === opt.id
-                        ? "bg-accent text-ink shadow-sm"
-                        : "text-white/60 hover:text-white/85"
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         {/* Screens — keep-alive after first visit. Hide inactive tabs with
             `hidden` instead of unmounting so tab switches stay instant and
             For You does not rebuild its feed when you come back. */}
@@ -386,13 +344,11 @@ export default function MobileShell() {
               inert={screen !== "for-you" ? true : undefined}
             >
               <ArtFeed
-                key={`feed-${feedFilter}`}
                 showToast={showToast}
                 onOpenArtist={openArtist}
                 clean={clean}
                 onCleanChange={setClean}
                 onViewIndex={handleViewIndex}
-                filter={feedFilter}
                 tutorial={tutorialBridge}
               />
             </div>
@@ -452,10 +408,6 @@ export default function MobileShell() {
               <CreateView
                 showToast={showToast}
                 onPublished={() => {
-                  // Jump to the feed filtered to freelance originals, where the
-                  // freshly-posted (newest) artwork sorts to the front.
-                  setFeedFilter("freelance");
-                  setShowFeedToggle(true);
                   setScreen("for-you");
                 }}
               />
