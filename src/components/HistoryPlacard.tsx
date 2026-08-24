@@ -11,12 +11,17 @@ interface HistoryPlacardProps {
   artist: Artist;
   open: boolean;
   onClose: () => void;
-  /** Let swipes on the dimmed area reach the feed behind (For You). */
+  /**
+   * For You feed: dimmed area stays pass-through so swipe up/down still
+   * changes artworks (iOS-safe). Outside taps still close via capture listeners.
+   */
   passThroughBackdrop?: boolean;
 }
 
 const CLOSE_OFFSET = 80;
 const CLOSE_VELOCITY = 400;
+/** Max movement (px) still counted as a tap — keeps feed swipes working on iOS. */
+const OUTSIDE_TAP_SLOP = 12;
 
 /** Museum name shown in the placard — the artwork's holding institution. */
 function museumName(artwork: Artwork): string {
@@ -75,6 +80,7 @@ export default function HistoryPlacard({
   const [tagBusy, setTagBusy] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
   const headerDragStart = useRef<{ y: number; t: number } | null>(null);
 
   const displayDescription = placardDescription(artwork, artist);
@@ -86,6 +92,59 @@ export default function HistoryPlacard({
     setDescExpanded(false);
     scrollRef.current?.scrollTo({ top: 0 });
   }, [artwork.id]);
+
+  // For You: backdrop stays pointer-events-none so vertical swipes keep
+  // scrolling the feed (works on iOS WKWebView). Detect a true tap outside
+  // the sheet in the capture phase and close — swipes exceed the slop and
+  // are ignored here.
+  useEffect(() => {
+    if (!open || !passThroughBackdrop) return;
+
+    let start: { x: number; y: number } | null = null;
+    let tracking = false;
+
+    const isOutsideSheet = (target: EventTarget | null) => {
+      const sheet = sheetRef.current;
+      if (!sheet || !(target instanceof Node)) return true;
+      return !sheet.contains(target);
+    };
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      if (!isOutsideSheet(e.target)) {
+        tracking = false;
+        start = null;
+        return;
+      }
+      tracking = true;
+      start = { x: e.clientX, y: e.clientY };
+    };
+
+    const onPointerUp = (e: PointerEvent) => {
+      if (!tracking || !start) return;
+      tracking = false;
+      const dx = Math.abs(e.clientX - start.x);
+      const dy = Math.abs(e.clientY - start.y);
+      start = null;
+      if (dx <= OUTSIDE_TAP_SLOP && dy <= OUTSIDE_TAP_SLOP) {
+        onClose();
+      }
+    };
+
+    const onPointerCancel = () => {
+      tracking = false;
+      start = null;
+    };
+
+    window.addEventListener("pointerdown", onPointerDown, true);
+    window.addEventListener("pointerup", onPointerUp, true);
+    window.addEventListener("pointercancel", onPointerCancel, true);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown, true);
+      window.removeEventListener("pointerup", onPointerUp, true);
+      window.removeEventListener("pointercancel", onPointerCancel, true);
+    };
+  }, [open, passThroughBackdrop, onClose]);
 
   const submitTag = async () => {
     const tag = tagDraft.trim();
@@ -113,6 +172,7 @@ export default function HistoryPlacard({
             }`}
           />
           <motion.div
+            ref={sheetRef}
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
@@ -158,7 +218,7 @@ export default function HistoryPlacard({
               </p>
               <p className="mt-3 text-[11px] text-ink/40">
                 {passThroughBackdrop
-                  ? "Swipe the artwork above for the next piece"
+                  ? "Tap above to close · swipe the artwork for the next piece"
                   : "Swipe down here to close"}
               </p>
             </div>
