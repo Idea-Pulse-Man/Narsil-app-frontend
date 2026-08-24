@@ -12,13 +12,13 @@ export const WORLD = {
   collections: "Collections",
 
   /** Profile tab (screen id `you`) */
-  member: "Member",
+  member: "profile",
 
   /** Shop tab (screen id `buy`) */
-  gallery: "The Gallery",
+  gallery: "gallery",
 
   /** Saved / bookmarks (screen id `saved`) — no cart; Vault is Saved */
-  vault: "The Vault",
+  vault: "vault",
   vaultEmpty:
     "Your vault is currently empty. Discover the archives to secure your next piece.",
 
@@ -30,7 +30,7 @@ export const WORLD = {
   /** Daily quiz */
   royalAssessment: "The Royal Assessment",
   /** Bottom-nav label — short enough for the pill */
-  assessmentNav: "Assessment",
+  assessmentNav: "Study",
   appraisal: "Appraisal",
 
   /** Pro subscription display name */

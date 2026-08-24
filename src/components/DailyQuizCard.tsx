@@ -18,7 +18,7 @@ interface DailyQuizCardProps {
 
 /**
  * Daily quiz entry on Discover. Hidden after today's assessment is complete;
- * review lives on the Assessment tab. Re-reads localStorage when `refreshKey`
+ * review lives on the Study tab. Re-reads localStorage when `refreshKey`
  * changes so a fresh completion (or resume) updates immediately.
  */
 export default function DailyQuizCard({
@@ -39,7 +39,7 @@ export default function DailyQuizCard({
   const cta = inProgress ? "Resume" : "Play";
 
   // Once today's assessment is finished, Discover doesn't need the card —
-  // review lives on the Assessment tab.
+  // review lives on the Study tab.
   if (done && !inProgress) return null;
 
   return (

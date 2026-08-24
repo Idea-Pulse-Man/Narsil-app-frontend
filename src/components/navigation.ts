@@ -2,8 +2,8 @@
  * Narsil navigation model.
  *
  * Eight screens are reachable through two persistent bars (see MobileShell):
- *  - TOP tabs (content browsing): Discover · Narsil · The Gallery · Search
- *  - BOTTOM bar (app sections):   The Vault · Create · Member
+ *  - TOP tabs (content browsing): Discover · Narsil · gallery · Search
+ *  - BOTTOM bar (app sections):   vault · Create · profile
  *
  * Screen ids stay stable; labels are lore copy from worldCopy.
  * A single `Screen` is active at a time; whichever bar owns it highlights it.
