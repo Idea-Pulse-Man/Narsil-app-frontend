@@ -12,13 +12,13 @@ export const WORLD = {
   collections: "Collections",
 
   /** Profile tab (screen id `you`) */
-  member: "profile",
+  member: "Profile",
 
   /** Shop tab (screen id `buy`) */
-  gallery: "gallery",
+  gallery: "Gallery",
 
   /** Saved / bookmarks (screen id `saved`) — no cart; Vault is Saved */
-  vault: "vault",
+  vault: "Vault",
   vaultEmpty:
     "Your vault is currently empty. Discover the archives to secure your next piece.",
 

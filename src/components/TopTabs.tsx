@@ -15,7 +15,7 @@ export default function TopTabs({ active, onChange }: TopTabsProps) {
   return (
     <div className="pointer-events-none absolute inset-x-0 top-0 z-30 pt-[env(safe-area-inset-top)]">
       <div className="pointer-events-auto flex items-center px-2.5 pt-3">
-        {/* One evenly spaced cluster: Discover · Narsil · gallery · Search */}
+        {/* One evenly spaced cluster: Discover · Narsil · Gallery · Search */}
         <div className="flex min-w-0 flex-1 items-center justify-evenly">
           {navTabs.map((tab) => {
             const isActive = tab.id === active;
