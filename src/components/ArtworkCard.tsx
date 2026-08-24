@@ -312,7 +312,6 @@ export default function ArtworkCard({
               <ActionRail
                 artist={artist}
                 artworkId={artwork.id}
-                artworkTitle={artwork.title}
                 onOpenArtist={() => onOpenArtist(artist.id)}
                 onOpenComments={() => setDiscussionOpen(true)}
                 showToast={showToast}

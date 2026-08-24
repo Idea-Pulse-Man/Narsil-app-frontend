@@ -5,11 +5,12 @@ import {
   describeTier,
   downloadArtwork,
   ProRequiredError,
+  shareArtwork,
   type DownloadTier,
 } from "@/lib/download";
 import { WORLD } from "@/data/worldCopy";
 import { useAppState } from "./AppState";
-import { CloseIcon, DownloadIcon } from "./Icons";
+import { CloseIcon, DownloadIcon, ShareIcon } from "./Icons";
 import type { ToastState } from "./Toast";
 
 interface DownloadSheetProps {
@@ -19,14 +20,14 @@ interface DownloadSheetProps {
   showToast: (message: string, variant?: ToastState["variant"]) => void;
 }
 
+type SheetBusy = DownloadTier | "share";
+
 /**
- * Resolution picker shown when saving an artwork.
+ * Extract sheet: Standard download, Master File (Pro), and share link.
  *
- * The two options are genuinely different files — the museum's IIIF server
- * resizes on request, so Standard is a real 2000px downscale and High
- * Resolution is the master scan. Nothing here relabels the same bytes: an App
- * Review reviewer who downloads both gets two different files, and a
- * subscriber who compares them sees why they paid.
+ * The two download options are genuinely different files — the museum's IIIF
+ * server resizes on request, so Standard is a real 2000px downscale and High
+ * Resolution is the master scan. Nothing here relabels the same bytes.
  *
  * The Pro check here only decides what to OFFER. The backend re-checks
  * entitlement and answers 402, which arrives as `ProRequiredError` — so a
@@ -38,7 +39,7 @@ export default function DownloadSheet({
   showToast,
 }: DownloadSheetProps) {
   const { isPro, requestPro } = useAppState();
-  const [busy, setBusy] = useState<DownloadTier | null>(null);
+  const [busy, setBusy] = useState<SheetBusy | null>(null);
 
   const run = async (tier: DownloadTier) => {
     if (!artwork) return;
@@ -67,6 +68,17 @@ export default function DownloadSheet({
       return;
     }
     void run("high");
+  };
+
+  const handleShare = async () => {
+    if (!artwork) return;
+    setBusy("share");
+    try {
+      await shareArtwork(artwork.id, artwork.title, showToast);
+      onClose();
+    } finally {
+      setBusy(null);
+    }
   };
 
   return (
@@ -113,23 +125,6 @@ export default function DownloadSheet({
               <button
                 type="button"
                 disabled={busy !== null}
-                onClick={() => void run("standard")}
-                className="flex w-full items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3.5 text-left transition-colors enabled:hover:bg-white/[0.06] disabled:opacity-50"
-              >
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium">Standard</span>
-                  <span className="mt-0.5 block text-[12px] text-white/45">
-                    {describeTier(artwork, "standard")} · Free
-                  </span>
-                </span>
-                <span className="shrink-0 text-white/40">
-                  {busy === "standard" ? "…" : <DownloadIcon className="h-5 w-5" />}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                disabled={busy !== null}
                 onClick={handleHigh}
                 className="flex w-full items-center justify-between gap-3 rounded-2xl border border-amber-300/25 bg-gradient-to-br from-amber-300/12 to-amber-300/[0.04] px-4 py-3.5 text-left transition-colors enabled:hover:border-amber-300/45 disabled:opacity-50"
               >
@@ -152,6 +147,40 @@ export default function DownloadSheet({
                       Guild
                     </span>
                   )}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                disabled={busy !== null}
+                onClick={() => void run("standard")}
+                className="flex w-full items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3.5 text-left transition-colors enabled:hover:bg-white/[0.06] disabled:opacity-50"
+              >
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium">Standard</span>
+                  <span className="mt-0.5 block text-[12px] text-white/45">
+                    {describeTier(artwork, "standard")} · Free
+                  </span>
+                </span>
+                <span className="shrink-0 text-white/40">
+                  {busy === "standard" ? "…" : <DownloadIcon className="h-5 w-5" />}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                disabled={busy !== null}
+                onClick={() => void handleShare()}
+                className="flex w-full items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3.5 text-left transition-colors enabled:hover:bg-white/[0.06] disabled:opacity-50"
+              >
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium">Share link</span>
+                  <span className="mt-0.5 block text-[12px] text-white/45">
+                    Send or copy a link to this artwork
+                  </span>
+                </span>
+                <span className="shrink-0 text-white/40">
+                  {busy === "share" ? "…" : <ShareIcon className="h-5 w-5" />}
                 </span>
               </button>
             </div>

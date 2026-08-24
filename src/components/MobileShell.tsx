@@ -552,9 +552,9 @@ export default function MobileShell() {
           )}
         </AnimatePresence>
 
-        {/* Download resolution picker. Rendered here rather than in the action
-            rail: the rail's root is a 44px-wide absolute column, so an overlay
-            inside it would size to the rail instead of the screen. */}
+        {/* Extract sheet (Standard / Master File / Share). Rendered here rather
+            than in the action rail: the rail's root is a 44px-wide absolute
+            column, so an overlay inside it would size to the rail. */}
         <DownloadSheet
           artwork={downloadRequest}
           onClose={dismissDownload}

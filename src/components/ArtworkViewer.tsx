@@ -3,7 +3,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import type { Artwork, Artist } from "@/data";
 import { originLabel, WORLD } from "@/data";
 import { useAppState } from "./AppState";
-import { downloadArtwork, shareArtwork } from "@/lib/download";
 import ZoomableImage, { type ZoomableImageHandle } from "./ZoomableImage";
 import HistoryPlacard from "./HistoryPlacard";
 import ArtDiscussion from "./ArtDiscussion";
@@ -12,7 +11,6 @@ import {
   HeartIcon,
   BookmarkIcon,
   DownloadIcon,
-  ShareIcon,
   CommentIcon,
   MinimizeIcon,
   ChevronUpIcon,
@@ -61,7 +59,7 @@ function ActionButton({
 
 /**
  * Full-screen "view mode" for a single artwork: a zoomable canvas to inspect the
- * work up close, quick actions (like / save / download / share / discuss), and
+ * work up close, quick actions (like / save / extract / discuss), and
  * the museum placard as a slide-up info layer. Opened from grid tiles (Saved,
  * History, Search, You) so a saved piece is something you can actually study,
  * not just read about.
@@ -74,7 +72,8 @@ export default function ArtworkViewer({
   showToast,
   onOpenArtist,
 }: ArtworkViewerProps) {
-  const { isLiked, toggleLiked, isSaved, toggleSaved } = useAppState();
+  const { isLiked, toggleLiked, isSaved, toggleSaved, requestDownload } =
+    useAppState();
   const zoomRef = useRef<ZoomableImageHandle>(null);
 
   const [chrome, setChrome] = useState(true);
@@ -113,9 +112,7 @@ export default function ArtworkViewer({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, infoOpen, discussionOpen, onClose]);
 
-  const handleShare = () => shareArtwork(artwork.id, artwork.title, showToast);
-
-  const handleDownload = () => downloadArtwork(artwork, showToast);
+  const handleDownload = () => requestDownload(artwork);
 
   const handleDismissDrag = useCallback((dy: number) => {
     setDragY(dy);
@@ -299,10 +296,6 @@ export default function ArtworkViewer({
                       onClick={handleDownload}
                     >
                       <DownloadIcon className="h-5 w-5" />
-                    </ActionButton>
-  
-                    <ActionButton label="Share" onClick={handleShare}>
-                      <ShareIcon className="h-5 w-5" />
                     </ActionButton>
                   </div>
                 </motion.div>

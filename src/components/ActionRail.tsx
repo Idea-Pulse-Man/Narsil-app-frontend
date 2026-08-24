@@ -6,17 +6,14 @@ import {
   HeartIcon,
   DownloadIcon,
   CommentIcon,
-  ShareIcon,
   BookmarkIcon,
 } from "./Icons";
 import { useAppState } from "./AppState";
-import { shareArtwork } from "@/lib/download";
 import type { ToastState } from "./Toast";
 
 interface ActionRailProps {
   artist: Artist;
   artworkId: string;
-  artworkTitle: string;
   /** Opens the artist profile (the rail's top button is profile-only). */
   onOpenArtist: () => void;
   onOpenComments: () => void;
@@ -58,7 +55,6 @@ function RailButton({
 export default function ActionRail({
   artist,
   artworkId,
-  artworkTitle,
   onOpenArtist,
   onOpenComments,
   showToast,
@@ -71,11 +67,8 @@ export default function ActionRail({
   const liked = isLiked(artworkId);
   const saved = isSaved(artworkId);
 
-  const handleShare = () => shareArtwork(artworkId, artworkTitle, showToast);
-
-  // Downloading asks for a resolution first — Standard is free, High
-  // Resolution is a Narsil Pro perk. The sheet itself is rendered by
-  // MobileShell: this rail is a 44px-wide absolutely-positioned column, so an
+  // Opens the extract sheet (Standard / Master File / Share link). The sheet
+  // itself is rendered by MobileShell: this rail is a 44px-wide column, so an
   // overlay rendered here would size itself to the rail, not the screen.
   const handleDownload = () => {
     const artwork = getArtwork(artworkId);
@@ -154,15 +147,9 @@ export default function ActionRail({
         <CommentIcon className="h-5 w-5" />
       </RailButton>
 
-      {/* 5. Extract from Archive — public domain saves to a folder you choose;
-          freelance originals need the artist's permission. */}
+      {/* 5. Extract from Archive — opens Standard / Master File / Share link. */}
       <RailButton label={WORLD.extractFromArchive} onClick={handleDownload}>
         <DownloadIcon className="h-5 w-5" />
-      </RailButton>
-
-      {/* 6. Share */}
-      <RailButton label="Share" onClick={handleShare}>
-        <ShareIcon className="h-5 w-5" />
       </RailButton>
     </div>
   );
