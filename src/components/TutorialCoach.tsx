@@ -34,7 +34,7 @@ const STEPS: CoachStep[] = [
   },
   {
     label: "Reveal the history",
-    instruction: "Tap the Description button below to open the museum placard.",
+    instruction: "Tap the artwork name below to open the museum placard.",
     hint: "tap",
     zone: "footer",
     done: "There's the story",
@@ -248,11 +248,11 @@ function HoldHint() {
 }
 
 function FooterTapHint() {
-  // Compact cue that sits directly on the Description pill (bottom-left).
+  // Compact cue that sits on the artwork title (bottom-left).
   return (
     <div className="flex flex-col items-start">
       <span className="mb-1.5 rounded-full bg-white px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-ink shadow-[0_4px_24px_rgba(0,0,0,0.45)]">
-        Tap the button
+        Tap the title
       </span>
       <div className="relative flex h-14 w-28 items-center justify-start pl-6">
         <div className="absolute left-4 top-1/2 h-12 w-12 -translate-y-1/2 rounded-full bg-white/25 blur-xl" />
