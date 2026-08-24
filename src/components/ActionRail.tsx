@@ -7,7 +7,6 @@ import {
   DownloadIcon,
   CommentIcon,
   ShareIcon,
-  EyeOffIcon,
   BookmarkIcon,
 } from "./Icons";
 import { useAppState } from "./AppState";
@@ -22,8 +21,6 @@ interface ActionRailProps {
   onOpenArtist: () => void;
   onOpenComments: () => void;
   showToast: (message: string, variant?: ToastState["variant"]) => void;
-  /** Hides all on-screen UI (clean view); a tap on the artwork restores it. */
-  onHideUi: () => void;
   /** Subtle highlight used while the tutorial explains the quick actions. */
   highlight?: boolean;
 }
@@ -65,7 +62,6 @@ export default function ActionRail({
   onOpenArtist,
   onOpenComments,
   showToast,
-  onHideUi,
   highlight = false,
 }: ActionRailProps) {
   const { isLiked, toggleLiked, isSaved, toggleSaved, requestDownload } =
@@ -167,12 +163,6 @@ export default function ActionRail({
       {/* 6. Share */}
       <RailButton label="Share" onClick={handleShare}>
         <ShareIcon className="h-5 w-5" />
-      </RailButton>
-
-      {/* 7. Hide interface — collapses all UI for an unobstructed view.
-          A single tap on the artwork brings everything back. */}
-      <RailButton label="Hide interface" onClick={onHideUi}>
-        <EyeOffIcon className="h-5 w-5" />
       </RailButton>
     </div>
   );

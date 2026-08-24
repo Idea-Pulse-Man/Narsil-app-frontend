@@ -241,7 +241,7 @@ export default function ArtworkCard({
   };
 
   // Swallow the click after a horizontal swipe; otherwise click exits clean view
-  // (reliable mouse path, and blocks fading Eye-off from turning clean back on).
+  // (reliable mouse path after long-press clean mode).
   const handleClickCapture = (e: React.MouseEvent) => {
     if (suppressClick.current) {
       suppressClick.current = false;
@@ -316,10 +316,6 @@ export default function ArtworkCard({
                 onOpenArtist={() => onOpenArtist(artist.id)}
                 onOpenComments={() => setDiscussionOpen(true)}
                 showToast={showToast}
-                onHideUi={() => {
-                  cleanRef.current = true;
-                  setClean(true);
-                }}
                 highlight={actionsTutorial}
               />
             </div>

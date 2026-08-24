@@ -272,7 +272,7 @@ function FooterTapHint() {
   );
 }
 
-// Labels match the live ActionRail order (Hide interface replaced Fit / Fill).
+// Labels match the live ActionRail order.
 const QUICK_ACTIONS = [
   "Artist profile",
   "Like",
@@ -280,7 +280,6 @@ const QUICK_ACTIONS = [
   "Comment",
   "Extract from Archive",
   "Share",
-  "Hide interface",
 ];
 
 function ActionsExplainer({ onAdvance }: { onAdvance?: () => void }) {

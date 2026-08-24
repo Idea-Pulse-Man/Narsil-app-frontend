@@ -14,7 +14,7 @@ export default function TopTabs({ active, onChange }: TopTabsProps) {
 
   return (
     <div className="pointer-events-none absolute inset-x-0 top-0 z-30 pt-[env(safe-area-inset-top)]">
-      <div className="pointer-events-auto flex items-center px-2.5 pt-3">
+      <div className="pointer-events-auto flex items-center px-3 pb-2 pt-4">
         {/* One evenly spaced cluster: Discover · Narsil · Gallery · Search */}
         <div className="flex min-w-0 flex-1 items-center justify-evenly">
           {navTabs.map((tab) => {
@@ -25,7 +25,7 @@ export default function TopTabs({ active, onChange }: TopTabsProps) {
                 onClick={() => onChange?.(tab.id)}
                 whileTap={{ scale: 0.94 }}
                 aria-current={isActive ? "page" : undefined}
-                className="relative shrink-0 rounded-full px-2 py-1.5 text-[12px] font-medium text-white"
+                className="relative shrink-0 rounded-full px-3 py-2 text-[14px] font-medium text-white"
               >
                 {isActive && (
                   <motion.span
@@ -48,7 +48,7 @@ export default function TopTabs({ active, onChange }: TopTabsProps) {
             whileTap={{ scale: 0.94 }}
             aria-label={WORLD.discover}
             aria-current={isSearchActive ? "page" : undefined}
-            className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white"
+            className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white"
           >
             {isSearchActive && (
               <motion.span
@@ -58,7 +58,7 @@ export default function TopTabs({ active, onChange }: TopTabsProps) {
               />
             )}
             <SearchIcon
-              className={`relative h-[15px] w-[15px] ${isSearchActive ? "text-accent" : ""}`}
+              className={`relative h-[17px] w-[17px] ${isSearchActive ? "text-accent" : ""}`}
             />
           </motion.button>
         </div>
