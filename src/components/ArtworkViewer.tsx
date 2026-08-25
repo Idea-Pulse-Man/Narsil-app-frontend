@@ -11,11 +11,13 @@ import {
   HeartIcon,
   BookmarkIcon,
   DownloadIcon,
+  ShareIcon,
   CommentIcon,
   MinimizeIcon,
   ChevronUpIcon,
 } from "./Icons";
 import type { ToastState } from "./Toast";
+import { shareArtwork } from "@/lib/download";
 
 interface ArtworkViewerProps {
   artwork: Artwork;
@@ -59,7 +61,7 @@ function ActionButton({
 
 /**
  * Full-screen "view mode" for a single artwork: a zoomable canvas to inspect the
- * work up close, quick actions (like / save / extract / discuss), and
+ * work up close, quick actions (like / save / extract / share / discuss), and
  * the museum placard as a slide-up info layer. Opened from grid tiles (Saved,
  * History, Search, You) so a saved piece is something you can actually study,
  * not just read about.
@@ -113,6 +115,7 @@ export default function ArtworkViewer({
   }, [open, infoOpen, discussionOpen, onClose]);
 
   const handleDownload = () => requestDownload(artwork);
+  const handleShare = () => shareArtwork(artwork.id, artwork.title, showToast);
 
   const handleDismissDrag = useCallback((dy: number) => {
     setDragY(dy);
@@ -296,6 +299,10 @@ export default function ArtworkViewer({
                       onClick={handleDownload}
                     >
                       <DownloadIcon className="h-5 w-5" />
+                    </ActionButton>
+
+                    <ActionButton label="Share" onClick={handleShare}>
+                      <ShareIcon className="h-5 w-5" />
                     </ActionButton>
                   </div>
                 </motion.div>

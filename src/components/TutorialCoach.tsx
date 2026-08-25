@@ -279,6 +279,7 @@ const QUICK_ACTIONS = [
   "Save to vault",
   "Comment",
   "Extract from Archive",
+  "Share",
 ];
 
 function ActionsExplainer({ onAdvance }: { onAdvance?: () => void }) {

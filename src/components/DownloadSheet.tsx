@@ -5,13 +5,12 @@ import {
   describeTier,
   downloadArtwork,
   ProRequiredError,
-  shareArtwork,
   type DownloadProgress,
   type DownloadTier,
 } from "@/lib/download";
 import { WORLD } from "@/data/worldCopy";
 import { useAppState } from "./AppState";
-import { CloseIcon, DownloadIcon, ShareIcon } from "./Icons";
+import { CloseIcon, DownloadIcon } from "./Icons";
 import type { ToastState } from "./Toast";
 
 interface DownloadSheetProps {
@@ -20,8 +19,6 @@ interface DownloadSheetProps {
   onClose: () => void;
   showToast: (message: string, variant?: ToastState["variant"]) => void;
 }
-
-type SheetBusy = DownloadTier | "share";
 
 function formatProgress(progress: DownloadProgress | null): string {
   if (!progress) return "…";
@@ -37,10 +34,10 @@ function formatProgress(progress: DownloadProgress | null): string {
 }
 
 /**
- * Extract sheet: Standard download, Master File (Pro), and share link.
+ * Resolution picker shown when saving an artwork.
  *
- * The two download options are genuinely different files — the museum's IIIF
- * server resizes on request, so Standard is a real 2000px downscale and High
+ * The two options are genuinely different files — the museum's IIIF server
+ * resizes on request, so Standard is a real 2000px downscale and High
  * Resolution is the master scan. Nothing here relabels the same bytes.
  *
  * The Pro check here only decides what to OFFER. The backend re-checks
@@ -53,7 +50,7 @@ export default function DownloadSheet({
   showToast,
 }: DownloadSheetProps) {
   const { isPro, requestPro } = useAppState();
-  const [busy, setBusy] = useState<SheetBusy | null>(null);
+  const [busy, setBusy] = useState<DownloadTier | null>(null);
   const [progress, setProgress] = useState<DownloadProgress | null>(null);
 
   const run = async (tier: DownloadTier) => {
@@ -85,17 +82,6 @@ export default function DownloadSheet({
       return;
     }
     void run("high");
-  };
-
-  const handleShare = async () => {
-    if (!artwork) return;
-    setBusy("share");
-    try {
-      await shareArtwork(artwork.id, artwork.title, showToast);
-      onClose();
-    } finally {
-      setBusy(null);
-    }
   };
 
   const progressLabel = formatProgress(progress);
@@ -133,7 +119,7 @@ export default function DownloadSheet({
               <button
                 type="button"
                 onClick={onClose}
-                disabled={busy !== null && busy !== "share"}
+                disabled={busy !== null}
                 aria-label="Close"
                 className="shrink-0 rounded-full p-2 text-white/50 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-40"
               >
@@ -141,7 +127,7 @@ export default function DownloadSheet({
               </button>
             </header>
 
-            {busy && busy !== "share" && (
+            {busy && (
               <div className="mb-3 overflow-hidden rounded-full bg-white/10">
                 <div
                   className="h-1 rounded-full bg-accent transition-[width] duration-200"
@@ -208,23 +194,6 @@ export default function DownloadSheet({
                   ) : (
                     <DownloadIcon className="h-5 w-5" />
                   )}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                disabled={busy !== null}
-                onClick={() => void handleShare()}
-                className="flex w-full items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3.5 text-left transition-colors enabled:hover:bg-white/[0.06] disabled:opacity-50"
-              >
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium">Share link</span>
-                  <span className="mt-0.5 block text-[12px] text-white/45">
-                    Send or copy a link to this artwork
-                  </span>
-                </span>
-                <span className="shrink-0 text-white/40">
-                  {busy === "share" ? "…" : <ShareIcon className="h-5 w-5" />}
                 </span>
               </button>
             </div>
