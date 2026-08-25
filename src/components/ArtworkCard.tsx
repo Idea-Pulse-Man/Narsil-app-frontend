@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { Artwork, Artist } from "@/data";
-import { shouldResolvePortrait } from "@/data";
+import { eraForArtwork, shouldResolvePortrait } from "@/data";
 import { useCatalog } from "@/data/catalog";
 import BlurImage from "./BlurImage";
 import ArtistAvatar from "./ArtistAvatar";
@@ -10,6 +10,14 @@ import ArtDiscussion from "./ArtDiscussion";
 import { artworkFooterClass } from "./artwork-layout";
 import type { ToastState } from "./Toast";
 import type { TutorialAction, TutorialBridge } from "./tutorial";
+
+/** Age chip for the feed footer — same eras as Discover’s “By age” lens. */
+function ageTagsFor(artwork: Artwork): string[] {
+  const era = eraForArtwork(artwork);
+  if (era) return [era.title];
+  if (artwork.period && artwork.period !== "—") return [artwork.period];
+  return [];
+}
 
 interface ArtworkCardProps {
   artwork: Artwork;
@@ -113,6 +121,7 @@ export default function ArtworkCard({
   const actionsTutorial = !!tutorial?.active && tutorial.allow === "actions";
   const footerInteractive = !tutorial?.active || placardTutorial;
   const blockArtworkGestures = scrollTutorial || placardTutorial;
+  const ageTags = ageTagsFor(artwork);
 
   const handleFooterPointerDown = (e: React.PointerEvent) => {
     footerStart.current = { x: e.clientX, y: e.clientY };
@@ -289,6 +298,7 @@ export default function ArtworkCard({
               <ActionRail
                 artist={artist}
                 artworkId={artwork.id}
+                artworkTitle={artwork.title}
                 onOpenArtist={() => onOpenArtist(artist.id)}
                 onOpenComments={() => setDiscussionOpen(true)}
                 showToast={showToast}
@@ -309,6 +319,19 @@ export default function ArtworkCard({
               onPointerCancel={handleFooterPointerCancel}
             >
               <div className="pointer-events-none max-w-[90%] pr-14">
+                {ageTags.length > 0 && (
+                  <div className="mb-2 flex flex-wrap gap-1.5">
+                    {ageTags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="rounded-full border border-white/15 bg-black/35 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/80 backdrop-blur-md"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
                 <h2 className="font-serif text-[26px] leading-[1.14] text-white drop-shadow">
                   {/* Title opens the placard — full name is shown there. */}
                   <motion.button
