@@ -63,7 +63,7 @@ const STEPS: CoachStep[] = [
   {
     label: "Use quick actions",
     instruction:
-      "On the right rail you can open the artist's profile, save, comment, and download — tap Got it to finish.",
+      "On the right rail you can open the artist's profile, like, save, comment, and download — tap Got it to finish.",
     hint: "actions",
     zone: "center",
     done: "All set",
@@ -275,6 +275,7 @@ function FooterTapHint() {
 // Labels match the live ActionRail order.
 const QUICK_ACTIONS = [
   "Artist profile",
+  "Like",
   "Save to vault",
   "Comment",
   "Extract from Archive",
