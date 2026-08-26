@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Artwork } from "@/data";
+import type { Artwork, FeedItem } from "@/data";
+import { feedItemKey } from "@/data";
 import { useCatalog } from "@/data/catalog";
-import { buildSessionFeed } from "@/lib/feed-utils";
+import { buildSessionFeed, interleaveStorySlides } from "@/lib/feed-utils";
 import { useAppState } from "./AppState";
 import ArtworkCard from "./ArtworkCard";
+import StoryCard from "./StoryCard";
 import { artworkFooterClass } from "./artwork-layout";
 import GalleryFrameMark from "./GalleryFrameMark";
 import HistoryPlacard from "./HistoryPlacard";
@@ -20,10 +22,11 @@ const FEED_LOOKAHEAD = 2;
 interface ArtFeedProps {
   showToast: (message: string, variant?: ToastState["variant"]) => void;
   onOpenArtist: (artistId: string) => void;
+  onOpenEra: (eraId: string) => void;
   /** Shared clean view for the whole feed (hides chrome while swiping). */
   clean: boolean;
   onCleanChange: (clean: boolean) => void;
-  /** Reports the index of the currently-visible artwork within the feed. */
+  /** Reports the index of the currently-visible card within the feed. */
   onViewIndex?: (index: number) => void;
   /** Source toggle: mixed (all), museum (public-domain) or freelance originals. */
   filter?: FeedFilter;
@@ -33,13 +36,14 @@ interface ArtFeedProps {
 export default function ArtFeed({
   showToast,
   onOpenArtist,
+  onOpenEra,
   clean,
   onCleanChange,
   onViewIndex,
   filter = "all",
   tutorial,
 }: ArtFeedProps) {
-  const { feedPool, getArtist, loading, artistMap } = useCatalog();
+  const { feedPool, getArtist, getArtwork, loading, artistMap } = useCatalog();
   const { seen, markSeen } = useAppState();
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastScrollTop = useRef(0);
@@ -61,14 +65,13 @@ export default function ArtFeed({
   }
   const seenSnapshot = frozenSeen.current;
 
-  // Freeze the on-screen order after the first non-empty pool so a background
+  // Freeze the artwork order after the first non-empty pool so a background
   // catalog refresh (snapshot → preview → full) appends new works instead of
-  // jumping the card the user is looking at.
-  const frozenOrder = useRef<Artwork[] | null>(null);
+  // jumping the card the user is looking at. Story slides are derived from
+  // this frozen list so they stay stable while scrolling.
+  const frozenArtworks = useRef<Artwork[] | null>(null);
 
-  // Build the feed: filter by source, then rank into popularity batches shuffled
-  // within each batch, with unseen works promoted ahead of already-seen ones.
-  const items = useMemo<Artwork[]>(() => {
+  const artworks = useMemo<Artwork[]>(() => {
     const filtered = feedPool.filter((art) => {
       if (filter === "museum") return art.origin !== "artist-original";
       if (filter === "freelance") return art.origin === "artist-original";
@@ -83,20 +86,33 @@ export default function ArtFeed({
       seed: sessionSeed,
     });
 
-    if (ranked.length === 0) return frozenOrder.current ?? ranked;
-    if (frozenOrder.current === null) {
-      frozenOrder.current = ranked;
+    if (ranked.length === 0) return frozenArtworks.current ?? ranked;
+    if (frozenArtworks.current === null) {
+      frozenArtworks.current = ranked;
       return ranked;
     }
     const byId = new Map(ranked.map((art) => [art.id, art]));
-    const have = new Set(frozenOrder.current.map((art) => art.id));
+    const have = new Set(frozenArtworks.current.map((art) => art.id));
     const extra = ranked.filter((art) => !have.has(art.id));
-    frozenOrder.current = [
-      ...frozenOrder.current.map((art) => byId.get(art.id) ?? art),
+    frozenArtworks.current = [
+      ...frozenArtworks.current.map((art) => byId.get(art.id) ?? art),
       ...extra,
     ];
-    return frozenOrder.current;
+    return frozenArtworks.current;
   }, [feedPool, filter, seenSnapshot, artistMap, sessionSeed]);
+
+  // Mixed feed: artworks + intermittent artist / era story slides.
+  // Tutorial stays artwork-only so gesture lessons land on real cards.
+  const items = useMemo<FeedItem[]>(
+    () =>
+      interleaveStorySlides(artworks, {
+        seed: sessionSeed,
+        artistMap,
+        skipStories: !!tutorial?.active,
+        filter,
+      }),
+    [artworks, artistMap, sessionSeed, tutorial?.active, filter],
+  );
 
   // Infinite scroll: mount a small window of cards and grow it as the user
   // swipes toward the end, so a long feed doesn't decode hundreds of images up
@@ -113,15 +129,22 @@ export default function ArtFeed({
   const visibleItems = items.slice(0, renderCount);
 
   // Warm the browser cache for images just ahead of the user so swiping to the
-  // next artwork shows it instantly instead of popping in (applies equally to
-  // museum and freelance images — both load from a plain CDN URL).
+  // next card shows it instantly (artwork image or story backdrop).
   const preloaded = useRef<Set<string>>(new Set());
-  const preload = useCallback((art?: Artwork) => {
-    if (!art?.image || preloaded.current.has(art.id)) return;
-    preloaded.current.add(art.id);
-    const img = new Image();
-    img.src = art.image;
-  }, []);
+  const preloadItem = useCallback(
+    (item?: FeedItem) => {
+      if (!item) return;
+      const art =
+        item.kind === "artwork"
+          ? item.artwork
+          : getArtwork(item.backdropArtworkId);
+      if (!art?.image || preloaded.current.has(art.id)) return;
+      preloaded.current.add(art.id);
+      const img = new Image();
+      img.src = art.image;
+    },
+    [getArtwork],
+  );
 
   // Lock vertical scrolling except on the step that teaches it, so the user
   // stays on the artwork while learning the other gestures.
@@ -136,12 +159,16 @@ export default function ArtFeed({
     if (index !== lastIndex.current) {
       lastIndex.current = index;
       setCurrentIndex(index);
-      const artwork = items[index];
-      if (artwork) {
-        markSeen(artwork.id);
+      const item = items[index];
+      if (item) {
+        if (item.kind === "artwork") {
+          markSeen(item.artwork.id);
+        } else {
+          setPlacardOpen(false);
+        }
         onViewIndex?.(index);
-        preload(items[index + 1]);
-        preload(items[index + 2]);
+        preloadItem(items[index + 1]);
+        preloadItem(items[index + 2]);
       }
     }
 
@@ -150,16 +177,17 @@ export default function ArtFeed({
     if (delta < 24) return;
     lastScrollTop.current = el.scrollTop;
     tutorial?.report("scroll");
-  }, [scrollStep, tutorial, onViewIndex, items, markSeen, preload]);
+  }, [scrollStep, tutorial, onViewIndex, items, markSeen, preloadItem]);
 
   // The first card is on screen at mount — count it as seen and warm the next.
   useEffect(() => {
-    if (items[0]) {
-      markSeen(items[0].id);
-      preload(items[1]);
-      preload(items[2]);
+    const first = items[0];
+    if (first?.kind === "artwork") {
+      markSeen(first.artwork.id);
     }
-  }, [items, markSeen, preload]);
+    preloadItem(items[1]);
+    preloadItem(items[2]);
+  }, [items, markSeen, preloadItem]);
 
   // Tutorial resets should close the shared placard.
   useEffect(() => {
@@ -167,7 +195,9 @@ export default function ArtFeed({
     setPlacardOpen(false);
   }, [tutorial?.resetToken]);
 
-  const currentArtwork = items[currentIndex];
+  const currentItem = items[currentIndex];
+  const currentArtwork =
+    currentItem?.kind === "artwork" ? currentItem.artwork : undefined;
   const currentArtist = currentArtwork
     ? getArtist(currentArtwork.artistId)
     : undefined;
@@ -258,23 +288,37 @@ export default function ArtFeed({
           lockScroll ? "overflow-hidden" : "overflow-y-scroll"
         }`}
       >
-        {visibleItems.map((artwork, index) => {
-          const artist = getArtist(artwork.artistId);
-          if (!artist) return null;
+        {visibleItems.map((item, index) => {
+          if (item.kind === "artwork") {
+            const artist = getArtist(item.artwork.artistId);
+            if (!artist) return null;
+            return (
+              <ArtworkCard
+                key={feedItemKey(item)}
+                artwork={item.artwork}
+                artist={artist}
+                priority={index === currentIndex}
+                zoomable={index === currentIndex}
+                showToast={showToast}
+                onOpenArtist={onOpenArtist}
+                clean={clean}
+                onCleanChange={onCleanChange}
+                tutorial={tutorial}
+                placardOpen={placardOpen}
+                onOpenPlacard={() => setPlacardOpen(true)}
+              />
+            );
+          }
+
           return (
-            <ArtworkCard
-              key={artwork.id}
-              artwork={artwork}
-              artist={artist}
-              priority={index === currentIndex}
-              zoomable={index === currentIndex}
-              showToast={showToast}
+            <StoryCard
+              key={feedItemKey(item)}
+              item={item}
               onOpenArtist={onOpenArtist}
+              onOpenEra={onOpenEra}
               clean={clean}
               onCleanChange={onCleanChange}
-              tutorial={tutorial}
-              placardOpen={placardOpen}
-              onOpenPlacard={() => setPlacardOpen(true)}
+              priority={index === currentIndex}
             />
           );
         })}

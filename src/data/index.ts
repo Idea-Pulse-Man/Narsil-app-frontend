@@ -18,6 +18,12 @@ import type {
 import type { HistoryEra } from "./history";
 import type { Category, CategoryGroup } from "./categories";
 import type { CanvasSize, CanvasOption, CanvasProduct } from "./shop";
+import type { FeedItem } from "./feedItems";
+import {
+  feedItemKey,
+  artworkFromFeedItem,
+  feedItemStableId,
+} from "./feedItems";
 import { placeOfArtwork, uniquePlaceFacets } from "./places";
 
 export {
@@ -36,6 +42,9 @@ export {
   CANVAS_SIZES,
   priceForSize,
   priceFromId,
+  feedItemKey,
+  artworkFromFeedItem,
+  feedItemStableId,
 };
 
 export { placeOfArtwork, placeTreeOf, uniquePlaceFacets } from "./places";
@@ -65,6 +74,7 @@ export type {
   CanvasSize,
   CanvasOption,
   CanvasProduct,
+  FeedItem,
 };
 
 export const getArtist = (artistId: string): Artist | undefined =>

@@ -1,4 +1,5 @@
-import type { Artwork, Artist } from "@/data";
+import type { Artwork, Artist, FeedItem } from "@/data";
+import { eraForArtwork } from "@/data/history";
 
 /** Secondary signal from the artist record when artwork engagement is still low. */
 export function artistPopularityBoost(artist?: Artist): number {
@@ -314,4 +315,112 @@ export function partitionSeen(
     (seen.has(art.id) ? alreadySeen : unseen).push(art);
   }
   return { unseen, alreadySeen };
+}
+
+/** No story slides at the very top — open as a gallery. */
+export const STORY_LEAD_IN = 3;
+/** Minimum artworks between story slides. */
+export const STORY_GAP_MIN = 4;
+/** Maximum artworks between story slides. */
+export const STORY_GAP_MAX = 7;
+/** Only talk about art the user just saw. */
+export const STORY_LOOKBACK = 8;
+/** Skip stub / empty bios. */
+export const STORY_ARTIST_MIN_BIO = 80;
+
+export interface InterleaveStoryOptions {
+  seed: number;
+  artistMap: Record<string, Artist>;
+  /** When true (tutorial), return artwork-only items. */
+  skipStories?: boolean;
+  /** Freelance filter: skip historical era slides. */
+  filter?: "all" | "museum" | "freelance";
+}
+
+/**
+ * Walk a ranked artwork list and insert full-screen artist / era story slides
+ * every 4–7 cards. Stories are tied to recent works (lookback window), seeded
+ * so the mix is fresh each session but stable while scrolling.
+ */
+export function interleaveStorySlides(
+  artworks: Artwork[],
+  {
+    seed,
+    artistMap,
+    skipStories = false,
+    filter = "all",
+  }: InterleaveStoryOptions,
+): FeedItem[] {
+  if (artworks.length === 0) return [];
+  if (skipStories) {
+    return artworks.map((artwork) => ({ kind: "artwork", artwork }));
+  }
+
+  const rand = mulberry32(seed ^ 0xfeedbeef);
+  const usedArtists = new Set<string>();
+  const usedEras = new Set<string>();
+  const out: FeedItem[] = [];
+  let sinceLastStory = STORY_LEAD_IN;
+  let nextGap =
+    STORY_GAP_MIN +
+    Math.floor(rand() * (STORY_GAP_MAX - STORY_GAP_MIN + 1));
+
+  const pickArtist = (recent: Artwork[]): FeedItem | null => {
+    for (let i = recent.length - 1; i >= 0; i--) {
+      const art = recent[i];
+      const artist = artistMap[art.artistId];
+      if (!artist?.bio || artist.bio.trim().length < STORY_ARTIST_MIN_BIO) {
+        continue;
+      }
+      if (isGenericMakerName(artist.name)) continue;
+      if (usedArtists.has(artist.id)) continue;
+      usedArtists.add(artist.id);
+      return {
+        kind: "artist-story",
+        artistId: artist.id,
+        backdropArtworkId: art.id,
+      };
+    }
+    return null;
+  };
+
+  const pickEra = (recent: Artwork[]): FeedItem | null => {
+    if (filter === "freelance") return null;
+    for (let i = recent.length - 1; i >= 0; i--) {
+      const art = recent[i];
+      const era = eraForArtwork(art);
+      if (!era || usedEras.has(era.id)) continue;
+      usedEras.add(era.id);
+      return {
+        kind: "era-story",
+        eraId: era.id,
+        backdropArtworkId: art.id,
+      };
+    }
+    return null;
+  };
+
+  for (let i = 0; i < artworks.length; i++) {
+    const artwork = artworks[i];
+    out.push({ kind: "artwork", artwork });
+    sinceLastStory += 1;
+
+    if (sinceLastStory < nextGap) continue;
+
+    const recent = artworks.slice(Math.max(0, i - STORY_LOOKBACK + 1), i + 1);
+    const wantArtist = rand() < 0.5;
+    const story =
+      (wantArtist ? pickArtist(recent) : pickEra(recent)) ??
+      (wantArtist ? pickEra(recent) : pickArtist(recent));
+
+    if (story) {
+      out.push(story);
+      sinceLastStory = 0;
+      nextGap =
+        STORY_GAP_MIN +
+        Math.floor(rand() * (STORY_GAP_MAX - STORY_GAP_MIN + 1));
+    }
+  }
+
+  return out;
 }

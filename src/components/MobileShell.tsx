@@ -346,6 +346,7 @@ export default function MobileShell() {
               <ArtFeed
                 showToast={showToast}
                 onOpenArtist={openArtist}
+                onOpenEra={setActiveEraId}
                 clean={clean}
                 onCleanChange={setClean}
                 onViewIndex={handleViewIndex}
