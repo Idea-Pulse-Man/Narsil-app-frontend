@@ -50,7 +50,7 @@ function ArtistAvatar({
   const [srcOk, setSrcOk] = useState(true);
   const [loaded, setLoaded] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
-  const { ref, inView } = useInView({ enabled: !priority, rootMargin: "300px" });
+  const { ref, inView } = useInView({ enabled: !priority, rootMargin: "140px" });
 
   useEffect(() => setSrcOk(true), [src]);
 

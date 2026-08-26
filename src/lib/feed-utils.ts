@@ -1,4 +1,4 @@
-import type { Artwork, Artist, FeedItem } from "@/data";
+import type { Artwork, Artist, FeedItem, FypArtistCard } from "@/data";
 import { eraForArtwork } from "@/data/history";
 
 /** Secondary signal from the artist record when artwork engagement is still low. */
@@ -380,7 +380,8 @@ export function pickFamousBackdrop(
 
 export interface InterleaveStoryOptions {
   seed: number;
-  artistMap: Record<string, Artist>;
+  /** Active For You artist cards keyed by artist id. */
+  fypArtistCardMap: Record<string, FypArtistCard>;
   /** When true (tutorial), return artwork-only items. */
   skipStories?: boolean;
   /** Freelance filter: skip historical era slides. */
@@ -396,7 +397,7 @@ export function interleaveStorySlides(
   artworks: Artwork[],
   {
     seed,
-    artistMap,
+    fypArtistCardMap,
     skipStories = false,
     filter = "all",
   }: InterleaveStoryOptions,
@@ -418,16 +419,18 @@ export function interleaveStorySlides(
   const pickArtist = (recent: Artwork[]): FeedItem | null => {
     for (let i = recent.length - 1; i >= 0; i--) {
       const art = recent[i];
-      const artist = artistMap[art.artistId];
-      if (!isStoryWorthyArtist(artist)) continue;
-      if (usedArtists.has(artist!.id)) continue;
-      usedArtists.add(artist!.id);
-      const backdrop =
-        pickFamousBackdrop(artist!.id, recent, artworks) ?? art;
+      const card = fypArtistCardMap[art.artistId];
+      if (!card?.active) continue;
+      if (usedArtists.has(card.artistId)) continue;
+      usedArtists.add(card.artistId);
+      const backdropId =
+        card.backdropArtworkId ??
+        pickFamousBackdrop(card.artistId, recent, artworks)?.id ??
+        art.id;
       return {
         kind: "artist-story",
-        artistId: artist!.id,
-        backdropArtworkId: backdrop.id,
+        artistId: card.artistId,
+        backdropArtworkId: backdropId,
       };
     }
     return null;

@@ -7,10 +7,12 @@ export default function ArtworkRow({
   artwork,
   subtitle,
   onOpen,
+  priority = false,
 }: {
   artwork: Artwork;
   subtitle: string;
   onOpen: (artworkId: string) => void;
+  priority?: boolean;
 }) {
   return (
     <button
@@ -22,7 +24,8 @@ export default function ArtworkRow({
           src={artwork.image}
           alt={artwork.title}
           accent={artwork.accent}
-          thumbWidth={128}
+          thumbWidth={80}
+          priority={priority}
         />
       </div>
       <div className="min-w-0 flex-1 pr-2">

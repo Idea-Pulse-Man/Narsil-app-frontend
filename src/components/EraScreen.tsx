@@ -1,10 +1,13 @@
+import { useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { HistoryEra } from "@/data/history";
 import { useCatalog } from "@/data/catalog";
+import { sizedImageUrl } from "@/lib/imageUrl";
 import ArtworkRow from "./ArtworkRow";
 import ArtistRail from "./ArtistRail";
 import { ArrowLeftIcon } from "./Icons";
 import { useEraWorks, useArtistsForWorks } from "./era-works";
+import { useInfiniteScroll } from "./useInfiniteScroll";
 
 interface EraScreenProps {
   era: HistoryEra | null;
@@ -12,6 +15,10 @@ interface EraScreenProps {
   onOpenArtwork: (artworkId: string) => void;
   onOpenArtist: (artistId: string) => void;
 }
+
+/** First paint only mounts this many rows; the rest page in on scroll. */
+const ERA_PAGE = 12;
+const ERA_WARM = 8;
 
 /**
  * One age, in full. The Discover timeline only previews a couple of works per
@@ -27,14 +34,33 @@ export default function EraScreen({
   const eraWorks = useEraWorks();
   const artistsForWorks = useArtistsForWorks();
   const { getArtist } = useCatalog();
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const works = era ? (eraWorks.get(era.id) ?? []) : [];
   const artists = artistsForWorks(works);
+  const { visible, sentinelRef, hasMore } = useInfiniteScroll(works, {
+    pageSize: ERA_PAGE,
+    resetKey: era?.id,
+    rootRef: scrollRef,
+  });
+
+  // Warm the first screen of thumbnails so they paint from cache on this open
+  // and the next visit — not all 1,800 works at once.
+  useEffect(() => {
+    if (!era) return;
+    for (const art of works.slice(0, ERA_WARM)) {
+      if (!art.image) continue;
+      const img = new Image();
+      img.decoding = "async";
+      img.src = sizedImageUrl(art.image, 128);
+    }
+  }, [era, works]);
 
   return (
     <AnimatePresence>
       {era && (
         <motion.div
+          ref={scrollRef}
           initial={{ opacity: 0, x: 24 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: 24 }}
@@ -73,10 +99,10 @@ export default function EraScreen({
               {era.description}
             </p>
 
-            <ArtistRail artists={artists} onOpen={onOpenArtist} />
+            <ArtistRail artists={artists.slice(0, 8)} onOpen={onOpenArtist} />
 
             <div className="mt-5 space-y-3">
-              {works.map((artwork) => {
+              {visible.map((artwork, index) => {
                 const artist = getArtist(artwork.artistId);
                 return (
                   <ArtworkRow
@@ -84,10 +110,13 @@ export default function EraScreen({
                     artwork={artwork}
                     subtitle={`${artist?.name ?? "Unknown"} · ${artwork.year}`}
                     onOpen={onOpenArtwork}
+                    priority={index < 5}
                   />
                 );
               })}
             </div>
+
+            {hasMore ? <div ref={sentinelRef} className="h-8" /> : null}
 
             {works.length === 0 && (
               <p className="mt-10 text-center text-sm text-white/45">

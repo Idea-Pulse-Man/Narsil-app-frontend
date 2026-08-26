@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { shouldResolvePortrait, type Artist } from "@/data";
 import { useCatalog } from "@/data/catalog";
@@ -6,6 +7,7 @@ import ArtistAvatar from "./ArtistAvatar";
 import { CloseIcon, PlusIcon, CheckIcon } from "./Icons";
 import { useAppState } from "./AppState";
 import { formatCount } from "@/lib/format";
+import { useInfiniteScroll } from "./useInfiniteScroll";
 
 interface ArtistProfileModalProps {
   artist: Artist | null;
@@ -20,7 +22,13 @@ export default function ArtistProfileModal({
 }: ArtistProfileModalProps) {
   const { isFollowing, toggleFollowing } = useAppState();
   const { getArtworksByArtist, getArtistAvatar } = useCatalog();
+  const scrollRef = useRef<HTMLDivElement>(null);
   const works = artist ? getArtworksByArtist(artist.id) : [];
+  const { visible, sentinelRef, hasMore } = useInfiniteScroll(works, {
+    pageSize: 24,
+    resetKey: artist?.id,
+    rootRef: scrollRef,
+  });
   const isFreelance = artist?.profileType === "freelance";
   const following = artist ? isFollowing(artist.id) : false;
 
@@ -39,6 +47,7 @@ export default function ArtistProfileModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.25 }}
+          ref={scrollRef}
           className="absolute inset-0 z-[60] overflow-y-auto bg-ink [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {/* Hero */}
@@ -143,7 +152,7 @@ export default function ArtistProfileModal({
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-3">
-              {works.map((work) => (
+              {visible.map((work) => (
                 <button
                   key={work.id}
                   onClick={() => onOpenArtwork?.(work.id)}
@@ -155,7 +164,7 @@ export default function ArtistProfileModal({
                       alt={work.title}
                       accent={work.accent}
                       className="transition-transform duration-500 group-hover:scale-105"
-                      thumbWidth={320}
+                      thumbWidth={240}
                     />
                   </div>
                   <div className="p-3">
@@ -169,6 +178,7 @@ export default function ArtistProfileModal({
                 </button>
               ))}
             </div>
+            {hasMore ? <div ref={sentinelRef} className="h-8" /> : null}
           </div>
         </motion.div>
       )}

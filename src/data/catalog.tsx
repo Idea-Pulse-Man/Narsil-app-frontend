@@ -31,7 +31,7 @@ import {
   placeOfArtwork,
   uniquePlaceFacets,
 } from "./index";
-import type { Artwork, Artist, CategoryId, ArtworkSearchQuery } from "./index";
+import type { Artwork, Artist, CategoryId, ArtworkSearchQuery, FypArtistCard } from "./index";
 import {
   fetchCatalogPreview,
   fetchSupabaseCatalog,
@@ -49,6 +49,22 @@ import {
   sortByPopularity,
 } from "@/lib/feed-utils";
 
+/** Let the first feed images use the network before the full catalog download. */
+function waitForQuietNetwork(signal: AbortSignal, ms = 1800): Promise<void> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      signal.removeEventListener("abort", finish);
+      clearTimeout(timer);
+      resolve();
+    };
+    signal.addEventListener("abort", finish);
+    const timer = window.setTimeout(finish, ms);
+  });
+}
+
 /** Where the currently-shown data came from. */
 type CatalogSource = "mock" | "supabase";
 
@@ -57,6 +73,8 @@ interface CatalogValue {
   artists: Artist[];
   artworkMap: Record<string, Artwork>;
   artistMap: Record<string, Artist>;
+  /** Active For You artist story cards keyed by artist id. */
+  fypArtistCardMap: Record<string, FypArtistCard>;
   feedArtworks: Artwork[];
   /** Full named + interleaved feed order (uncapped) — used by the For You feed
    *  so it can pick unseen works from the whole pool, not just the first window. */
@@ -75,6 +93,7 @@ interface CatalogValue {
   refresh: () => Promise<void>;
 
   getArtist: (id: string) => Artist | undefined;
+  getFypArtistCard: (artistId: string) => FypArtistCard | undefined;
   getArtwork: (id: string) => Artwork | undefined;
   getArtworksByArtist: (artistId: string) => Artwork[];
   getArtistAvatar: (artistId: string) => string | undefined;
@@ -126,6 +145,7 @@ function persistFeedWindow(
   artworks: Artwork[],
   artists: Artist[],
   artistMap: Record<string, Artist>,
+  fypArtistCards: FypArtistCard[] = [],
 ): void {
   const isUnknownArtist = (artistId: string): boolean => {
     const name = artistMap[artistId]?.name ?? "";
@@ -139,8 +159,14 @@ function persistFeedWindow(
   writeCatalogSnapshot({
     artworks: feed,
     artists: artists.filter((a) => artistIds.has(a.id)),
+    fypArtistCards,
   });
-  warmFeedImages(feed.map((a) => a.image));
+  // First visit: only warm the opening cards so they don't compete with the
+  // image the user is looking at.
+  warmFeedImages(
+    feed.map((a) => a.image),
+    3,
+  );
 }
 
 export function CatalogProvider({ children }: { children: React.ReactNode }) {
@@ -169,10 +195,15 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
             const preview = await fetchCatalogPreview(signal);
             if (signal?.aborted) return;
             applyRemote(preview);
+            await waitForQuietNetwork(signal);
+            if (signal?.aborted) return;
           } catch (err) {
             if (signal?.aborted) return;
             console.warn("Catalog preview failed, trying full catalog.", err);
           }
+        } else {
+          await waitForQuietNetwork(signal, 800);
+          if (signal?.aborted) return;
         }
         const full = await fetchSupabaseCatalog(signal);
         if (signal?.aborted) return;
@@ -199,7 +230,12 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!remote || source !== "supabase") return;
     const artistMap = Object.fromEntries(remote.artists.map((a) => [a.id, a]));
-    persistFeedWindow(remote.artworks, remote.artists, artistMap);
+    persistFeedWindow(
+      remote.artworks,
+      remote.artists,
+      artistMap,
+      remote.fypArtistCards,
+    );
   }, [remote, source]);
 
   // Pull fresh rows on demand (e.g. right after a user publishes new art) so the
@@ -229,6 +265,10 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
 
     const artworkMap = Object.fromEntries(allArtworks.map((a) => [a.id, a]));
     const artistMap = Object.fromEntries(allArtists.map((a) => [a.id, a]));
+    const fypArtistCards = hasRemote ? remote!.fypArtistCards : [];
+    const fypArtistCardMap = Object.fromEntries(
+      fypArtistCards.map((c) => [c.artistId, c]),
+    );
 
     const searchFacets = {
       periods: Array.from(new Set(browseArtworks.map((a) => a.period))).sort(),
@@ -323,6 +363,7 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
       artists: browseArtists,
       artworkMap,
       artistMap,
+      fypArtistCardMap,
       feedArtworks: namedFeed,
       feedPool: namedFeedFull,
       searchFacets,
@@ -330,6 +371,7 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
       loading,
       refresh,
       getArtist: (id) => artistMap[id],
+      getFypArtistCard: (artistId) => fypArtistCardMap[artistId],
       getArtwork: (id) => artworkMap[id],
       // Profiles resolve works from the full pool (real + curated).
       getArtworksByArtist: (artistId) =>

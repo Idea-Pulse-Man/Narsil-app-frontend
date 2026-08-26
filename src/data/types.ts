@@ -56,6 +56,23 @@ export interface Artist {
   revenueSharePct?: number;
 }
 
+/** Denormalized artist story card for the For You snap feed. */
+export interface FypArtistCard {
+  id: string;
+  artistId: string;
+  name: string;
+  lifespan?: string;
+  nationality?: string;
+  portraitUrl: string;
+  famousFor?: string;
+  bio: string;
+  backdropArtworkId?: string;
+  backdropImageUrl?: string;
+  backdropTitle?: string;
+  active: boolean;
+  sortOrder: number;
+}
+
 /** How a piece entered the catalogue — drives the badge on the feed card. */
 export type ArtworkOrigin = "public-domain" | "artist-original" | "fan-study";
 

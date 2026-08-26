@@ -7,6 +7,7 @@ import {
   forwardRef,
 } from "react";
 import { isNgrokUrl, resolveNgrokImageSrc } from "@/lib/ngrok";
+import { previewImageUrl, viewerImageUrl } from "@/lib/imageUrl";
 
 interface ZoomableImageProps {
   src: string;
@@ -67,8 +68,9 @@ const ZoomableImage = forwardRef<ZoomableImageHandle, ZoomableImageProps>(
   ) {
     const containerRef = useRef<HTMLDivElement>(null);
 
-    const [displaySrc, setDisplaySrc] = useState(src);
+    const [displaySrc, setDisplaySrc] = useState(() => viewerImageUrl(src));
     const [loaded, setLoaded] = useState(false);
+    const previewSrc = previewImageUrl(src);
     const [scale, setScale] = useState(1);
     const [tx, setTx] = useState(0);
     const [ty, setTy] = useState(0);
@@ -107,7 +109,7 @@ const ZoomableImage = forwardRef<ZoomableImageHandle, ZoomableImageProps>(
 
       setLoaded(false);
       if (!isNgrokUrl(src)) {
-        setDisplaySrc(src);
+        setDisplaySrc(viewerImageUrl(src));
         return;
       }
 
@@ -331,17 +333,28 @@ const ZoomableImage = forwardRef<ZoomableImageHandle, ZoomableImageProps>(
         onPointerCancel={endPointer}
         onWheel={onWheel}
       >
-        {!loaded && (
+        {!loaded && previewSrc ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={previewSrc}
+            alt=""
+            aria-hidden
+            decoding="async"
+            className="absolute inset-0 h-full w-full scale-105 object-contain blur-2xl"
+          />
+        ) : null}
+        {!loaded && !previewSrc ? (
           <div className="absolute inset-0 flex items-center justify-center">
             <span className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-white/80" />
           </div>
-        )}
+        ) : null}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={displaySrc}
           alt={alt}
           draggable={false}
           decoding="async"
+          fetchPriority="high"
           onLoad={() => setLoaded(true)}
           className="absolute inset-0 h-full w-full object-contain will-change-transform"
           style={{

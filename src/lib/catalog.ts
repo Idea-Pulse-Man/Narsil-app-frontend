@@ -16,27 +16,34 @@
  */
 import { supabase } from "./supabase";
 import { fetchCommunityTags } from "./tags";
-import type { Artwork, Artist, CategoryId, ArtworkOrigin } from "@/data";
+import type { Artwork, Artist, CategoryId, ArtworkOrigin, FypArtistCard } from "@/data";
 
 export interface RemoteCatalog {
   artworks: Artwork[];
   artists: Artist[];
+  fypArtistCards: FypArtistCard[];
 }
 
 const PAGE_SIZE = 1000;
-/** First-paint window — larger than the 80-item feed so unknown/portrait filters still fill it. */
-export const CATALOG_PREVIEW_COUNT = 400;
+/** First-paint window — enough for the feed after portrait/unknown filters. */
+export const CATALOG_PREVIEW_COUNT = 150;
 const ARTIST_IN_BATCH = 80;
 
+/** Slim first-paint payload: skip long descriptions (they land in the full fetch). */
 const ARTWORK_PREVIEW_COLUMNS =
-  "id, title, description, image_url, artist_id, category, origin, year, period, medium, source, accent, tags, empire, like_count, save_count, featured, hidden, for_sale";
+  "id, title, image_url, artist_id, category, origin, year, period, medium, source, accent, tags, empire, like_count, save_count, featured, hidden, for_sale";
 
-const ARTWORK_FULL_COLUMNS = `${ARTWORK_PREVIEW_COLUMNS}, ai_description`;
+const ARTWORK_FULL_COLUMNS =
+  `${ARTWORK_PREVIEW_COLUMNS}, description, ai_description`;
 
 const ARTIST_PREVIEW_COLUMNS =
-  "id, name, initials, profile_type, avatar_url, lifespan, nationality, period, style, known_for, famous_works, accent, followers, likes, saves, sell_opt_in, revenue_share_pct, bio, profile_ready";
+  "id, name, initials, profile_type, avatar_url, lifespan, nationality, period, style, known_for, accent, followers, likes, saves, profile_ready";
 
-const ARTIST_FULL_COLUMNS = ARTIST_PREVIEW_COLUMNS;
+const ARTIST_FULL_COLUMNS =
+  `${ARTIST_PREVIEW_COLUMNS}, famous_works, bio, sell_opt_in, revenue_share_pct`;
+
+const FYP_ARTIST_CARD_COLUMNS =
+  "id, artist_id, name, lifespan, nationality, portrait_url, famous_for, bio, backdrop_artwork_id, backdrop_image_url, backdrop_title, active, sort_order";
 
 // ── Row shapes (snake_case, as stored in Supabase) ──────────────────────────
 
@@ -83,6 +90,22 @@ interface ArtistRow {
   saves: number | null;
   sell_opt_in: boolean | null;
   revenue_share_pct: number | null;
+}
+
+interface FypArtistCardRow {
+  id: string;
+  artist_id: string;
+  name: string;
+  lifespan: string | null;
+  nationality: string | null;
+  portrait_url: string;
+  famous_for: string | null;
+  bio: string;
+  backdrop_artwork_id: string | null;
+  backdrop_image_url: string | null;
+  backdrop_title: string | null;
+  active: boolean | null;
+  sort_order: number | null;
 }
 
 // ── Mapping row → domain type ───────────────────────────────────────────────
@@ -140,6 +163,48 @@ function mapArtist(row: ArtistRow): Artist {
     sellOptIn: row.sell_opt_in ?? false,
     revenueSharePct: row.revenue_share_pct ?? 30,
   };
+}
+
+function mapFypArtistCard(row: FypArtistCardRow): FypArtistCard {
+  return {
+    id: row.id,
+    artistId: row.artist_id,
+    name: row.name,
+    ...(row.lifespan ? { lifespan: row.lifespan } : {}),
+    ...(row.nationality ? { nationality: row.nationality } : {}),
+    portraitUrl: row.portrait_url,
+    ...(row.famous_for?.trim() ? { famousFor: row.famous_for.trim() } : {}),
+    bio: row.bio,
+    ...(row.backdrop_artwork_id
+      ? { backdropArtworkId: row.backdrop_artwork_id }
+      : {}),
+    ...(row.backdrop_image_url
+      ? { backdropImageUrl: row.backdrop_image_url }
+      : {}),
+    ...(row.backdrop_title ? { backdropTitle: row.backdrop_title } : {}),
+    active: row.active ?? true,
+    sortOrder: row.sort_order ?? 0,
+  };
+}
+
+async function fetchFypArtistCards(
+  signal?: AbortSignal,
+): Promise<FypArtistCard[]> {
+  if (!supabase) return [];
+  try {
+    let query = supabase
+      .from("fyp_artist_cards")
+      .select(FYP_ARTIST_CARD_COLUMNS)
+      .eq("active", true)
+      .order("sort_order", { ascending: false })
+      .order("name", { ascending: true });
+    if (signal) query = query.abortSignal(signal);
+    const { data, error } = await query;
+    if (error) throw error;
+    return ((data ?? []) as unknown as FypArtistCardRow[]).map(mapFypArtistCard);
+  } catch {
+    return [];
+  }
 }
 
 // ── Paginated table fetch ───────────────────────────────────────────────────
@@ -201,12 +266,13 @@ async function fetchArtistsByIds(
 export async function fetchCatalogPreview(
   signal?: AbortSignal,
 ): Promise<RemoteCatalog> {
-  if (!supabase) return { artworks: [], artists: [] };
+  if (!supabase) return { artworks: [], artists: [], fypArtistCards: [] };
 
   let query = supabase
     .from("artworks")
     .select(ARTWORK_PREVIEW_COLUMNS)
     .not("image_url", "is", null)
+    .or("hidden.is.null,hidden.eq.false")
     .order("featured", { ascending: false, nullsFirst: false })
     .order("like_count", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
@@ -221,15 +287,15 @@ export async function fetchCatalogPreview(
   const artistIds = artworkRows
     .map((r) => r.artist_id)
     .filter((id): id is string => Boolean(id));
-  const artistRows = await fetchArtistsByIds(
-    artistIds,
-    ARTIST_PREVIEW_COLUMNS,
-    signal,
-  );
+  const [artistRows, fypArtistCards] = await Promise.all([
+    fetchArtistsByIds(artistIds, ARTIST_PREVIEW_COLUMNS, signal),
+    fetchFypArtistCards(signal),
+  ]);
 
   return {
     artworks: artworkRows.map((r) => mapArtwork(r)),
     artists: artistRows.map(mapArtist),
+    fypArtistCards,
   };
 }
 
@@ -240,9 +306,9 @@ export async function fetchCatalogPreview(
 export async function fetchSupabaseCatalog(
   signal?: AbortSignal,
 ): Promise<RemoteCatalog> {
-  if (!supabase) return { artworks: [], artists: [] };
+  if (!supabase) return { artworks: [], artists: [], fypArtistCards: [] };
 
-  const [artworkRows, artistRows, tagMap] = await Promise.all([
+  const [artworkRows, artistRows, tagMap, fypArtistCards] = await Promise.all([
     fetchTable<ArtworkRow>(
       "artworks",
       ARTWORK_FULL_COLUMNS,
@@ -256,6 +322,7 @@ export async function fetchSupabaseCatalog(
       signal,
     ),
     fetchCommunityTags(signal),
+    fetchFypArtistCards(signal),
   ]);
 
   return {
@@ -263,5 +330,6 @@ export async function fetchSupabaseCatalog(
       .filter((r) => r.image_url)
       .map((r) => mapArtwork(r, tagMap[r.id] ?? [])),
     artists: artistRows.map(mapArtist),
+    fypArtistCards,
   };
 }

@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type Ref } from "react";
 import { motion } from "framer-motion";
 import { sizedImageUrl, previewImageUrl } from "@/lib/imageUrl";
 import { resolveCachedImage } from "@/lib/imageCache";
 import { isNgrokUrl, resolveNgrokImageSrc } from "@/lib/ngrok";
+import { useInView } from "@/hooks/useInView";
 
 interface BlurImageProps {
   src: string;
@@ -74,12 +75,21 @@ export default function BlurImage({
   const coverRef = useRef<HTMLImageElement>(null);
   const containRef = useRef<HTMLImageElement>(null);
   const isContain = fit === "contain";
+  const isThumb = !zoomable && !!thumbWidth;
+  // Don't start the download until the tile is near the viewport — native
+  // loading="lazy" is unreliable in WKWebView, so we gate the src ourselves.
+  const { ref: inViewRef, inView } = useInView({
+    enabled: !priority && isThumb,
+    rootMargin: "160px",
+  });
+  const shouldLoad = priority || !isThumb || inView;
   const renderSrc =
-    !zoomable && thumbWidth && !displaySrc.startsWith("blob:")
+    isThumb && !displaySrc.startsWith("blob:")
       ? sizedImageUrl(displaySrc, thumbWidth)
       : displaySrc;
-  // Preview from the original URL so a blob/cache hit still has a tiny stand-in.
-  const previewSrc = previewImageUrl(src);
+  // Tiny blur-up is for full-bleed cards. Thumbnails skip it so the first
+  // screen does not fire a second wsrv.nl request per row.
+  const previewSrc = isThumb ? null : previewImageUrl(src);
 
   // A single S3/CDN request can transiently time out (net::ERR_TIMED_OUT). Retry
   // the tile a few times instead of leaving it stuck on the accent placeholder:
@@ -104,6 +114,12 @@ export default function BlurImage({
     setDisplaySrc(src);
     setLoaded(false);
 
+    if (!shouldLoad) {
+      return () => {
+        active = false;
+      };
+    }
+
     if (isNgrokUrl(src)) {
       resolveNgrokImageSrc(src)
         .then((resolved) => {
@@ -117,6 +133,14 @@ export default function BlurImage({
       };
     }
 
+    // Feed-image Cache API only stores a handful of full-bleed cards. Skip
+    // the lookup for grid thumbs — it adds latency and never hits.
+    if (isThumb) {
+      return () => {
+        active = false;
+      };
+    }
+
     void resolveCachedImage(src).then((resolved) => {
       if (active) setDisplaySrc(resolved);
     });
@@ -124,7 +148,7 @@ export default function BlurImage({
     return () => {
       active = false;
     };
-  }, [src]);
+  }, [src, shouldLoad, isThumb]);
 
   // Ratio between the cover and contain renderings of this image. The contain
   // layer starts at this scale (matching the cover framing) and animates to 1.
@@ -196,7 +220,7 @@ export default function BlurImage({
   if (!zoomable) {
     return (
       <div
-        ref={containerRef}
+        ref={inViewRef as Ref<HTMLDivElement>}
         className={`relative h-full w-full overflow-hidden ${className}`}
         style={{ backgroundColor: accent }}
       >
@@ -214,23 +238,27 @@ export default function BlurImage({
         ) : (
           !loaded && <Shimmer />
         )}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          ref={mainImgRef}
-          src={attemptSrc}
-          alt={alt}
-          draggable={false}
-          loading={priority ? "eager" : "lazy"}
-          fetchPriority={priority ? "high" : "auto"}
-          decoding="async"
-          onLoad={markLoaded}
-          onError={handleError}
-          className={`relative h-full w-full transition-all duration-500 ease-out ${
-            isContain ? "object-contain" : "object-cover"
-          } ${
-            loaded ? "scale-100 opacity-100 blur-0" : "scale-105 opacity-0 blur-xl"
-          }`}
-        />
+        {shouldLoad ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            ref={mainImgRef}
+            src={attemptSrc}
+            alt={alt}
+            draggable={false}
+            loading={priority ? "eager" : "lazy"}
+            fetchPriority={priority ? "high" : "auto"}
+            decoding="async"
+            onLoad={markLoaded}
+            onError={handleError}
+            className={`relative h-full w-full transition-all duration-500 ease-out ${
+              isContain ? "object-contain" : "object-cover"
+            } ${
+              loaded
+                ? "scale-100 opacity-100 blur-0"
+                : "scale-105 opacity-0 blur-xl"
+            }`}
+          />
+        ) : null}
       </div>
     );
   }

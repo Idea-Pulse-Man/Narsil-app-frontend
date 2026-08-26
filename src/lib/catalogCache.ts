@@ -29,7 +29,11 @@ function slimArtist(artist: Artist): Artist {
 export function readCatalogSnapshot(): RemoteCatalog | null {
   const snap = readJSON<RemoteCatalog | null>(STORAGE_KEYS.catalogSnapshot, null);
   if (!snap?.artworks?.length || !snap.artists?.length) return null;
-  return { artworks: snap.artworks, artists: snap.artists };
+  return {
+    artworks: snap.artworks,
+    artists: snap.artists,
+    fypArtistCards: snap.fypArtistCards ?? [],
+  };
 }
 
 export function writeCatalogSnapshot(data: RemoteCatalog): void {
@@ -37,5 +41,6 @@ export function writeCatalogSnapshot(data: RemoteCatalog): void {
   writeJSON(STORAGE_KEYS.catalogSnapshot, {
     artworks: data.artworks.map(slimArtwork),
     artists: data.artists.map(slimArtist),
+    fypArtistCards: data.fypArtistCards ?? [],
   });
 }

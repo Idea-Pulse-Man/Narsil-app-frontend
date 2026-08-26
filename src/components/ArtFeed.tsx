@@ -15,7 +15,7 @@ import type { TutorialBridge } from "./tutorial";
 export type FeedFilter = "all" | "museum" | "freelance";
 
 /** How many more cards to mount each time the user nears the end of the feed. */
-const FEED_PAGE = 3;
+const FEED_PAGE = 2;
 /** Grow the window this many cards before the user reaches the last mounted one. */
 const FEED_LOOKAHEAD = 2;
 
@@ -43,7 +43,8 @@ export default function ArtFeed({
   filter = "all",
   tutorial,
 }: ArtFeedProps) {
-  const { feedPool, getArtist, getArtwork, loading, artistMap } = useCatalog();
+  const { feedPool, getArtist, getArtwork, loading, artistMap, fypArtistCardMap } =
+    useCatalog();
   const { seen, markSeen } = useAppState();
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastScrollTop = useRef(0);
@@ -107,11 +108,11 @@ export default function ArtFeed({
     () =>
       interleaveStorySlides(artworks, {
         seed: sessionSeed,
-        artistMap,
+        fypArtistCardMap,
         skipStories: !!tutorial?.active,
         filter,
       }),
-    [artworks, artistMap, sessionSeed, tutorial?.active, filter],
+    [artworks, fypArtistCardMap, sessionSeed, tutorial?.active, filter],
   );
 
   // Infinite scroll: mount a small window of cards and grow it as the user

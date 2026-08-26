@@ -15,7 +15,7 @@
 import { corsFetchImageUrl } from "./imageUrl";
 
 const CACHE_NAME = "narsil-feed-images-v1";
-const MAX_CACHED = 8;
+const MAX_CACHED = 4;
 
 const blobUrls = new Map<string, string>();
 
@@ -45,8 +45,8 @@ function warmHttpCache(url: string): void {
 }
 
 /** Download and remember the first feed images. Safe to call repeatedly. */
-export function warmFeedImages(urls: string[]): void {
-  const unique = [...new Set(urls.filter(Boolean))].slice(0, MAX_CACHED);
+export function warmFeedImages(urls: string[], limit = MAX_CACHED): void {
+  const unique = [...new Set(urls.filter(Boolean))].slice(0, limit);
   for (const url of unique) {
     warmHttpCache(url);
     void persist(url);

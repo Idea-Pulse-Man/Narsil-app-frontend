@@ -65,6 +65,7 @@ export type { AppraisalRank } from "./worldCopy";
 export type {
   Artwork,
   Artist,
+  FypArtistCard,
   CategoryId,
   ArtworkOrigin,
   ArtistProfileType,

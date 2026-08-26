@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import type { Artist, FeedItem } from "@/data";
+import type { FeedItem } from "@/data";
 import { historyEras, shouldResolvePortrait } from "@/data";
 import { useCatalog } from "@/data/catalog";
 import ArtistAvatar from "./ArtistAvatar";
@@ -24,24 +24,9 @@ interface StoryCardProps {
 const FEED_BACKDROP = "#14100e";
 const LONG_PRESS_MS = 400;
 
-function famousLine(artist: Artist): string | null {
-  const works = (artist.famousWorks ?? [])
-    .map((w) => w.trim())
-    .filter(Boolean)
-    .slice(0, 3);
-  if (works.length > 0) return works.join(" · ");
-  const known = artist.knownFor?.trim();
-  if (known && known.length >= 8 && !/^Museum collection$/i.test(known)) {
-    return known;
-  }
-  return null;
-}
-
 /**
- * Full-screen reading beat in the For You snap feed — artist bio (Wikipedia)
- * or era context, with a recognizable artwork behind the text. Artist cards
- * always show the person's portrait photo when available — never a substitute
- * painting used as a "face".
+ * Full-screen reading beat in the For You snap feed — artist card rows from
+ * `fyp_artist_cards`, or era context from static history data.
  */
 export default function StoryCard({
   item,
@@ -51,8 +36,18 @@ export default function StoryCard({
   onCleanChange,
   priority = false,
 }: StoryCardProps) {
-  const { getArtist, getArtwork, getArtistAvatar } = useCatalog();
-  const backdrop = getArtwork(item.backdropArtworkId);
+  const { getArtist, getArtwork, getFypArtistCard } = useCatalog();
+  const artistCard =
+    item.kind === "artist-story" ? getFypArtistCard(item.artistId) : undefined;
+  const artist =
+    item.kind === "artist-story" ? getArtist(item.artistId) : undefined;
+  const catalogBackdrop = getArtwork(item.backdropArtworkId);
+  const backdropImage =
+    catalogBackdrop?.image ??
+    (item.kind === "artist-story" ? artistCard?.backdropImageUrl : undefined);
+  const backdropTitle =
+    catalogBackdrop?.title ??
+    (item.kind === "artist-story" ? artistCard?.backdropTitle : undefined);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressFired = useRef(false);
   const startPos = useRef<{ x: number; y: number } | null>(null);
@@ -121,35 +116,39 @@ export default function StoryCard({
     }
   };
 
-  const artist =
-    item.kind === "artist-story" ? getArtist(item.artistId) : undefined;
   const era =
     item.kind === "era-story"
       ? historyEras.find((e) => e.id === item.eraId)
       : undefined;
 
-  if (item.kind === "artist-story" && !artist) return null;
+  if (item.kind === "artist-story" && !artistCard) return null;
   if (item.kind === "era-story" && !era) return null;
 
   const eyebrow = item.kind === "artist-story" ? "Artist" : "This age";
-  const title = item.kind === "artist-story" ? artist!.name : era!.title;
+  const title =
+    item.kind === "artist-story" ? artistCard!.name : era!.title;
   const meta =
     item.kind === "artist-story"
-      ? [artist!.lifespan, artist!.nationality].filter(Boolean).join(" · ")
+      ? [artistCard!.lifespan, artistCard!.nationality]
+          .filter(Boolean)
+          .join(" · ")
       : era!.years;
   const body =
-    item.kind === "artist-story" ? artist!.bio : era!.description;
+    item.kind === "artist-story" ? artistCard!.bio : era!.description;
   const famous =
-    item.kind === "artist-story" ? famousLine(artist!) : null;
+    item.kind === "artist-story" ? artistCard!.famousFor ?? null : null;
   const cta =
     item.kind === "artist-story" ? "Meet the artist" : "Explore this age";
   const onCta =
     item.kind === "artist-story"
-      ? () => onOpenArtist(artist!.id)
+      ? () => onOpenArtist(artistCard!.artistId)
       : () => onOpenEra(era!.id);
 
   const portraitSrc =
-    item.kind === "artist-story" ? getArtistAvatar(artist!.id) : undefined;
+    item.kind === "artist-story" ? artistCard!.portraitUrl : undefined;
+  const avatarName = artist?.name ?? artistCard!.name;
+  const avatarInitials =
+    artist?.initials ?? artistCard!.name.slice(0, 2).toUpperCase();
 
   return (
     <section
@@ -160,12 +159,11 @@ export default function StoryCard({
       onPointerCancelCapture={handlePointerCancel}
       onClickCapture={handleClickCapture}
     >
-      {/* Famous artwork as atmosphere — readable, not crushed to black. */}
-      {backdrop?.image ? (
+      {backdropImage ? (
         <div className="absolute inset-0 touch-pan-y">
           <BlurImage
-            src={backdrop.image}
-            alt={backdrop.title}
+            src={backdropImage}
+            alt={backdropTitle ?? title}
             accent={FEED_BACKDROP}
             priority={priority}
             fit="cover"
@@ -185,21 +183,19 @@ export default function StoryCard({
             transition={{ duration: 0.3 }}
             className={`absolute inset-x-0 bottom-0 z-30 flex flex-col justify-end ${artworkFooterClass}`}
           >
-            {item.kind === "artist-story" && artist ? (
+            {item.kind === "artist-story" && portraitSrc ? (
               <div className="mb-4">
                 <ArtistAvatar
                   src={portraitSrc}
-                  name={artist.name}
-                  initials={artist.initials}
-                  lookup={shouldResolvePortrait(artist)}
+                  name={avatarName}
+                  initials={avatarInitials}
+                  lookup={artist ? shouldResolvePortrait(artist) : false}
                   size={72}
                   priority={priority}
                   className="h-[4.5rem] w-[4.5rem] rounded-full ring-2 ring-white/25 shadow-lg"
                   fallbackClassName="bg-white/15 text-white text-lg font-semibold"
                   style={
-                    artist.accent
-                      ? { background: artist.accent }
-                      : undefined
+                    artist?.accent ? { background: artist.accent } : undefined
                   }
                 />
               </div>
@@ -230,9 +226,9 @@ export default function StoryCard({
               {body}
             </p>
 
-            {backdrop?.title && item.kind === "artist-story" ? (
+            {backdropTitle && item.kind === "artist-story" ? (
               <p className="mt-2 max-w-[92%] truncate text-[11px] text-white/40">
-                Backdrop · {backdrop.title}
+                Backdrop · {backdropTitle}
               </p>
             ) : null}
 

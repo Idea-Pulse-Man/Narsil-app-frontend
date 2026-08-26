@@ -120,6 +120,7 @@ export default function DiscoverView({
 
   const selectedEmpire =
     empireGroups.find((g) => g.empire === activeEmpire) ?? empireGroups[0];
+  const empireArtworks = selectedEmpire?.artworks ?? [];
   const empireArtists = selectedEmpire
     ? Array.from(selectedEmpire.artistIds)
         .map((id) => getArtist(id))
@@ -170,6 +171,16 @@ export default function DiscoverView({
   } = useInfiniteScroll(browseArtists, {
     pageSize: ARTIST_PAGE,
     resetKey: lens,
+    rootRef: scrollRef,
+  });
+
+  const {
+    visible: shownEmpireWorks,
+    sentinelRef: empireSentinelRef,
+    hasMore: hasMoreEmpireWorks,
+  } = useInfiniteScroll(empireArtworks, {
+    pageSize: 24,
+    resetKey: `${lens}|${selectedEmpire?.empire ?? ""}`,
     rootRef: scrollRef,
   });
 
@@ -280,7 +291,7 @@ export default function DiscoverView({
                     </p>
 
                     {/* Who was working in this age */}
-                    <ArtistRail artists={eraArtists} onOpen={onOpenArtist} />
+                    <ArtistRail artists={eraArtists.slice(0, 6)} onOpen={onOpenArtist} />
 
                     <div className="mt-4 space-y-3">
                       {works.slice(0, ERA_PREVIEW).map((artwork) => {
@@ -371,10 +382,10 @@ export default function DiscoverView({
                         {empireArtists.length === 1 ? "artist" : "artists"}
                       </p>
 
-                      <ArtistRail artists={empireArtists} onOpen={onOpenArtist} />
+                      <ArtistRail artists={empireArtists.slice(0, 8)} onOpen={onOpenArtist} />
 
                       <div className="mt-5 grid grid-cols-2 gap-3">
-                        {selectedEmpire.artworks.map((art, i) => (
+                        {shownEmpireWorks.map((art, i) => (
                           <ArtworkTile
                             key={art.id}
                             artwork={art}
@@ -383,6 +394,9 @@ export default function DiscoverView({
                           />
                         ))}
                       </div>
+                      {hasMoreEmpireWorks ? (
+                        <div ref={empireSentinelRef} className="h-8" />
+                      ) : null}
                     </motion.div>
                   )}
                 </>

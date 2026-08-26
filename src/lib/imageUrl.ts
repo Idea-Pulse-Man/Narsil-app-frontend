@@ -9,6 +9,12 @@ export function isS3Url(src: string): boolean {
   return /^https?:\/\/[^/]*\.amazonaws\.com\//.test(src);
 }
 
+function wsrvUrl(src: string, width: number, quality: number): string {
+  const w = Math.min(1280, Math.max(24, Math.round(width)));
+  const q = Math.min(90, Math.max(35, Math.round(quality)));
+  return `https://wsrv.nl/?url=${encodeURIComponent(src)}&w=${w}&output=webp&q=${q}&we`;
+}
+
 /**
  * URL that can be `fetch(..., { mode: "cors" })`'d when the source host (e.g.
  * S3) does not send Access-Control-Allow-Origin for our Capacitor / Vercel
@@ -17,11 +23,17 @@ export function isS3Url(src: string): boolean {
 export function corsFetchImageUrl(src: string, cssPx = 843): string {
   if (!isS3Url(src)) return src;
   const w = Math.min(1280, Math.max(32, Math.round(cssPx)));
-  return `https://wsrv.nl/?url=${encodeURIComponent(src)}&w=${w}&output=webp&we`;
+  return wsrvUrl(src, w, 72);
 }
 
 export function sizedImageUrl(src: string, cssPx: number): string {
-  const w = Math.min(640, Math.max(32, Math.round(cssPx * 2)));
+  // Small list thumbs stay tiny so the first screen of an era (or search)
+  // downloads quickly. Larger tiles (profile grid) keep a sharper 2× request.
+  const small = cssPx <= 160;
+  const w = small
+    ? Math.min(192, Math.max(48, Math.round(cssPx * 1.5)))
+    : Math.min(640, Math.max(32, Math.round(cssPx * 2)));
+  const quality = small ? 55 : 72;
 
   if (src.includes("commons.wikimedia.org/wiki/Special:FilePath")) {
     if (/[?&]width=\d+/.test(src)) {
@@ -31,14 +43,8 @@ export function sizedImageUrl(src: string, cssPx: number): string {
     return `${src}${sep}width=${w}`;
   }
 
-  // S3-hosted museum images are stored full-size and have no native resizing,
-  // so grids would download the whole ~843px JPEG per tile (slow, and prone to
-  // timeouts when many load at once). Route them through the wsrv.nl image CDN
-  // to fetch a small WebP thumbnail instead. If the CDN is ever unreachable,
-  // BlurImage's onError falls back to the original S3 URL, so this never makes
-  // loading less reliable than before.
   if (isS3Url(src)) {
-    return `https://wsrv.nl/?url=${encodeURIComponent(src)}&w=${w}&output=webp&we`;
+    return wsrvUrl(src, w, quality);
   }
 
   if (src.includes("wsrv.nl") && /[?&]w=\d+/.test(src)) {
@@ -46,6 +52,16 @@ export function sizedImageUrl(src: string, cssPx: number): string {
   }
 
   return src;
+}
+
+/**
+ * Viewer / zoom canvas: a compressed WebP near device width. Much smaller
+ * than the staged ~843px JPEG on first open; pinch-zoom still has enough pixels.
+ */
+export function viewerImageUrl(src: string): string {
+  if (!src || src.startsWith("blob:")) return src;
+  if (isS3Url(src)) return wsrvUrl(src, 720, 70);
+  return sizedImageUrl(src, 360);
 }
 
 /**
@@ -62,13 +78,12 @@ export function previewImageUrl(src: string): string | null {
     return src.replace(/([?&]w=)\d+/, "$124");
   }
   if (isS3Url(src)) {
-    return `https://wsrv.nl/?url=${encodeURIComponent(src)}&w=24&output=webp&q=40`;
+    return wsrvUrl(src, 24, 40);
   }
   return null;
 }
 
 /** Avatar-sized variant — caps width so portrait grids don't pull huge files. */
 export function sizedAvatarUrl(src: string, cssPx: number): string {
-  const w = Math.min(160, Math.max(32, Math.round(cssPx * 2)));
-  return sizedImageUrl(src, w / 2);
+  return sizedImageUrl(src, Math.min(80, cssPx));
 }
