@@ -1,8 +1,9 @@
 import { useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import type { FeedItem } from "@/data";
-import { historyEras } from "@/data/history";
+import type { Artist, FeedItem } from "@/data";
+import { historyEras, shouldResolvePortrait } from "@/data";
 import { useCatalog } from "@/data/catalog";
+import ArtistAvatar from "./ArtistAvatar";
 import BlurImage from "./BlurImage";
 import { artworkFooterClass } from "./artwork-layout";
 
@@ -23,9 +24,24 @@ interface StoryCardProps {
 const FEED_BACKDROP = "#14100e";
 const LONG_PRESS_MS = 400;
 
+function famousLine(artist: Artist): string | null {
+  const works = (artist.famousWorks ?? [])
+    .map((w) => w.trim())
+    .filter(Boolean)
+    .slice(0, 3);
+  if (works.length > 0) return works.join(" · ");
+  const known = artist.knownFor?.trim();
+  if (known && known.length >= 8 && !/^Museum collection$/i.test(known)) {
+    return known;
+  }
+  return null;
+}
+
 /**
- * Full-screen reading beat in the For You snap feed — artist bio or era
- * context, tied to a blurred backdrop from a work the user just saw.
+ * Full-screen reading beat in the For You snap feed — artist bio (Wikipedia)
+ * or era context, with a recognizable artwork behind the text. Artist cards
+ * always show the person's portrait photo when available — never a substitute
+ * painting used as a "face".
  */
 export default function StoryCard({
   item,
@@ -35,7 +51,7 @@ export default function StoryCard({
   onCleanChange,
   priority = false,
 }: StoryCardProps) {
-  const { getArtist, getArtwork } = useCatalog();
+  const { getArtist, getArtwork, getArtistAvatar } = useCatalog();
   const backdrop = getArtwork(item.backdropArtworkId);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressFired = useRef(false);
@@ -105,32 +121,35 @@ export default function StoryCard({
     }
   };
 
-  let eyebrow = "Artist";
-  let title = "";
-  let meta = "";
-  let body = "";
-  let cta = "Meet the artist";
-  let onCta: (() => void) | null = null;
+  const artist =
+    item.kind === "artist-story" ? getArtist(item.artistId) : undefined;
+  const era =
+    item.kind === "era-story"
+      ? historyEras.find((e) => e.id === item.eraId)
+      : undefined;
 
-  if (item.kind === "artist-story") {
-    const artist = getArtist(item.artistId);
-    if (!artist) return null;
-    eyebrow = "Artist";
-    title = artist.name;
-    meta = [artist.lifespan, artist.nationality].filter(Boolean).join(" · ");
-    body = artist.bio;
-    cta = "Meet the artist";
-    onCta = () => onOpenArtist(artist.id);
-  } else {
-    const era = historyEras.find((e) => e.id === item.eraId);
-    if (!era) return null;
-    eyebrow = "This age";
-    title = era.title;
-    meta = era.years;
-    body = era.description;
-    cta = "Explore this age";
-    onCta = () => onOpenEra(era.id);
-  }
+  if (item.kind === "artist-story" && !artist) return null;
+  if (item.kind === "era-story" && !era) return null;
+
+  const eyebrow = item.kind === "artist-story" ? "Artist" : "This age";
+  const title = item.kind === "artist-story" ? artist!.name : era!.title;
+  const meta =
+    item.kind === "artist-story"
+      ? [artist!.lifespan, artist!.nationality].filter(Boolean).join(" · ")
+      : era!.years;
+  const body =
+    item.kind === "artist-story" ? artist!.bio : era!.description;
+  const famous =
+    item.kind === "artist-story" ? famousLine(artist!) : null;
+  const cta =
+    item.kind === "artist-story" ? "Meet the artist" : "Explore this age";
+  const onCta =
+    item.kind === "artist-story"
+      ? () => onOpenArtist(artist!.id)
+      : () => onOpenEra(era!.id);
+
+  const portraitSrc =
+    item.kind === "artist-story" ? getArtistAvatar(artist!.id) : undefined;
 
   return (
     <section
@@ -141,17 +160,17 @@ export default function StoryCard({
       onPointerCancelCapture={handlePointerCancel}
       onClickCapture={handleClickCapture}
     >
+      {/* Famous artwork as atmosphere — readable, not crushed to black. */}
       {backdrop?.image ? (
         <div className="absolute inset-0 touch-pan-y">
           <BlurImage
             src={backdrop.image}
-            alt=""
+            alt={backdrop.title}
             accent={FEED_BACKDROP}
             priority={priority}
             fit="cover"
-            className="scale-110 opacity-50 blur-sm"
           />
-          <div className="absolute inset-0 bg-ink/55" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/88 via-black/45 to-black/25" />
         </div>
       ) : (
         <div className="absolute inset-0 bg-ink" />
@@ -163,24 +182,29 @@ export default function StoryCard({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.35 }}
-            className="pointer-events-none absolute inset-0"
-          >
-            <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-black/60 to-transparent" />
-            <div className="absolute inset-x-0 bottom-0 h-[70%] bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {!clean && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
             className={`absolute inset-x-0 bottom-0 z-30 flex flex-col justify-end ${artworkFooterClass}`}
           >
+            {item.kind === "artist-story" && artist ? (
+              <div className="mb-4">
+                <ArtistAvatar
+                  src={portraitSrc}
+                  name={artist.name}
+                  initials={artist.initials}
+                  lookup={shouldResolvePortrait(artist)}
+                  size={72}
+                  priority={priority}
+                  className="h-[4.5rem] w-[4.5rem] rounded-full ring-2 ring-white/25 shadow-lg"
+                  fallbackClassName="bg-white/15 text-white text-lg font-semibold"
+                  style={
+                    artist.accent
+                      ? { background: artist.accent }
+                      : undefined
+                  }
+                />
+              </div>
+            ) : null}
+
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent/85">
               {eyebrow}
             </p>
@@ -190,21 +214,38 @@ export default function StoryCard({
             {meta ? (
               <p className="mt-1.5 text-sm text-white/55">{meta}</p>
             ) : null}
-            <p className="mt-4 max-w-[92%] line-clamp-4 text-[15px] leading-relaxed text-white/85">
+
+            {famous ? (
+              <p className="mt-3 max-w-[92%] text-[13px] leading-snug text-accent/90">
+                <span className="font-semibold uppercase tracking-[0.14em] text-accent/70">
+                  Famous for
+                </span>
+                <span className="mt-1 block font-serif text-[15px] text-white/90">
+                  {famous}
+                </span>
+              </p>
+            ) : null}
+
+            <p className="mt-3 max-w-[92%] line-clamp-6 text-[15px] leading-relaxed text-white/85">
               {body}
             </p>
-            {onCta ? (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onCta?.();
-                }}
-                className="pointer-events-auto mt-5 w-fit rounded-full border border-white/25 bg-white/10 px-5 py-2.5 text-sm font-medium text-white backdrop-blur-md transition-colors hover:bg-white/15"
-              >
-                {cta}
-              </button>
+
+            {backdrop?.title && item.kind === "artist-story" ? (
+              <p className="mt-2 max-w-[92%] truncate text-[11px] text-white/40">
+                Backdrop · {backdrop.title}
+              </p>
             ) : null}
+
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCta();
+              }}
+              className="pointer-events-auto mt-5 w-fit rounded-full border border-white/25 bg-white/10 px-5 py-2.5 text-sm font-medium text-white backdrop-blur-md transition-colors hover:bg-white/15"
+            >
+              {cta}
+            </button>
           </motion.div>
         )}
       </AnimatePresence>

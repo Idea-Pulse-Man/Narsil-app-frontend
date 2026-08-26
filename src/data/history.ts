@@ -28,7 +28,7 @@ export const historyEras: HistoryEra[] = [
     title: "Ancient Egypt",
     years: "3100 – 30 BC",
     description:
-      "Three thousand years of sculpture, painting, and craft devoted to gods, pharaohs, and the afterlife — defined by order, symmetry, and permanence.",
+      "Three thousand years of sculpture, painting, and craft devoted to gods, pharaohs, and the afterlife. Tomb walls, temple reliefs, and gold funerary masks followed strict order and symmetry — art meant to last forever in the land of the Nile.",
     artworkIds: ["tutankhamun-mask"],
     empires: ["Egyptian"],
     keywords: ["egypt", "pharaoh", "ptolema"],
@@ -39,7 +39,7 @@ export const historyEras: HistoryEra[] = [
     title: "Greek & Roman Antiquity",
     years: "800 BC – 400 AD",
     description:
-      "The classical ideal — balance, proportion, and the human form — from Archaic Greek pottery and Hellenistic marble to the bronze emblems of Rome.",
+      "The classical ideal — balance, proportion, and the human form. Archaic Greek pottery and Hellenistic marble gave way to Rome's portraits, mosaics, and public monuments that still shape how we imagine antiquity.",
     artworkIds: ["exekias-amphora", "winged-victory", "capitoline-wolf"],
     empires: ["Greek", "Roman"],
     keywords: ["greek", "greece", "roman", "hellenis", "etrusc", "attic", "archaic"],
@@ -50,7 +50,7 @@ export const historyEras: HistoryEra[] = [
     title: "Medieval & Byzantine",
     years: "400 – 1400",
     description:
-      "A thousand years of faith made visible — gilded icons, illuminated manuscripts, and Gothic craft reaching for heaven.",
+      "A thousand years of faith made visible. Gilded Byzantine icons, illuminated manuscripts, and soaring Gothic stone carved a sacred language of light, gold, and devotion across Europe and the Mediterranean.",
     artworkIds: [],
     keywords: ["medieval", "gothic", "byzantin", "romanesque", "middle ages", "illuminat"],
     range: [400, 1399],
@@ -60,7 +60,7 @@ export const historyEras: HistoryEra[] = [
     title: "Renaissance",
     years: "1400 – 1600",
     description:
-      "A rebirth of classical ideals — humanism, perspective, and luminous color transformed European painting.",
+      "A rebirth of classical ideals across Italy and beyond. Artists rediscovered perspective, anatomy, and luminous oil color — from Leonardo's sfumato and Michelangelo's monumental figures to Raphael's harmony and the Venetian glow of Titian. Humanism put people, not only saints, at the center of the picture.",
     artworkIds: ["map-of-hell", "last-supper"],
     keywords: ["renaissance", "mannerism"],
     range: [1400, 1599],
@@ -70,7 +70,7 @@ export const historyEras: HistoryEra[] = [
     title: "Baroque & Dutch Golden Age",
     years: "1600 – 1750",
     description:
-      "Drama, light, and intimate domestic scenes. Masters captured everyday life with extraordinary precision.",
+      "Drama, light, and intimate everyday life. Caravaggio's shadows, Rembrandt's psychology, and Vermeer's quiet rooms defined an age when paint could feel as alive as the people it depicted — from church altarpieces to Dutch Golden Age interiors.",
     artworkIds: ["view-of-delft"],
     keywords: ["baroque", "dutch golden", "golden age", "rococo"],
     range: [1600, 1749],
@@ -80,7 +80,7 @@ export const historyEras: HistoryEra[] = [
     title: "Romanticism & Edo",
     years: "1750 – 1850",
     description:
-      "Nature's sublime power and bold graphic traditions — from misty peaks to towering waves.",
+      "Nature's sublime power met bold graphic traditions. European Romantics chased mist, mountains, and emotion, while Edo Japan's ukiyo-e masters — Hokusai, Hiroshige — turned waves, roads, and everyday scenes into iconic prints the world still recognizes.",
     artworkIds: ["wanderer-fog", "great-wave"],
     keywords: ["romantic", "edo", "ukiyo"],
     range: [1750, 1849],
@@ -90,7 +90,7 @@ export const historyEras: HistoryEra[] = [
     title: "Modern Masters",
     years: "1850 – 1910",
     description:
-      "Color, emotion, and ornament pushed to new extremes — the birth of modern art as we know it.",
+      "Color, emotion, and ornament pushed to new extremes. Impressionists fractured light outdoors; Van Gogh, Munch, and Klimt turned feeling into paint — the birth of modern art as we know it, from Starry Night to The Scream.",
     artworkIds: ["starry-night", "the-scream", "birch-forest"],
     keywords: ["impression", "art nouveau", "symbolis", "pointill", "realism"],
     range: [1850, 1909],
@@ -100,7 +100,7 @@ export const historyEras: HistoryEra[] = [
     title: "Modern Art",
     years: "1910 – 1960",
     description:
-      "Cubism, Surrealism, and the avant-garde shatter tradition — form and feeling reinvented for a new century.",
+      "Cubism, Surrealism, and the avant-garde shattered tradition. Picasso, Matisse, and their peers reinvented form and feeling for a century of war, machines, and radical ideas — art that no longer had to look like the world to tell the truth about it.",
     artworkIds: [],
     keywords: [
       "expressionis",
@@ -120,7 +120,7 @@ export const historyEras: HistoryEra[] = [
     title: "Contemporary",
     years: "1960 – today",
     description:
-      "Pop, Minimalism, and living artists — art of the present, still being written.",
+      "Pop, Minimalism, and living artists. From Warhol's soup cans to today's installations and street art, contemporary practice is still being written — art of the present, in museums and on city walls alike.",
     artworkIds: [],
     keywords: [
       "pop art",

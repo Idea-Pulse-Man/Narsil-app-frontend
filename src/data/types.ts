@@ -21,6 +21,16 @@ export interface Artist {
   style: string;
   knownFor: string;
   bio: string;
+  /**
+   * Famous work titles (Wikipedia / Wikidata) shown on For You artist story
+   * cards — e.g. "Starry Night", "Sunflowers".
+   */
+  famousWorks?: string[];
+  /**
+   * True when the AWS artist-profile cron stored a real person photograph and
+   * a detailed Wikipedia bio. Artist story cards only appear when this is set.
+   */
+  profileReady?: boolean;
   /** Mock social proof — rendered on the profile, persisted nowhere in v1. */
   followers: number;
   likes: number;

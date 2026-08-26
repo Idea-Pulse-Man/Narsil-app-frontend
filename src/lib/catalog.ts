@@ -34,9 +34,9 @@ const ARTWORK_PREVIEW_COLUMNS =
 const ARTWORK_FULL_COLUMNS = `${ARTWORK_PREVIEW_COLUMNS}, ai_description`;
 
 const ARTIST_PREVIEW_COLUMNS =
-  "id, name, initials, profile_type, avatar_url, lifespan, nationality, period, style, known_for, accent, followers, likes, saves, sell_opt_in, revenue_share_pct";
+  "id, name, initials, profile_type, avatar_url, lifespan, nationality, period, style, known_for, famous_works, accent, followers, likes, saves, sell_opt_in, revenue_share_pct, bio, profile_ready";
 
-const ARTIST_FULL_COLUMNS = `${ARTIST_PREVIEW_COLUMNS}, bio`;
+const ARTIST_FULL_COLUMNS = ARTIST_PREVIEW_COLUMNS;
 
 // ── Row shapes (snake_case, as stored in Supabase) ──────────────────────────
 
@@ -75,6 +75,8 @@ interface ArtistRow {
   period: string | null;
   style: string | null;
   known_for: string | null;
+  famous_works?: string[] | null;
+  profile_ready?: boolean | null;
   accent: string | null;
   followers: number | null;
   likes: number | null;
@@ -114,6 +116,9 @@ function mapArtwork(row: ArtworkRow, communityTags: string[] = []): Artwork {
 }
 
 function mapArtist(row: ArtistRow): Artist {
+  const famousWorks = (row.famous_works ?? []).filter(
+    (w) => typeof w === "string" && w.trim().length > 0,
+  );
   return {
     id: row.id,
     name: row.name,
@@ -130,6 +135,8 @@ function mapArtist(row: ArtistRow): Artist {
     saves: row.saves ?? 0,
     ...(row.accent ? { accent: row.accent } : {}),
     ...(row.avatar_url ? { avatar: row.avatar_url } : {}),
+    ...(famousWorks.length ? { famousWorks } : {}),
+    ...(row.profile_ready ? { profileReady: true } : {}),
     sellOptIn: row.sell_opt_in ?? false,
     revenueSharePct: row.revenue_share_pct ?? 30,
   };

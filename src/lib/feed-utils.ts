@@ -325,8 +325,58 @@ export const STORY_GAP_MIN = 4;
 export const STORY_GAP_MAX = 7;
 /** Only talk about art the user just saw. */
 export const STORY_LOOKBACK = 8;
-/** Skip stub / empty bios. */
-export const STORY_ARTIST_MIN_BIO = 80;
+/** Skip stub / empty bios — Wikipedia extracts are typically longer. */
+export const STORY_ARTIST_MIN_BIO = 140;
+
+/** Thin museum stubs that must never appear on artist story cards. */
+export function isMuseumStubBio(bio?: string | null): boolean {
+  const text = (bio ?? "").trim();
+  if (!text) return true;
+  if (/is represented in the (collection|Open Access)/i.test(text)) return true;
+  if (/preparatory stud/i.test(text)) return true;
+  if (/Museum collection/i.test(text) && text.length < 120) return true;
+  return false;
+}
+
+/**
+ * Artist story cards need a cron-built profile: real person photograph +
+ * detailed Wikipedia bio (`profile_ready`). Obscure museum stubs never appear.
+ */
+export function isStoryWorthyArtist(artist?: Artist | null): boolean {
+  if (!artist) return false;
+  if (artist.profileType === "freelance") return false;
+  if (isGenericMakerName(artist.name)) return false;
+  // Strict gate: only profiles the AWS artist-profile cron marked ready.
+  if (!artist.profileReady) return false;
+  // Person photo only — never invent a face from an artwork.
+  if (!artist.avatar) return false;
+  if (isMuseumStubBio(artist.bio)) return false;
+  if (artist.bio.trim().length < STORY_ARTIST_MIN_BIO) return false;
+  return true;
+}
+
+/** Prefer a recognizable / popular work by this artist as the story backdrop. */
+export function pickFamousBackdrop(
+  artistId: string,
+  recent: Artwork[],
+  pool: Artwork[],
+): Artwork | undefined {
+  const byArtist = pool.filter((a) => a.artistId === artistId && a.image);
+  if (byArtist.length > 0) {
+    const ranked = [...byArtist].sort((a, b) => {
+      const score = (art: Artwork) =>
+        (art.featured ? 1000 : 0) + (art.likeCount ?? 0) + (art.saveCount ?? 0);
+      return score(b) - score(a);
+    });
+    // Prefer non-sketches when possible — finished works read better as hero art.
+    const finished = ranked.find((a) => !isSketchArtwork(a));
+    return finished ?? ranked[0];
+  }
+  return (
+    [...recent].reverse().find((a) => a.artistId === artistId && a.image) ??
+    [...recent].reverse().find((a) => a.image)
+  );
+}
 
 export interface InterleaveStoryOptions {
   seed: number;
@@ -369,16 +419,15 @@ export function interleaveStorySlides(
     for (let i = recent.length - 1; i >= 0; i--) {
       const art = recent[i];
       const artist = artistMap[art.artistId];
-      if (!artist?.bio || artist.bio.trim().length < STORY_ARTIST_MIN_BIO) {
-        continue;
-      }
-      if (isGenericMakerName(artist.name)) continue;
-      if (usedArtists.has(artist.id)) continue;
-      usedArtists.add(artist.id);
+      if (!isStoryWorthyArtist(artist)) continue;
+      if (usedArtists.has(artist!.id)) continue;
+      usedArtists.add(artist!.id);
+      const backdrop =
+        pickFamousBackdrop(artist!.id, recent, artworks) ?? art;
       return {
         kind: "artist-story",
-        artistId: artist.id,
-        backdropArtworkId: art.id,
+        artistId: artist!.id,
+        backdropArtworkId: backdrop.id,
       };
     }
     return null;
@@ -391,10 +440,20 @@ export function interleaveStorySlides(
       const era = eraForArtwork(art);
       if (!era || usedEras.has(era.id)) continue;
       usedEras.add(era.id);
+      // Prefer a finished work from the lookback that belongs to this era.
+      const eraBackdrop =
+        [...recent]
+          .reverse()
+          .find(
+            (a) =>
+              eraForArtwork(a)?.id === era.id &&
+              a.image &&
+              !isSketchArtwork(a),
+          ) ?? art;
       return {
         kind: "era-story",
         eraId: era.id,
-        backdropArtworkId: art.id,
+        backdropArtworkId: eraBackdrop.id,
       };
     }
     return null;
