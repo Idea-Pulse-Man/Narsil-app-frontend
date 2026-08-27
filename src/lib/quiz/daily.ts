@@ -1,7 +1,8 @@
 /**
  * The daily quiz.
  *
- * Seven questions with a randomized mix of Where / What / When, selected
+ * Seven questions with a randomized mix of playable modes (title, artist,
+ * date, origin, medium, period, collection, subject), selected
  * deterministically from the day's date seed so it reads as a shared "daily
  * challenge". The pool can still grow as the backend loads — we accept that
  * the exact works may shift during that window; once the catalog is settled
@@ -11,7 +12,7 @@
 import type { Artwork } from "@/data";
 import type { QuizQuestion } from "./types";
 import { buildQuestion, pickRandomMode } from "./generator";
-import { eligibleFor } from "./pool";
+import { eligibleFor, type ArtistIndex } from "./pool";
 import { hashString, mulberry32, shuffle } from "./random";
 
 export const DAILY_COUNT = 7;
@@ -63,12 +64,16 @@ export function daysInclusive(from: string, to: string): number {
  * `salt` personalizes the seed (e.g. a per-install id) so different users get
  * different daily sets from the same catalog. Omit it for the classic
  * everyone-sees-the-same daily.
+ *
+ * `artists` is the live catalog artist index so "who" / origin prompts
+ * resolve names for museum works, not only the curated mock set.
  */
 export function buildDailyQuiz(
   pool: Artwork[],
   key: string,
   count = DAILY_COUNT,
   salt = "",
+  artists?: ArtistIndex,
 ): QuizQuestion[] {
   const seed = hashString(salt ? `${salt}:${key}` : key);
   const rng = mulberry32(seed);
@@ -76,14 +81,17 @@ export function buildDailyQuiz(
   const questions: QuizQuestion[] = [];
 
   for (let slot = 0; slot < count; slot++) {
-    const mode = pickRandomMode(pool, rng);
+    const mode = pickRandomMode(pool, rng, artists);
 
     // Fresh seeded shuffle per slot so the ordering is stable but varied.
-    const candidates = shuffle(eligibleFor(pool, mode), mulberry32(seed + slot));
+    const candidates = shuffle(
+      eligibleFor(pool, mode, artists),
+      mulberry32(seed + slot),
+    );
     let built: QuizQuestion | null = null;
     for (const target of candidates) {
       if (used.has(target.id)) continue;
-      built = buildQuestion(mode, target, pool, rng);
+      built = buildQuestion(mode, target, pool, rng, artists);
       if (built) {
         used.add(target.id);
         break;

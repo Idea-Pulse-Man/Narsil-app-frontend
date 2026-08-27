@@ -81,7 +81,7 @@ export default function QuizOverlay({
   onClose,
   onOpenArtwork,
 }: QuizOverlayProps) {
-  const { pool, loading } = useQuizPool();
+  const { pool, artists, loading } = useQuizPool();
   const { user, isGuest, isPro, requestPro } = useAppState();
   const {
     progress,
@@ -94,7 +94,7 @@ export default function QuizOverlay({
 
   const [stage, setStage] = useState<Stage>("hub");
   const [isDaily, setIsDaily] = useState(true);
-  /** Practice is always a mixed Where/What/When run (no per-mode drill). */
+  /** Practice is always a mixed run across playable modes (no per-mode drill). */
   const [practicing, setPracticing] = useState(false);
 
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
@@ -144,8 +144,8 @@ export default function QuizOverlay({
   useEffect(() => clearTimer, []);
 
   const playableModes = useMemo(
-    () => playableModesFor(pool),
-    [pool],
+    () => playableModesFor(pool, artists),
+    [pool, artists],
   );
 
   const dailyReady = playableModes.length > 0;
@@ -292,7 +292,13 @@ export default function QuizOverlay({
     // New session for today — salted per user (signed-in id, else per-install)
     // so every user gets their own daily set from the shared catalog, and a
     // signed-in account sees the same daily across devices.
-    const built = buildDailyQuiz(pool, todayKey(), DAILY_COUNT, quizSalt(user));
+    const built = buildDailyQuiz(
+      pool,
+      todayKey(),
+      DAILY_COUNT,
+      quizSalt(user),
+      artists,
+    );
     if (built.length === 0) return;
     const session = newDailySession(built);
     saveDailySession(session);
@@ -303,11 +309,17 @@ export default function QuizOverlay({
     setSelected(null);
     questionShownAt.current = Date.now();
     setStage("playing");
-  }, [dailyMode, dailySession, openReview, pool, user]);
+  }, [dailyMode, dailySession, openReview, pool, artists, user]);
 
   const startPractice = useCallback(() => {
     excludeRef.current = new Set();
-    const first = generateQuestion(pool, Math.random, excludeRef.current);
+    const first = generateQuestion(
+      pool,
+      Math.random,
+      excludeRef.current,
+      undefined,
+      artists,
+    );
     if (!first) return;
     excludeRef.current.add(first.artworkId);
     setIsDaily(false);
@@ -317,22 +329,34 @@ export default function QuizOverlay({
     setSelected(null);
     setCorrect([]);
     setStage("playing");
-  }, [pool]);
+  }, [pool, artists]);
 
   const nextPractice = useCallback(() => {
     if (!practicing) return;
     // Loop the pool once exhausted so practice stays endless.
-    let q = generateQuestion(pool, Math.random, excludeRef.current);
+    let q = generateQuestion(
+      pool,
+      Math.random,
+      excludeRef.current,
+      undefined,
+      artists,
+    );
     if (!q) {
       excludeRef.current = new Set();
-      q = generateQuestion(pool, Math.random, excludeRef.current);
+      q = generateQuestion(
+        pool,
+        Math.random,
+        excludeRef.current,
+        undefined,
+        artists,
+      );
     }
     if (!q) return;
     excludeRef.current.add(q.artworkId);
     setQuestions([q]);
     setQIndex(0);
     setSelected(null);
-  }, [practicing, pool]);
+  }, [practicing, pool, artists]);
 
   // Declared before `handleSelect`, which lists it as a dependency — a `const`
   // referenced in a dependency array must already be initialised.
@@ -681,7 +705,7 @@ function QuizHub({
           </span>
           <span className={`mt-0.5 block text-[12px] ${muted}`}>
             {practiceReady
-              ? "Where · What · When — randomized each question"
+              ? "Title, artist, date, and more — about the piece on screen"
               : "Not enough artworks yet"}
           </span>
         </span>

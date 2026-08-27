@@ -7,7 +7,17 @@ export {
   MODE_PROMPT,
   EMPTY_PROGRESS,
 } from "./types";
-export { eligibleFor, isModePlayable, answerFor, whereFrom } from "./pool";
+export {
+  eligibleFor,
+  isModePlayable,
+  answerFor,
+  whereFrom,
+  artistName,
+  subjectOf,
+  museumOf,
+} from "./pool";
+export type { ArtistIndex } from "./pool";
+export { promptFor, piecePhrase } from "./prompts";
 export {
   buildQuestion,
   generateQuestion,

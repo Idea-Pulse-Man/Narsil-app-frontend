@@ -68,7 +68,7 @@ export default function QuizQuestion({
 
       {/* Prompt + options */}
       <div className="mt-5 px-5">
-        <p className="text-center font-serif text-[19px] leading-snug text-white">
+        <p className="text-center font-serif text-[18px] leading-snug text-white">
           {question.prompt}
         </p>
 

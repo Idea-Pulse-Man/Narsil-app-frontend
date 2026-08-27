@@ -2,32 +2,66 @@
  * Daily Quiz — domain types.
  *
  * A quiz question is built entirely client-side from the existing artwork
- * catalog (see `pool.ts` / `generator.ts`). Nothing here is persisted except
- * `QuizProgress`, which lives in localStorage (see `progress.ts`).
+ * catalog (see `pool.ts` / `generator.ts` / `prompts.ts`). Nothing here is
+ * persisted except `QuizProgress`, which lives in localStorage (see
+ * `progress.ts`).
  */
 
 import type { Artwork } from "@/data";
 
 /**
- * The three things we quiz on — where it's from, what it is, and when it was
- * made. Every daily / practice run mixes these at random.
+ * What a question asks about. `where` / `what` / `age` keep their original
+ * ids so in-flight daily sessions from the previous three-mode quiz still
+ * resume. Newer modes add artist, medium, period, collection, and subject.
  */
-export type QuizMode = "where" | "what" | "age";
+export type QuizMode =
+  | "where"
+  | "what"
+  | "age"
+  | "who"
+  | "medium"
+  | "period"
+  | "museum"
+  | "subject";
 
-export const QUIZ_MODES: QuizMode[] = ["where", "what", "age"];
+export const QUIZ_MODES: QuizMode[] = [
+  "what",
+  "who",
+  "age",
+  "where",
+  "medium",
+  "period",
+  "museum",
+  "subject",
+];
+
+export const QUIZ_OPTION_COUNT = 4;
 
 /** Human-facing labels for each mode (badge on the question card, results). */
 export const MODE_LABEL: Record<QuizMode, string> = {
-  where: "Where",
-  what: "What",
-  age: "When",
+  where: "Origin",
+  what: "Title",
+  age: "Date",
+  who: "Artist",
+  medium: "Medium",
+  period: "Period",
+  museum: "Collection",
+  subject: "Subject",
 };
 
-/** The prompt shown above the four answer buttons for each mode. */
+/**
+ * Fallback prompts when a piece has too little metadata to name. Real
+ * questions use `promptFor()` so the copy is about that artwork.
+ */
 export const MODE_PROMPT: Record<QuizMode, string> = {
-  where: "Where is it from?",
-  what: "What is it?",
-  age: "When was it made?",
+  where: "Where is this work from?",
+  what: "What is this work titled?",
+  age: "When was this work made?",
+  who: "Who created this work?",
+  medium: "What medium is this?",
+  period: "Which period does this belong to?",
+  museum: "Where is this work held?",
+  subject: "What kind of scene is this?",
 };
 
 export interface QuizQuestion {
