@@ -6,6 +6,7 @@ import { screenScrollClass, screenContentClass } from "./artwork-layout";
 import { BookmarkIcon } from "./Icons";
 import ArtworkTile from "./ArtworkTile";
 import CanvasPurchaseSheet from "./CanvasPurchaseSheet";
+import { isCanvasSellable } from "@/lib/sellability";
 import type { Screen } from "./navigation";
 import type { ToastState } from "./Toast";
 
@@ -64,7 +65,9 @@ export default function SavedView({
                 artwork={art}
                 index={i}
                 onOpen={onOpenArtwork}
-                onOrderCanvas={setCanvasId}
+                onOrderCanvas={
+                  isCanvasSellable(art) ? setCanvasId : undefined
+                }
               />
             ))}
           </div>

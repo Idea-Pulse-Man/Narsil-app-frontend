@@ -9,6 +9,7 @@ import {
   type CategoryId,
 } from "@/data";
 import { useCatalog } from "@/data/catalog";
+import { isCanvasSellable } from "@/lib/sellability";
 import { screenScrollClass, screenContentClass } from "./artwork-layout";
 import {
   SearchIcon,
@@ -692,7 +693,9 @@ export default function SearchView({
                   artwork={art}
                   index={i}
                   onOpen={onOpenArtwork}
-                  onOrderCanvas={setCanvasId}
+                  onOrderCanvas={
+                    isCanvasSellable(art) ? setCanvasId : undefined
+                  }
                 />
               ))}
             </div>

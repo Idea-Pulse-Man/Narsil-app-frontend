@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import type { Artwork } from "@/data";
 import { originLabel } from "@/data";
 import { useCatalog } from "@/data/catalog";
+import { isCanvasSellable } from "@/lib/sellability";
 import BlurImage from "./BlurImage";
 import { BookmarkIcon } from "./Icons";
 import { useAppState } from "./AppState";
@@ -27,6 +28,7 @@ export default function ArtworkTile({
   const artist = getArtist(artwork.artistId);
   const { isSaved, toggleSaved } = useAppState();
   const saved = isSaved(artwork.id);
+  const canOrderCanvas = Boolean(onOrderCanvas) && isCanvasSellable(artwork);
 
   return (
     <motion.article
@@ -49,7 +51,7 @@ export default function ArtworkTile({
             thumbWidth={240}
           />
         </div>
-        <div className={onOrderCanvas ? "px-3 pt-3" : "p-3"}>
+        <div className={canOrderCanvas ? "px-3 pt-3" : "p-3"}>
           <p className="truncate font-serif text-sm text-white">
             {artwork.title}
           </p>
@@ -58,7 +60,7 @@ export default function ArtworkTile({
           </p>
           {/* When a Canvas action is present the origin badge moves into the
               footer row below so both pills sit side by side. */}
-          {!onOrderCanvas && (
+          {!canOrderCanvas && (
             <span
               className={`mt-1.5 inline-block whitespace-nowrap rounded-full px-1.5 py-0.5 text-[8px] font-semibold uppercase leading-none tracking-[0.05em] ${
                 artwork.origin === "artist-original"
@@ -72,7 +74,7 @@ export default function ArtworkTile({
         </div>
       </button>
 
-      {onOrderCanvas && (
+      {canOrderCanvas && onOrderCanvas && (
         <div className="flex flex-wrap items-center gap-2 px-3 pb-3 pt-1.5">
           <span
             className={`inline-block whitespace-nowrap rounded-full px-1.5 py-0.5 text-[8px] font-semibold uppercase leading-none tracking-[0.05em] ${

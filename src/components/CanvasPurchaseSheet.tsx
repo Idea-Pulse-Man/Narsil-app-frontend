@@ -29,6 +29,7 @@ import {
   payWithNativeSheet,
   type CheckoutIntent,
 } from "@/lib/checkout";
+import { isCanvasSellable } from "@/lib/sellability";
 import BlurImage from "./BlurImage";
 import { CloseIcon, CheckIcon } from "./Icons";
 import type { ToastState } from "./Toast";
@@ -94,6 +95,11 @@ export default function CanvasPurchaseSheet({
   // signed-in user's saved addresses.
   useEffect(() => {
     if (!artwork) return;
+    if (!isCanvasSellable(artwork)) {
+      showToast("This artwork is not available as a canvas.");
+      onClose();
+      return;
+    }
     setSize("Medium");
     setStep("details");
     setIntent(null);

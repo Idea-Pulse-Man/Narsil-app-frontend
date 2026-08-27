@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { originLabel, priceFromId, WORLD, type Artwork } from "@/data";
+import { isCanvasSellable } from "@/lib/sellability";
 import { useCatalog } from "@/data/catalog";
 import { useAppState } from "./AppState";
 import BlurImage from "./BlurImage";
@@ -32,26 +33,29 @@ const SOURCE_LABEL: Record<BuySource, string> = {
  */
 const matchesSource = (artwork: Artwork, source: BuySource) =>
   source === "freelance"
-    ? artwork.origin === "artist-original" && artwork.forSale === true
+    ? artwork.origin === "artist-original"
     : artwork.origin !== "artist-original";
 
 export default function BuyView({ showToast }: BuyViewProps) {
-  // Drive the shop from the full interleaved feed pool; the grid reveals more
-  // canvases as the user scrolls (infinite scroll), so every artwork is shoppable.
   const { feedPool, loading } = useCatalog();
   const [source, setSource] = useState<BuySource>("museum");
-  // The artwork id whose purchase sheet is open (null = closed).
   const [activeId, setActiveId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
+  // Only artworks on the legal canvas allowlist appear in the shop.
+  const sellableArtworks = useMemo(
+    () => feedPool.filter(isCanvasSellable),
+    [feedPool],
+  );
+
   const products = useMemo(
     () =>
-      feedPool.map((artwork) => ({
+      sellableArtworks.map((artwork) => ({
         id: `canvas-${artwork.id}`,
         artwork,
         priceFrom: priceFromId(artwork.id),
       })),
-    [feedPool],
+    [sellableArtworks],
   );
 
   const counts = useMemo(

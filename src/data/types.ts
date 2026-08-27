@@ -128,7 +128,7 @@ export interface Artwork {
   featured?: boolean;
   /** Admin-hidden from default feed (still searchable). */
   hidden?: boolean;
-  /** Freelance works opted in for canvas sales. Museum PD is always sellable. */
+  /** Freelance works opted in for canvas sales. Museum PD when on the legal allowlist. */
   forSale?: boolean;
   /** AI-generated placard copy when available (Phase 6). */
   aiDescription?: string;
