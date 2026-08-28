@@ -112,7 +112,8 @@ interface FypArtistCardRow {
 
 // ── Mapping row → domain type ───────────────────────────────────────────────
 
-function mapArtwork(row: ArtworkRow, communityTags: string[] = []): Artwork {
+function mapArtwork(row: ArtworkRow, communityTags: string[] = []): Artwork | null {
+  if (!row?.id || !row.title?.trim() || !row.image_url) return null;
   const catalogTags = row.tags ?? [];
   const mergedTags = Array.from(new Set([...catalogTags, ...communityTags]));
   return {
@@ -140,14 +141,16 @@ function mapArtwork(row: ArtworkRow, communityTags: string[] = []): Artwork {
   };
 }
 
-function mapArtist(row: ArtistRow): Artist {
+function mapArtist(row: ArtistRow): Artist | null {
+  if (!row?.id || !row.name?.trim()) return null;
+  const name = row.name.trim();
   const famousWorks = (row.famous_works ?? []).filter(
     (w) => typeof w === "string" && w.trim().length > 0,
   );
   return {
     id: row.id,
-    name: row.name,
-    initials: row.initials ?? row.name.slice(0, 2).toUpperCase(),
+    name,
+    initials: row.initials ?? name.slice(0, 2).toUpperCase(),
     profileType: row.profile_type === "freelance" ? "freelance" : "historical",
     lifespan: row.lifespan ?? "—",
     nationality: row.nationality ?? "—",
@@ -167,11 +170,21 @@ function mapArtist(row: ArtistRow): Artist {
   };
 }
 
-function mapFypArtistCard(row: FypArtistCardRow): FypArtistCard {
+function mapFypArtistCard(row: FypArtistCardRow): FypArtistCard | null {
+  if (
+    !row?.id ||
+    !row.artist_id ||
+    !row.name?.trim() ||
+    !row.portrait_url ||
+    typeof row.bio !== "string"
+  ) {
+    return null;
+  }
+  const name = row.name.trim();
   return {
     id: row.id,
     artistId: row.artist_id,
-    name: row.name,
+    name,
     ...(row.lifespan ? { lifespan: row.lifespan } : {}),
     ...(row.nationality ? { nationality: row.nationality } : {}),
     portraitUrl: row.portrait_url,
@@ -203,7 +216,9 @@ async function fetchFypArtistCards(
     if (signal) query = query.abortSignal(signal);
     const { data, error } = await query;
     if (error) throw error;
-    return ((data ?? []) as unknown as FypArtistCardRow[]).map(mapFypArtistCard);
+    return ((data ?? []) as unknown as FypArtistCardRow[])
+      .map(mapFypArtistCard)
+      .filter((card): card is FypArtistCard => card !== null);
   } catch {
     return [];
   }
@@ -383,8 +398,12 @@ export async function fetchCatalogPreview(
   ]);
 
   return {
-    artworks: artworkRows.map((r) => mapArtwork(r)),
-    artists: artistRows.map(mapArtist),
+    artworks: artworkRows
+      .map((r) => mapArtwork(r))
+      .filter((art): art is Artwork => art !== null),
+    artists: artistRows
+      .map(mapArtist)
+      .filter((artist): artist is Artist => artist !== null),
     fypArtistCards,
   };
 }
@@ -413,8 +432,11 @@ export async function fetchSupabaseCatalog(
   return {
     artworks: artworkRows
       .filter((r) => r.image_url)
-      .map((r) => mapArtwork(r, tagMap[r.id] ?? [])),
-    artists: artistRows.map(mapArtist),
+      .map((r) => mapArtwork(r, tagMap[r.id] ?? []))
+      .filter((art): art is Artwork => art !== null),
+    artists: artistRows
+      .map(mapArtist)
+      .filter((artist): artist is Artist => artist !== null),
     fypArtistCards,
   };
 }

@@ -22,10 +22,9 @@ export const STORAGE_KEYS = {
   quizProgress: "narsil:quiz-progress",
   quizDaily: "narsil:quiz-daily",
   quizInstallId: "narsil:quiz-install-id",
-  // v2 validates the catalog/card arrays before hydration. Changing the key
-  // intentionally drops legacy snapshots that can crash startup before the
-  // fresh Supabase catalog has a chance to load.
-  catalogSnapshot: "narsil:catalog-snapshot:v2",
+  // v3 validates each artist/artwork row before hydration. Bumping the key
+  // drops legacy snapshots that can crash startup when `.name` is missing.
+  catalogSnapshot: "narsil:catalog-snapshot:v3",
 } as const;
 
 export function readJSON<T>(key: string, fallback: T): T {

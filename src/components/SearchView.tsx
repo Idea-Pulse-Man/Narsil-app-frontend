@@ -143,7 +143,7 @@ export default function SearchView({
     return artists
       .filter((a) => ids.has(a.id))
       .slice()
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
   }, [artists, artworks]);
 
   const artistsByLetter = useMemo(() => {

@@ -45,6 +45,7 @@ import {
   writeCatalogMetaCache,
 } from "@/lib/catalogMetaCache";
 import { buildSearchIndex } from "@/lib/searchIndex";
+import { sanitizeRemoteCatalog } from "@/lib/catalogValidate";
 import { warmFeedImages } from "@/lib/imageCache";
 import {
   isDefaultFeedEligible,
@@ -206,7 +207,16 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
 
   const applyRemote = useCallback(
     (data: RemoteCatalog, opts?: { complete?: boolean }) => {
-      if (data.artworks.length === 0) {
+      const clean = sanitizeRemoteCatalog(data);
+      if (!clean) {
+        if (opts?.complete) {
+          console.warn(
+            "Catalog: cached or fetched data failed validation — browse surfaces stay on the last good window.",
+          );
+        }
+        return;
+      }
+      if (clean.artworks.length === 0) {
         // Without this warning a failed full fetch looks like a working app that
         // simply owns 80 artworks, because the cached window stays on screen.
         if (opts?.complete) {
@@ -216,12 +226,12 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
         }
         return;
       }
-      setRemote(data);
+      setRemote(clean);
       setSource("supabase");
       setLoading(false);
       if (opts?.complete) {
         setCatalogComplete(true);
-        void writeCatalogMetaCache(data);
+        void writeCatalogMetaCache(clean);
       }
     },
     [],
