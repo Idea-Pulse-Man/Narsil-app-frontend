@@ -13,7 +13,7 @@ interface ArtworkTileProps {
   /** Show the quick-save bookmark overlay. */
   showSave?: boolean;
   index?: number;
-  /** When set, shows canvas availability: order button or a "Not available" badge. */
+  /** When set, sellable works get an Order canvas action. */
   onOrderCanvas?: (artworkId: string) => void;
 }
 
@@ -28,8 +28,19 @@ export default function ArtworkTile({
   const artist = getArtist(artwork.artistId);
   const { isSaved, toggleSaved } = useAppState();
   const saved = isSaved(artwork.id);
-  const canvasAware = Boolean(onOrderCanvas);
-  const canOrderCanvas = canvasAware && isCanvasSellable(artwork);
+  const canOrderCanvas = Boolean(onOrderCanvas) && isCanvasSellable(artwork);
+
+  const originBadge = (
+    <span
+      className={`inline-block whitespace-nowrap rounded-full px-1.5 py-0.5 text-[8px] font-semibold uppercase leading-none tracking-[0.05em] ${
+        artwork.origin === "artist-original"
+          ? "bg-sky-400/15 text-sky-200"
+          : "bg-emerald-400/15 text-emerald-200"
+      }`}
+    >
+      {originLabel(artwork.origin)}
+    </span>
+  );
 
   return (
     <motion.article
@@ -52,52 +63,28 @@ export default function ArtworkTile({
             thumbWidth={240}
           />
         </div>
-        <div className={canvasAware ? "px-3 pt-3" : "p-3"}>
+        <div className="p-3">
           <p className="truncate font-serif text-sm text-white">
             {artwork.title}
           </p>
           <p className="mt-0.5 truncate text-[11px] text-white/45">
             {artist?.name} · {artwork.year}
           </p>
-          {/* When canvas status is shown the origin badge moves into the
-              footer row below so both pills sit side by side. */}
-          {!canvasAware && (
-            <span
-              className={`mt-1.5 inline-block whitespace-nowrap rounded-full px-1.5 py-0.5 text-[8px] font-semibold uppercase leading-none tracking-[0.05em] ${
-                artwork.origin === "artist-original"
-                  ? "bg-sky-400/15 text-sky-200"
-                  : "bg-emerald-400/15 text-emerald-200"
-              }`}
-            >
-              {originLabel(artwork.origin)}
-            </span>
+          {!canOrderCanvas && (
+            <div className="mt-1.5">{originBadge}</div>
           )}
         </div>
       </button>
 
-      {canvasAware && (
-        <div className="flex flex-wrap items-center gap-2 px-3 pb-3 pt-1.5">
-          <span
-            className={`inline-block whitespace-nowrap rounded-full px-1.5 py-0.5 text-[8px] font-semibold uppercase leading-none tracking-[0.05em] ${
-              artwork.origin === "artist-original"
-                ? "bg-sky-400/15 text-sky-200"
-                : "bg-emerald-400/15 text-emerald-200"
-            }`}
+      {canOrderCanvas && onOrderCanvas && (
+        <div className="flex items-center justify-between gap-2 px-3 pb-3 pt-0">
+          {originBadge}
+          <button
+            onClick={() => onOrderCanvas(artwork.id)}
+            className="inline-block shrink-0 whitespace-nowrap rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[8px] font-semibold uppercase leading-none tracking-[0.05em] text-white/85 transition-colors hover:bg-white/20"
           >
-            {originLabel(artwork.origin)}
-          </span>
-          {canOrderCanvas && onOrderCanvas ? (
-            <button
-              onClick={() => onOrderCanvas(artwork.id)}
-              className="inline-block whitespace-nowrap rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[8px] font-semibold uppercase leading-none tracking-[0.05em] text-white/85 transition-colors hover:bg-white/20"
-            >
-              Canvas
-            </button>
-          ) : (
-            <span className="inline-block whitespace-nowrap rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[8px] font-semibold uppercase leading-none tracking-[0.05em] text-white/45">
-              Not available
-            </span>
-          )}
+            Canvas
+          </button>
         </div>
       )}
 

@@ -58,7 +58,7 @@ const EMPTY_SELECTION: Selection = {
 const CANVAS_FILTER_LABEL: Record<CanvasFilter, string> = {
   any: "Any",
   available: "Canvas",
-  unavailable: "Not available",
+  unavailable: "No canvas",
 };
 
 const GROUP_LABEL: Record<CategoryGroup, string> = {
@@ -200,9 +200,10 @@ export default function SearchView({
     sel.countries.length +
     sel.cities.length +
     sel.museums.length +
-    (sel.portraitsOnly ? 1 : 0) +
-    (sel.canvas !== "any" ? 1 : 0);
-  const hasFilters = totalSelected > 0;
+    (sel.portraitsOnly ? 1 : 0);
+  const hasCategoryFilters = totalSelected > 0;
+  const hasCanvasFilter = sel.canvas !== "any";
+  const hasFilters = hasCategoryFilters || hasCanvasFilter;
 
   const clearAll = () => setSel(EMPTY_SELECTION);
 
@@ -260,7 +261,6 @@ export default function SearchView({
     add(sel.cities, sel.cities[0] ?? "", "cities");
     add(sel.museums, sel.museums[0] ?? "", "museums");
     if (sel.portraitsOnly) parts.push("Portraits");
-    if (sel.canvas !== "any") parts.push(CANVAS_FILTER_LABEL[sel.canvas]);
     return parts.length ? parts.join(" · ") : "All categories";
   })();
 
@@ -346,26 +346,38 @@ export default function SearchView({
             </motion.span>
           </button>
 
-          <div className="mt-3 flex gap-2">
-            {(["any", "available", "unavailable"] as const).map((value) => {
-              const active = sel.canvas === value;
-              return (
-                <button
-                  key={value}
-                  onClick={() =>
-                    setSel((prev) => ({ ...prev, canvas: value }))
-                  }
-                  aria-pressed={active}
-                  className={`min-w-0 flex-1 rounded-full border px-3 py-2 text-xs font-semibold transition-colors ${
-                    active
-                      ? "border-accent/40 bg-accent/20 text-accent"
-                      : "border-white/12 bg-white/[0.04] text-white/70 hover:text-white"
-                  }`}
-                >
-                  {CANVAS_FILTER_LABEL[value]}
-                </button>
-              );
-            })}
+          <div className="mt-3">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/40">
+              Canvas prints
+            </p>
+            <div className="flex gap-2">
+              {(["any", "available", "unavailable"] as const).map((value) => {
+                const active = sel.canvas === value;
+                const count =
+                  value === "any"
+                    ? null
+                    : value === "available"
+                      ? canvasCounts.available
+                      : canvasCounts.unavailable;
+                return (
+                  <button
+                    key={value}
+                    onClick={() =>
+                      setSel((prev) => ({ ...prev, canvas: value }))
+                    }
+                    aria-pressed={active}
+                    className={`min-w-0 flex-1 rounded-full border px-3 py-2 text-xs font-semibold transition-colors ${
+                      active
+                        ? "border-accent/40 bg-accent/20 text-accent"
+                        : "border-white/12 bg-white/[0.04] text-white/70 hover:text-white"
+                    }`}
+                  >
+                    {CANVAS_FILTER_LABEL[value]}
+                    {count ? ` · ${count.toLocaleString()}` : ""}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <AnimatePresence initial={false}>
@@ -404,49 +416,6 @@ export default function SearchView({
                   <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-2">
                     {node.kind === "root" && (
                       <div className="space-y-1">
-                        <p className="px-3 pt-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/40">
-                          Canvas
-                        </p>
-                        <OptionRow
-                          active={sel.canvas === "any"}
-                          onClick={() =>
-                            setSel((prev) => ({ ...prev, canvas: "any" }))
-                          }
-                        >
-                          Any
-                        </OptionRow>
-                        <OptionRow
-                          active={sel.canvas === "available"}
-                          onClick={() =>
-                            setSel((prev) => ({
-                              ...prev,
-                              canvas: "available",
-                            }))
-                          }
-                        >
-                          Canvas
-                          {canvasCounts.available
-                            ? ` · ${canvasCounts.available}`
-                            : ""}
-                        </OptionRow>
-                        <OptionRow
-                          active={sel.canvas === "unavailable"}
-                          onClick={() =>
-                            setSel((prev) => ({
-                              ...prev,
-                              canvas: "unavailable",
-                            }))
-                          }
-                        >
-                          Not available
-                          {canvasCounts.unavailable
-                            ? ` · ${canvasCounts.unavailable}`
-                            : ""}
-                        </OptionRow>
-                        <div className="my-2 border-t border-white/10" />
-                        <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/40">
-                          Categories
-                        </p>
                         <BranchRow
                           label="Subject"
                           detail={sel.portraitsOnly ? "Portraits" : "Any"}
