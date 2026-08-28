@@ -28,11 +28,20 @@ function slimArtist(artist: Artist): Artist {
 
 export function readCatalogSnapshot(): RemoteCatalog | null {
   const snap = readJSON<RemoteCatalog | null>(STORAGE_KEYS.catalogSnapshot, null);
-  if (!snap?.artworks?.length || !snap.artists?.length) return null;
+  // Snapshots survive deployments, so never trust an older stored shape just
+  // because its fields are non-null. In particular, an earlier card-map shape
+  // can leave `fypArtistCards` as an object; passing it through makes catalog
+  // startup call `.map()` on a non-array and blank the whole app.
+  const artworks = Array.isArray(snap?.artworks) ? snap.artworks : [];
+  const artists = Array.isArray(snap?.artists) ? snap.artists : [];
+  const fypArtistCards = Array.isArray(snap?.fypArtistCards)
+    ? snap.fypArtistCards
+    : [];
+  if (artworks.length === 0 || artists.length === 0) return null;
   return {
-    artworks: snap.artworks,
-    artists: snap.artists,
-    fypArtistCards: snap.fypArtistCards ?? [],
+    artworks,
+    artists,
+    fypArtistCards,
   };
 }
 

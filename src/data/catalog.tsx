@@ -299,7 +299,10 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
 
     const artworkMap = Object.fromEntries(allArtworks.map((a) => [a.id, a]));
     const artistMap = Object.fromEntries(allArtists.map((a) => [a.id, a]));
-    const fypArtistCards = hasRemote ? remote!.fypArtistCards : [];
+    const fypArtistCards =
+      hasRemote && Array.isArray(remote!.fypArtistCards)
+        ? remote!.fypArtistCards
+        : [];
     const fypArtistCardMap = Object.fromEntries(
       fypArtistCards.map((c) => [c.artistId, c]),
     );
