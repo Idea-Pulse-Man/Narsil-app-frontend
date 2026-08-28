@@ -168,8 +168,27 @@ export function batchShuffleByPopularity(
   return out;
 }
 
-/** Minimum number of other cards between two works by the same artist. */
-export const ARTIST_MIN_GAP = 50;
+/** Max artworks the feed keeps ranked in memory — enough variety without blocking the UI. */
+export const FEED_POOL_CAP = 1000;
+
+/** Reorder a pre-ranked pool for the current session without another popularity sort. */
+export function orderSessionFeed(
+  preRanked: Artwork[],
+  opts: { seen?: Set<string>; limit?: number } = {},
+): Artwork[] {
+  const limit = opts.limit ?? FEED_POOL_CAP;
+  if (!opts.seen?.size) return preRanked.slice(0, limit);
+  const unseen: Artwork[] = [];
+  const alreadySeen: Artwork[] = [];
+  for (const art of preRanked) {
+    if (opts.seen.has(art.id)) alreadySeen.push(art);
+    else unseen.push(art);
+  }
+  return [...unseen, ...alreadySeen].slice(0, limit);
+}
+
+/** Minimum artworks between two works by the same artist in the feed. */
+const ARTIST_MIN_GAP = 2;
 
 /** Minimum number of other cards between two sketch/pencil drawings. */
 export const SKETCH_MIN_GAP = 50;

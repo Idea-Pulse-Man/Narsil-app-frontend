@@ -14,7 +14,7 @@ const MAX_BIO = 400;
 function slimArtwork(art: Artwork): Artwork {
   return {
     ...art,
-    description: art.description.slice(0, MAX_DESCRIPTION),
+    description: (art.description ?? "").slice(0, MAX_DESCRIPTION),
     aiDescription: undefined,
     communityTags: undefined,
   };
@@ -23,7 +23,10 @@ function slimArtwork(art: Artwork): Artwork {
 function slimArtist(artist: Artist): Artist {
   return {
     ...artist,
-    bio: artist.bio.slice(0, MAX_BIO),
+    bio: (artist.bio ?? "").slice(0, MAX_BIO),
+    initials:
+      artist.initials ??
+      (artist.name?.trim() ? artist.name.trim().slice(0, 2).toUpperCase() : "??"),
   };
 }
 

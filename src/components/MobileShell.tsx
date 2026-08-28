@@ -45,7 +45,7 @@ const TUTORIAL_ALLOW: TutorialAction[] = [
 
 export default function MobileShell() {
   const isNative = Capacitor.isNativePlatform();
-  const { getArtist, getArtwork, loading: catalogLoading } = useCatalog();
+  const { getArtist, getArtwork, loading: catalogLoading, catalogComplete } = useCatalog();
   const {
     ready,
     preferences,
@@ -202,8 +202,11 @@ export default function MobileShell() {
     });
   }, [screen]);
 
-  // Preload other top-level tabs during idle time so the first switch stays fast.
+  // Preload other top-level tabs once the catalog has settled so idle work
+  // does not compete with full-archive hydration or the first feed image.
   useEffect(() => {
+    if (catalogLoading || !catalogComplete) return;
+
     const preload = () => {
       void import("./DiscoverView");
       void import("./SearchView");
@@ -212,12 +215,12 @@ export default function MobileShell() {
       void import("./YouView");
     };
     if ("requestIdleCallback" in window) {
-      const id = window.requestIdleCallback(preload, { timeout: 4000 });
+      const id = window.requestIdleCallback(preload, { timeout: 6000 });
       return () => window.cancelIdleCallback(id);
     }
-    const timer = globalThis.setTimeout(preload, 2500);
+    const timer = globalThis.setTimeout(preload, 3500);
     return () => globalThis.clearTimeout(timer);
-  }, []);
+  }, [catalogLoading, catalogComplete]);
 
   // ── Preference modal triggers ──────────────────────────────────────
   const handleViewIndex = useCallback(

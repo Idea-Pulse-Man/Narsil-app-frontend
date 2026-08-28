@@ -154,6 +154,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   // True once a Supabase (anonymous) session exists — gates cloud writes.
   const cloudReady = useRef(false);
+  /** Skip duplicate cloud pulls when ensureSession and INITIAL_SESSION race. */
+  const hydratedUserIdRef = useRef<string | null>(null);
 
   // Union incoming ids into the local seen set (and cache) without dropping any.
   const mergeSeen = useCallback((ids: string[]) => {
@@ -165,6 +167,43 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       return next;
     });
   }, []);
+
+  const applyRemoteUserData = useCallback((remote: Awaited<ReturnType<typeof fetchUserData>>) => {
+    if (!remote) return;
+    setSaved(remote.saved);
+    setLiked(remote.liked);
+    setFollowing(remote.following);
+    writeJSON(STORAGE_KEYS.saved, remote.saved);
+    writeJSON(STORAGE_KEYS.liked, remote.liked);
+    writeJSON(STORAGE_KEYS.following, remote.following);
+  }, []);
+
+  const hydrateFromCloud = useCallback(
+    async (userId: string, opts?: { includeProfile?: boolean; user?: User | null }) => {
+      if (hydratedUserIdRef.current === userId) return;
+      hydratedUserIdRef.current = userId;
+      cloudReady.current = true;
+      const user = opts?.user;
+      const [remote, remoteSeen, profile] = await Promise.all([
+        fetchUserData(),
+        fetchSeen(),
+        opts?.includeProfile && user && !user.is_anonymous
+          ? fetchProfile()
+          : Promise.resolve(null),
+      ]);
+      mergeSeen(remoteSeen);
+      applyRemoteUserData(remote);
+      if (profile) {
+        setProfile(profile);
+        if (profile.terms_version === TERMS_VERSION && profile.terms_accepted_at) {
+          setTermsAccepted(true);
+          writeJSON(STORAGE_KEYS.termsAccepted, true);
+          writeJSON(STORAGE_KEYS.termsVersion, TERMS_VERSION);
+        }
+      }
+    },
+    [applyRemoteUserData, mergeSeen],
+  );
 
   // Hydrate from localStorage immediately (instant + offline cache), then, if
   // Supabase is configured, sign in anonymously and replace with cloud data.
@@ -185,28 +224,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       const userId = await ensureSession();
       if (cancelled || !userId) return;
-      cloudReady.current = true;
-      const [remote, remoteSeen] = await Promise.all([
-        fetchUserData(),
-        fetchSeen(),
-      ]);
-      if (cancelled) return;
-      // Seen is a union of local + cloud so nothing already-viewed reappears.
-      mergeSeen(remoteSeen);
-      if (!remote) return;
-      // Cloud is the source of truth once available; mirror to local cache.
-      setSaved(remote.saved);
-      setLiked(remote.liked);
-      setFollowing(remote.following);
-      writeJSON(STORAGE_KEYS.saved, remote.saved);
-      writeJSON(STORAGE_KEYS.liked, remote.liked);
-      writeJSON(STORAGE_KEYS.following, remote.following);
+      await hydrateFromCloud(userId);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [mergeSeen]);
+  }, [hydrateFromCloud]);
 
   // Track the Supabase auth session so the UI can reflect who's signed in and
   // re-pull cloud data when a real account logs in (or out). Native OAuth is
@@ -258,38 +282,30 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       }
     })();
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       const nextUser = session?.user ?? null;
       setUser(nextUser);
-      cloudReady.current = Boolean(nextUser);
       if (!nextUser) {
+        cloudReady.current = false;
+        hydratedUserIdRef.current = null;
         setProfile(null);
         return;
       }
-      void (async () => {
-        const [remote, remoteSeen, p] = await Promise.all([
-          fetchUserData(),
-          fetchSeen(),
-          nextUser.is_anonymous ? Promise.resolve(null) : fetchProfile(),
-        ]);
-        if (cancelled) return;
-        if (p) setProfile(p);
-        mergeSeen(remoteSeen);
-        if (!remote) return;
-        setSaved(remote.saved);
-        setLiked(remote.liked);
-        setFollowing(remote.following);
-        writeJSON(STORAGE_KEYS.saved, remote.saved);
-        writeJSON(STORAGE_KEYS.liked, remote.liked);
-        writeJSON(STORAGE_KEYS.following, remote.following);
-      })();
+      cloudReady.current = true;
+      if (event === "INITIAL_SESSION" && hydratedUserIdRef.current === nextUser.id) {
+        return;
+      }
+      void hydrateFromCloud(nextUser.id, {
+        includeProfile: true,
+        user: nextUser,
+      });
     });
 
     return () => {
       cancelled = true;
       sub.subscription.unsubscribe();
     };
-  }, [mergeSeen]);
+  }, [hydrateFromCloud]);
 
   const signOut = useCallback(async () => {
     await authSignOut();
@@ -422,46 +438,99 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     writeJSON(STORAGE_KEYS.tutorialDone, false);
   }, []);
 
-  const value: AppStateValue = {
-    ready,
-    saved,
-    liked,
-    following,
-    isSaved: (id) => saved.includes(id),
-    isLiked: (id) => liked.includes(id),
-    isFollowing: (id) => following.includes(id),
-    toggleSaved,
-    toggleLiked,
-    toggleFollowing,
-    seen,
-    isSeen: (id) => seen.includes(id),
-    markSeen,
-    preferences,
-    savePreferences,
-    dismissPreferences,
-    tutorialDone,
-    completeTutorial,
-    restartTutorial,
-    authSeen,
-    markAuthSeen,
-    termsAccepted,
-    acceptTerms,
-    isAdmin,
-    user,
-    profile,
-    isGuest: !user || user.is_anonymous === true,
-    signOut,
-    subscription,
-    isPro: subscription.active,
-    setSubscription,
-    refreshSubscription,
-    proPrompt,
-    requestPro,
-    dismissPro,
-    downloadRequest,
-    requestDownload,
-    dismissDownload,
-  };
+  const savedSet = useMemo(() => new Set(saved), [saved]);
+  const likedSet = useMemo(() => new Set(liked), [liked]);
+  const followingSet = useMemo(() => new Set(following), [following]);
+  const seenSet = useMemo(() => new Set(seen), [seen]);
+
+  const isSaved = useCallback((id: string) => savedSet.has(id), [savedSet]);
+  const isLiked = useCallback((id: string) => likedSet.has(id), [likedSet]);
+  const isFollowing = useCallback(
+    (id: string) => followingSet.has(id),
+    [followingSet],
+  );
+  const isSeen = useCallback((id: string) => seenSet.has(id), [seenSet]);
+
+  const value = useMemo<AppStateValue>(
+    () => ({
+      ready,
+      saved,
+      liked,
+      following,
+      isSaved,
+      isLiked,
+      isFollowing,
+      toggleSaved,
+      toggleLiked,
+      toggleFollowing,
+      seen,
+      isSeen,
+      markSeen,
+      preferences,
+      savePreferences,
+      dismissPreferences,
+      tutorialDone,
+      completeTutorial,
+      restartTutorial,
+      authSeen,
+      markAuthSeen,
+      termsAccepted,
+      acceptTerms,
+      isAdmin,
+      user,
+      profile,
+      isGuest: !user || user.is_anonymous === true,
+      signOut,
+      subscription,
+      isPro: subscription.active,
+      setSubscription,
+      refreshSubscription,
+      proPrompt,
+      requestPro,
+      dismissPro,
+      downloadRequest,
+      requestDownload,
+      dismissDownload,
+    }),
+    [
+      ready,
+      saved,
+      liked,
+      following,
+      isSaved,
+      isLiked,
+      isFollowing,
+      toggleSaved,
+      toggleLiked,
+      toggleFollowing,
+      seen,
+      isSeen,
+      markSeen,
+      preferences,
+      savePreferences,
+      dismissPreferences,
+      tutorialDone,
+      completeTutorial,
+      restartTutorial,
+      authSeen,
+      markAuthSeen,
+      termsAccepted,
+      acceptTerms,
+      isAdmin,
+      user,
+      profile,
+      signOut,
+      subscription,
+      setSubscription,
+      refreshSubscription,
+      proPrompt,
+      requestPro,
+      dismissPro,
+      downloadRequest,
+      requestDownload,
+      dismissDownload,
+    ],
+  );
 
   return (
     <AppStateContext.Provider value={value}>

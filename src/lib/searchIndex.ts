@@ -31,6 +31,20 @@ export interface SearchIndex {
   search: (query: ArtworkSearchQuery) => Artwork[];
 }
 
+/** Cheap O(n) canvas partitions — available before the full text index finishes. */
+export function buildCanvasPartitions(artworks: Artwork[]): Pick<
+  SearchIndex,
+  "all" | "sellable" | "unsellable"
+> {
+  const sellable: Artwork[] = [];
+  const unsellable: Artwork[] = [];
+  for (const art of artworks) {
+    if (isCanvasSellable(art)) sellable.push(art);
+    else unsellable.push(art);
+  }
+  return { all: artworks, sellable, unsellable };
+}
+
 export function buildSearchIndex(
   artworks: Artwork[],
   artistMap: Record<string, Artist>,

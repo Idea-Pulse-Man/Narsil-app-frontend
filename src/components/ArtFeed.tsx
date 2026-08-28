@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Artwork, FeedItem } from "@/data";
 import { feedItemKey } from "@/data";
 import { useCatalog } from "@/data/catalog";
-import { buildSessionFeed, interleaveStorySlides } from "@/lib/feed-utils";
+import { orderSessionFeed, interleaveStorySlides } from "@/lib/feed-utils";
+import { isRenderableFeedItem } from "@/lib/feedItemGuards";
 import { useAppState } from "./AppState";
 import ArtworkCard from "./ArtworkCard";
 import StoryCard from "./StoryCard";
@@ -43,8 +44,14 @@ export default function ArtFeed({
   filter = "all",
   tutorial,
 }: ArtFeedProps) {
-  const { feedPool, getArtist, getArtwork, loading, artistMap, fypArtistCardMap } =
-    useCatalog();
+  const {
+    feedPool,
+    getArtist,
+    getArtwork,
+    getFypArtistCard,
+    loading,
+    fypArtistCardMap,
+  } = useCatalog();
   const { seen, markSeen } = useAppState();
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastScrollTop = useRef(0);
@@ -78,13 +85,9 @@ export default function ArtFeed({
       if (filter === "freelance") return art.origin === "artist-original";
       return true;
     });
-    const ranked = buildSessionFeed(filtered, {
-      // Uncapped: the whole ranked pool is the feed. Progressive rendering
-      // (below) keeps only a growing window mounted so it stays fast.
+    const ranked = orderSessionFeed(filtered, {
       limit: filtered.length,
       seen: seenSnapshot ?? undefined,
-      artistMap,
-      seed: sessionSeed,
     });
 
     if (ranked.length === 0) return frozenArtworks.current ?? ranked;
@@ -100,7 +103,12 @@ export default function ArtFeed({
       ...extra,
     ];
     return frozenArtworks.current;
-  }, [feedPool, filter, seenSnapshot, artistMap, sessionSeed]);
+  }, [feedPool, filter, seenSnapshot]);
+
+  const renderGuard = useMemo(
+    () => ({ getArtist, getFypArtistCard }),
+    [getArtist, getFypArtistCard],
+  );
 
   // Mixed feed: artworks + intermittent artist / era story slides.
   // Tutorial stays artwork-only so gesture lessons land on real cards.
@@ -111,8 +119,8 @@ export default function ArtFeed({
         fypArtistCardMap,
         skipStories: !!tutorial?.active,
         filter,
-      }),
-    [artworks, fypArtistCardMap, sessionSeed, tutorial?.active, filter],
+      }).filter((item) => isRenderableFeedItem(item, renderGuard)),
+    [artworks, fypArtistCardMap, sessionSeed, tutorial?.active, filter, renderGuard],
   );
 
   // Infinite scroll: mount a small window of cards and grow it as the user

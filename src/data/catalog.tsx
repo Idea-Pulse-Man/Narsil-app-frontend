@@ -44,12 +44,14 @@ import {
   readCatalogMetaCache,
   writeCatalogMetaCache,
 } from "@/lib/catalogMetaCache";
-import { buildSearchIndex } from "@/lib/searchIndex";
-import { sanitizeRemoteCatalog } from "@/lib/catalogValidate";
+import { buildSearchIndex, buildCanvasPartitions, type SearchIndex } from "@/lib/searchIndex";
+import { sanitizeRemoteCatalog, purgeLegacyCatalogCaches } from "@/lib/catalogValidate";
 import { warmFeedImages } from "@/lib/imageCache";
 import {
+  diversifyFeed,
   isDefaultFeedEligible,
   isGenericMakerName,
+  FEED_POOL_CAP,
   sortByPopularity,
 } from "@/lib/feed-utils";
 
@@ -159,34 +161,23 @@ function buildFeed(
     if ((i + 1) % 3 === 0 && fi < freelance.length) out.push(freelance[fi++]);
   });
   while (fi < freelance.length) out.push(freelance[fi++]);
-  return out;
+  return diversifyFeed(out);
 }
 
 /** Persist the first feed window + warm those image bytes for the next launch. */
 function persistFeedWindow(
-  artworks: Artwork[],
+  feedWindow: Artwork[],
   artists: Artist[],
-  artistMap: Record<string, Artist>,
   fypArtistCards: FypArtistCard[] = [],
 ): void {
-  const isUnknownArtist = (artistId: string): boolean => {
-    const name = artistMap[artistId]?.name ?? "";
-    return !name || /^(unknown|anonymous|unidentified)/i.test(name);
-  };
-  const feed = buildFeed(
-    artworks.filter((a) => !isUnknownArtist(a.artistId)).filter(isDefaultFeedEligible),
-    artistMap,
-  ).slice(0, FEED_LIMIT);
-  const artistIds = new Set(feed.map((a) => a.artistId));
+  const artistIds = new Set(feedWindow.map((a) => a.artistId));
   writeCatalogSnapshot({
-    artworks: feed,
+    artworks: feedWindow,
     artists: artists.filter((a) => artistIds.has(a.id)),
     fypArtistCards,
   });
-  // First visit: only warm the opening cards so they don't compete with the
-  // image the user is looking at.
   warmFeedImages(
-    feed.map((a) => a.image),
+    feedWindow.map((a) => a.image),
     3,
   );
 }
@@ -195,6 +186,9 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
   const snapshotRef = useRef(readCatalogSnapshot());
   const snapshot = snapshotRef.current;
   const metaHydratedRef = useRef(false);
+  const loadControllerRef = useRef<AbortController | null>(null);
+  const searchIndexRef = useRef<SearchIndex | null>(null);
+  const [searchIndexReady, setSearchIndexReady] = useState(false);
   const [remote, setRemote] = useState<RemoteCatalog | null>(snapshot);
   const [source, setSource] = useState<CatalogSource>(
     snapshot ? "supabase" : "mock",
@@ -276,7 +270,9 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
+    purgeLegacyCatalogCaches();
     const controller = new AbortController();
+    loadControllerRef.current = controller;
     void (async () => {
       if (!snapshotRef.current) {
         const cached = await readCatalogMetaCache();
@@ -289,17 +285,59 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
         skipPreview: Boolean(snapshotRef.current || metaHydratedRef.current),
       });
     })();
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      if (loadControllerRef.current === controller) {
+        loadControllerRef.current = null;
+      }
+    };
   }, [load, applyRemote]);
+
+  // Build the heavy text/place search index during idle time so catalog hydration
+  // does not block the first feed paint.
+  useEffect(() => {
+    if (!remote?.artworks.length) {
+      searchIndexRef.current = null;
+      setSearchIndexReady(false);
+      return;
+    }
+    const artistMap = Object.fromEntries(remote.artists.map((a) => [a.id, a]));
+    searchIndexRef.current = null;
+    setSearchIndexReady(false);
+    let cancelled = false;
+    const build = () => {
+      if (cancelled) return;
+      searchIndexRef.current = buildSearchIndex(remote.artworks, artistMap);
+      setSearchIndexReady(true);
+    };
+    if ("requestIdleCallback" in window) {
+      const id = window.requestIdleCallback(build, { timeout: 2500 });
+      return () => {
+        cancelled = true;
+        window.cancelIdleCallback(id);
+      };
+    }
+    const timer = globalThis.setTimeout(build, 0);
+    return () => {
+      cancelled = true;
+      globalThis.clearTimeout(timer);
+    };
+  }, [remote]);
+
+  const rankedFeedRef = useRef<{
+    key: string;
+    pool: Artwork[];
+    window: Artwork[];
+  } | null>(null);
 
   // After any live catalog lands, remember the opening feed + its images.
   useEffect(() => {
     if (!remote || source !== "supabase") return;
-    const artistMap = Object.fromEntries(remote.artists.map((a) => [a.id, a]));
+    const key = `${remote.artworks.length}:${remote.artists.length}`;
+    if (rankedFeedRef.current?.key !== key) return;
     persistFeedWindow(
-      remote.artworks,
+      rankedFeedRef.current.window,
       remote.artists,
-      artistMap,
       remote.fypArtistCards,
     );
   }, [remote, source]);
@@ -307,7 +345,10 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
   // Pull fresh rows on demand (e.g. right after a user publishes new art) so the
   // new post shows up immediately instead of only after a full app reload.
   const refresh = useCallback(async () => {
-    await load(undefined, { skipPreview: false });
+    loadControllerRef.current?.abort();
+    const controller = new AbortController();
+    loadControllerRef.current = controller;
+    await load(controller.signal, { skipPreview: false });
   }, [load]);
 
   const value = useMemo<CatalogValue>(() => {
@@ -352,26 +393,48 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
       ...uniquePlaceFacets(browseArtworks),
     };
 
-    const searchIndex = buildSearchIndex(browseArtworks, artistMap);
+    const canvasPartitions = buildCanvasPartitions(browseArtworks);
+    const searchArtworks = (query: ArtworkSearchQuery): Artwork[] => {
+      if (searchIndexRef.current) {
+        return searchIndexRef.current.search(query);
+      }
+      const canvas = query.canvas ?? "any";
+      const pool =
+        canvas === "available"
+          ? canvasPartitions.sellable
+          : canvas === "unavailable"
+            ? canvasPartitions.unsellable
+            : canvasPartitions.all;
+      if (query.text?.trim()) return pool;
+      return pool;
+    };
 
-    const searchArtworks = (query: ArtworkSearchQuery): Artwork[] =>
-      searchIndex.search(query);
+    void searchIndexReady;
 
-    // The For You feed (and, by extension, the Buy page, which derives from it)
-    // should feature real, named makers — not the huge pile of works the museum
-    // catalogs as "Unknown Artist". Drop those before building the feed so the
-    // 80-item window fills up with attributable art.
     const isUnknownArtist = (artistId: string): boolean => {
       const name = artistMap[artistId]?.name ?? "";
       return !name || /^(unknown|anonymous|unidentified)/i.test(name);
     };
-    const namedFeedFull = buildFeed(
-      browseArtworks
-        .filter((a) => !isUnknownArtist(a.artistId))
-        .filter(isDefaultFeedEligible),
-      artistMap,
+    const feedCandidates = browseArtworks
+      .filter((a) => !isUnknownArtist(a.artistId))
+      .filter(isDefaultFeedEligible);
+    const namedFeedFull = buildFeed(feedCandidates, artistMap).slice(
+      0,
+      FEED_POOL_CAP,
     );
     const namedFeed = namedFeedFull.slice(0, FEED_LIMIT);
+    rankedFeedRef.current = {
+      key: `${browseArtworks.length}:${browseArtists.length}`,
+      pool: namedFeedFull,
+      window: namedFeed,
+    };
+
+    const artworksByArtistId: Record<string, Artwork[]> = {};
+    for (const art of allArtworks) {
+      const list = artworksByArtistId[art.artistId];
+      if (list) list.push(art);
+      else artworksByArtistId[art.artistId] = [art];
+    }
 
     return {
       artworks: browseArtworks,
@@ -391,8 +454,7 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
       getFypArtistCard: (artistId) => fypArtistCardMap[artistId],
       getArtwork: (id) => artworkMap[id],
       // Profiles resolve works from the full pool (real + curated).
-      getArtworksByArtist: (artistId) =>
-        allArtworks.filter((a) => a.artistId === artistId),
+      getArtworksByArtist: (artistId) => artworksByArtistId[artistId] ?? [],
       // Suppress portrait photos for anonymous/generic makers ("a Chinese
       // artist", "British School", workshops…) — they have no personal likeness,
       // so fall back to the monogram even if a stale avatar is stored upstream.
@@ -405,7 +467,7 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
         browseArtworks.filter((a) => artworkMatchesCategory(a, id)),
       searchArtworks,
     };
-  }, [remote, source, loading, catalogComplete, catalogTotal, refresh]);
+  }, [remote, source, loading, catalogComplete, catalogTotal, refresh, searchIndexReady]);
 
   return (
     <CatalogContext.Provider value={value}>{children}</CatalogContext.Provider>
