@@ -1,10 +1,7 @@
 import { Capacitor } from "@capacitor/core";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAudio } from "@/lib/audio/AudioProvider";
-import TermsView from "./TermsView";
-import MusicPrompt from "./MusicPrompt";
-import AdminView from "./AdminView";
 import type { Artist } from "@/data";
 import { historyEras } from "@/data/history";
 import { useCatalog } from "@/data/catalog";
@@ -12,25 +9,29 @@ import TopTabs from "./TopTabs";
 import BottomNav from "./BottomNav";
 import { type Screen } from "./navigation";
 import ArtFeed from "./ArtFeed";
-import BuyView from "./BuyView";
-import CreateView from "./CreateView";
-import DiscoverView from "./DiscoverView";
-import SearchView from "./SearchView";
-import SavedView from "./SavedView";
-import YouView from "./YouView";
-import ArtistProfileModal from "./ArtistProfileModal";
-import EraScreen from "./EraScreen";
-import QuizOverlay from "./QuizOverlay";
-import ProPaywall from "./ProPaywall";
-import DownloadSheet from "./DownloadSheet";
-import ArtworkViewer from "./ArtworkViewer";
-import AuthView from "./AuthView";
-import PreferenceModal from "./PreferenceModal";
-import TutorialCoach from "./TutorialCoach";
 import Toast, { type ToastState } from "./Toast";
 import { useAppState } from "./AppState";
 import { SHARE_ART_PARAM } from "@/lib/download";
 import type { TutorialAction } from "./tutorial";
+
+const DiscoverView = lazy(() => import("./DiscoverView"));
+const BuyView = lazy(() => import("./BuyView"));
+const SearchView = lazy(() => import("./SearchView"));
+const CreateView = lazy(() => import("./CreateView"));
+const SavedView = lazy(() => import("./SavedView"));
+const YouView = lazy(() => import("./YouView"));
+const AdminView = lazy(() => import("./AdminView"));
+const EraScreen = lazy(() => import("./EraScreen"));
+const QuizOverlay = lazy(() => import("./QuizOverlay"));
+const ArtistProfileModal = lazy(() => import("./ArtistProfileModal"));
+const ArtworkViewer = lazy(() => import("./ArtworkViewer"));
+const AuthView = lazy(() => import("./AuthView"));
+const PreferenceModal = lazy(() => import("./PreferenceModal"));
+const TutorialCoach = lazy(() => import("./TutorialCoach"));
+const TermsView = lazy(() => import("./TermsView"));
+const MusicPrompt = lazy(() => import("./MusicPrompt"));
+const ProPaywall = lazy(() => import("./ProPaywall"));
+const DownloadSheet = lazy(() => import("./DownloadSheet"));
 
 // The gesture each tutorial step teaches, in order (matches STEPS in the coach).
 const TUTORIAL_ALLOW: TutorialAction[] = [
@@ -201,6 +202,23 @@ export default function MobileShell() {
     });
   }, [screen]);
 
+  // Preload other top-level tabs during idle time so the first switch stays fast.
+  useEffect(() => {
+    const preload = () => {
+      void import("./DiscoverView");
+      void import("./SearchView");
+      void import("./SavedView");
+      void import("./BuyView");
+      void import("./YouView");
+    };
+    if ("requestIdleCallback" in window) {
+      const id = window.requestIdleCallback(preload, { timeout: 4000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const timer = globalThis.setTimeout(preload, 2500);
+    return () => globalThis.clearTimeout(timer);
+  }, []);
+
   // ── Preference modal triggers ──────────────────────────────────────
   const handleViewIndex = useCallback(
     (index: number) => {
@@ -363,13 +381,15 @@ export default function MobileShell() {
               aria-hidden={screen !== "discover"}
               inert={screen !== "discover" ? true : undefined}
             >
-              <DiscoverView
-                onOpenArtist={openArtist}
-                onOpenArtwork={openArtwork}
-                onOpenEra={setActiveEraId}
-                onOpenQuiz={() => setQuizOpen(true)}
-                quizRefresh={quizRefresh}
-              />
+              <Suspense fallback={null}>
+                <DiscoverView
+                  onOpenArtist={openArtist}
+                  onOpenArtwork={openArtwork}
+                  onOpenEra={setActiveEraId}
+                  onOpenQuiz={() => setQuizOpen(true)}
+                  quizRefresh={quizRefresh}
+                />
+              </Suspense>
             </div>
           )}
 
@@ -379,7 +399,9 @@ export default function MobileShell() {
               aria-hidden={screen !== "buy"}
               inert={screen !== "buy" ? true : undefined}
             >
-              <BuyView showToast={showToast} />
+              <Suspense fallback={null}>
+                <BuyView showToast={showToast} />
+              </Suspense>
             </div>
           )}
 
@@ -391,10 +413,12 @@ export default function MobileShell() {
               aria-hidden={screen !== "search"}
               inert={screen !== "search" ? true : undefined}
             >
-              <SearchView
-                onOpenArtwork={openArtwork}
-                showToast={showToast}
-              />
+              <Suspense fallback={null}>
+                <SearchView
+                  onOpenArtwork={openArtwork}
+                  showToast={showToast}
+                />
+              </Suspense>
             </div>
           )}
 
@@ -406,12 +430,14 @@ export default function MobileShell() {
               aria-hidden={screen !== "create"}
               inert={screen !== "create" ? true : undefined}
             >
-              <CreateView
-                showToast={showToast}
-                onPublished={() => {
-                  setScreen("for-you");
-                }}
-              />
+              <Suspense fallback={null}>
+                <CreateView
+                  showToast={showToast}
+                  onPublished={() => {
+                    setScreen("for-you");
+                  }}
+                />
+              </Suspense>
             </div>
           )}
 
@@ -423,11 +449,13 @@ export default function MobileShell() {
               aria-hidden={screen !== "saved"}
               inert={screen !== "saved" ? true : undefined}
             >
-              <SavedView
-                onOpenArtwork={openArtwork}
-                onNavigate={navigate}
-                showToast={showToast}
-              />
+              <Suspense fallback={null}>
+                <SavedView
+                  onOpenArtwork={openArtwork}
+                  onNavigate={navigate}
+                  showToast={showToast}
+                />
+              </Suspense>
             </div>
           )}
 
@@ -441,36 +469,40 @@ export default function MobileShell() {
               aria-hidden={screen !== "you" || adminOpen}
               inert={screen !== "you" || adminOpen ? true : undefined}
             >
-              <YouView
-                onOpenArtwork={openArtwork}
-                onOpenArtist={openArtist}
-                onEditPreferences={editPreferences}
-                onRestartTutorial={() => {
-                  restartTutorial();
-                  setTutorialStep(0);
-                  setTutorialActive(true);
-                  setScreen("for-you");
-                  setResetToken((t) => t + 1);
-                }}
-                onNavigate={navigate}
-                onSignIn={() => setAuthOpen(true)}
-                onOpenTerms={() => setTermsReview(true)}
-                onOpenAdmin={() => setAdminOpen(true)}
-                onOpenQuiz={() => setQuizOpen(true)}
-                quizRefresh={quizRefresh}
-                onQuizReset={() => setQuizRefresh((t) => t + 1)}
-                isAdmin={isAdmin}
-                showToast={showToast}
-              />
+              <Suspense fallback={null}>
+                <YouView
+                  onOpenArtwork={openArtwork}
+                  onOpenArtist={openArtist}
+                  onEditPreferences={editPreferences}
+                  onRestartTutorial={() => {
+                    restartTutorial();
+                    setTutorialStep(0);
+                    setTutorialActive(true);
+                    setScreen("for-you");
+                    setResetToken((t) => t + 1);
+                  }}
+                  onNavigate={navigate}
+                  onSignIn={() => setAuthOpen(true)}
+                  onOpenTerms={() => setTermsReview(true)}
+                  onOpenAdmin={() => setAdminOpen(true)}
+                  onOpenQuiz={() => setQuizOpen(true)}
+                  quizRefresh={quizRefresh}
+                  onQuizReset={() => setQuizRefresh((t) => t + 1)}
+                  isAdmin={isAdmin}
+                  showToast={showToast}
+                />
+              </Suspense>
             </div>
           )}
 
           {screen === "you" && adminOpen && (
             <div className="absolute inset-0">
-              <AdminView
-                onBack={() => setAdminOpen(false)}
-                showToast={showToast}
-              />
+              <Suspense fallback={null}>
+                <AdminView
+                  onBack={() => setAdminOpen(false)}
+                  showToast={showToast}
+                />
+              </Suspense>
             </div>
           )}
         </div>
@@ -496,128 +528,153 @@ export default function MobileShell() {
 
         {/* One age in full. Sits under the profile/viewer so anything opened
             from an era's list stacks on top of it. */}
-        <EraScreen
-          era={historyEras.find((e) => e.id === activeEraId) ?? null}
-          onClose={() => setActiveEraId(null)}
-          onOpenArtwork={openArtwork}
-          onOpenArtist={openArtist}
-        />
+        {activeEraId && (
+          <Suspense fallback={null}>
+            <EraScreen
+              era={historyEras.find((e) => e.id === activeEraId) ?? null}
+              onClose={() => setActiveEraId(null)}
+              onOpenArtwork={openArtwork}
+              onOpenArtist={openArtist}
+            />
+          </Suspense>
+        )}
 
-        {/* Daily quiz — stacks above Discover; opening an artwork from the
-            results closes it first so the viewer lands on top. */}
-        <QuizOverlay
-          open={quizOpen}
-          onClose={() => {
-            setQuizOpen(false);
-            setQuizRefresh((t) => t + 1);
-          }}
-          onOpenArtwork={openArtwork}
-        />
+        {quizOpen && (
+          <Suspense fallback={null}>
+            <QuizOverlay
+              open
+              onClose={() => {
+                setQuizOpen(false);
+                setQuizRefresh((t) => t + 1);
+              }}
+              onOpenArtwork={openArtwork}
+            />
+          </Suspense>
+        )}
 
-        <ArtistProfileModal
-          artist={activeArtist}
-          onClose={() => setActiveArtist(null)}
-          onOpenArtwork={openArtwork}
-        />
+        {activeArtist && (
+          <Suspense fallback={null}>
+            <ArtistProfileModal
+              artist={activeArtist}
+              onClose={() => setActiveArtist(null)}
+              onOpenArtwork={openArtwork}
+            />
+          </Suspense>
+        )}
 
-        {/* Viewer after profile so works opened from the profile sit on top. */}
         {activeArtwork && activeArtworkArtist && (
-          <ArtworkViewer
-            artwork={activeArtwork}
-            artist={activeArtworkArtist}
-            open={!!activeArtworkId}
-            onClose={() => setActiveArtworkId(null)}
-            showToast={showToast}
-            onOpenArtist={openArtist}
-          />
+          <Suspense fallback={null}>
+            <ArtworkViewer
+              artwork={activeArtwork}
+              artist={activeArtworkArtist}
+              open={!!activeArtworkId}
+              onClose={() => setActiveArtworkId(null)}
+              showToast={showToast}
+              onOpenArtist={openArtist}
+            />
+          </Suspense>
         )}
 
         <AnimatePresence>
           {termsOpen && (
-            <TermsView
-              onAccept={() => {
-                acceptTerms();
-                setTermsOpen(false);
-              }}
-            />
+            <Suspense fallback={null}>
+              <TermsView
+                onAccept={() => {
+                  acceptTerms();
+                  setTermsOpen(false);
+                }}
+              />
+            </Suspense>
           )}
         </AnimatePresence>
 
         <AnimatePresence>
           {termsReview && (
-            <TermsView
-              required={false}
-              onClose={() => setTermsReview(false)}
-              onAccept={() => setTermsReview(false)}
-            />
+            <Suspense fallback={null}>
+              <TermsView
+                required={false}
+                onClose={() => setTermsReview(false)}
+                onAccept={() => setTermsReview(false)}
+              />
+            </Suspense>
           )}
         </AnimatePresence>
 
-        {/* Extract sheet (Standard / Master File). Rendered here rather than
-            in the action rail: the rail's root is a 44px-wide absolute column,
-            so an overlay inside it would size to the rail. */}
-        <DownloadSheet
-          artwork={downloadRequest}
-          onClose={dismissDownload}
-          showToast={showToast}
-        />
+        {downloadRequest && (
+          <Suspense fallback={null}>
+            <DownloadSheet
+              artwork={downloadRequest}
+              onClose={dismissDownload}
+              showToast={showToast}
+            />
+          </Suspense>
+        )}
 
-        {/* Narsil Pro. Rendered once here because the things that trigger it —
-            the action rail inside the feed, the quiz overlay — are several
-            levels down; they raise it through AppState's `requestPro`. */}
-        <ProPaywall
-          reason={proPrompt}
-          onClose={dismissPro}
-          onSubscribed={setSubscription}
-          onShowTerms={() => {
-            dismissPro();
-            setTermsReview(true);
-          }}
-          showToast={showToast}
-        />
+        {proPrompt && (
+          <Suspense fallback={null}>
+            <ProPaywall
+              reason={proPrompt}
+              onClose={dismissPro}
+              onSubscribed={setSubscription}
+              onShowTerms={() => {
+                dismissPro();
+                setTermsReview(true);
+              }}
+              showToast={showToast}
+            />
+          </Suspense>
+        )}
 
         <AnimatePresence>
           {musicPromptOpen && (
-            <MusicPrompt
-              onEnable={() => {
-                setEnabled(true);
-                markPromptSeen();
-                setMusicPromptOpen(false);
-              }}
-              onDecline={() => {
-                markPromptSeen();
-                setMusicPromptOpen(false);
-              }}
-            />
+            <Suspense fallback={null}>
+              <MusicPrompt
+                onEnable={() => {
+                  setEnabled(true);
+                  markPromptSeen();
+                  setMusicPromptOpen(false);
+                }}
+                onDecline={() => {
+                  markPromptSeen();
+                  setMusicPromptOpen(false);
+                }}
+              />
+            </Suspense>
           )}
         </AnimatePresence>
 
         <AnimatePresence>
           {authOpen && (
-            <AuthView
-              onClose={() => {
-                setAuthOpen(false);
-                markAuthSeen();
-              }}
-            />
+            <Suspense fallback={null}>
+              <AuthView
+                onClose={() => {
+                  setAuthOpen(false);
+                  markAuthSeen();
+                }}
+              />
+            </Suspense>
           )}
         </AnimatePresence>
 
-        <PreferenceModal
-          open={prefsOpen}
-          initial={preferences}
-          onSave={handleSavePrefs}
-          onSkip={handleSkipPrefs}
-        />
+        <Suspense fallback={null}>
+          <PreferenceModal
+            open={prefsOpen}
+            initial={preferences}
+            onSave={handleSavePrefs}
+            onSkip={handleSkipPrefs}
+          />
+        </Suspense>
 
-        <TutorialCoach
-          open={tutorialActive}
-          step={tutorialStep}
-          advancing={advancing}
-          onSkip={endTutorial}
-          onStart={endTutorial}
-          onAdvance={() => reportGesture("actions")}
-        />
+        <Suspense fallback={null}>
+          <TutorialCoach
+            open={tutorialActive}
+            step={tutorialStep}
+            advancing={advancing}
+            onSkip={endTutorial}
+            onStart={endTutorial}
+            onAdvance={() => reportGesture("actions")}
+          />
+        </Suspense>
       </div>
     </div>
   );

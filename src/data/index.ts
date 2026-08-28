@@ -160,6 +160,8 @@ export interface ArtworkSearchQuery {
   museums?: string[];
   /** When true, only portrait-like works (Search facet). */
   portraitsOnly?: boolean;
+  /** Canvas print availability (Search facet). */
+  canvas?: "any" | "available" | "unavailable";
 }
 
 /** Merge a single value + a list into one list of selected values. */

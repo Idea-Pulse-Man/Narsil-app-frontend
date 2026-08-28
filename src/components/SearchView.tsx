@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useDeferredValue, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   categories as allCategories,
@@ -9,7 +9,6 @@ import {
   type CategoryId,
 } from "@/data";
 import { useCatalog } from "@/data/catalog";
-import { isCanvasSellable } from "@/lib/sellability";
 import { screenScrollClass, screenContentClass } from "./artwork-layout";
 import {
   SearchIcon,
@@ -18,9 +17,10 @@ import {
   ArrowLeftIcon,
 } from "./Icons";
 import ArtworkTile from "./ArtworkTile";
-import CanvasPurchaseSheet from "./CanvasPurchaseSheet";
 import { useInfiniteScroll } from "./useInfiniteScroll";
 import type { ToastState } from "./Toast";
+
+const CanvasPurchaseSheet = lazy(() => import("./CanvasPurchaseSheet"));
 
 interface SearchViewProps {
   onOpenArtwork: (artworkId: string) => void;
@@ -56,7 +56,7 @@ const EMPTY_SELECTION: Selection = {
 };
 
 const CANVAS_FILTER_LABEL: Record<CanvasFilter, string> = {
-  any: "Any",
+  any: "All",
   available: "Canvas",
   unavailable: "No canvas",
 };
@@ -81,6 +81,19 @@ type FilterNode =
   | { kind: "artist" }
   | { kind: "artist-letter"; letter: string };
 
+function categoryFilterKey(sel: Selection): string {
+  return JSON.stringify({
+    categories: sel.categories,
+    periods: sel.periods,
+    empires: sel.empires,
+    artistIds: sel.artistIds,
+    countries: sel.countries,
+    cities: sel.cities,
+    museums: sel.museums,
+    portraitsOnly: sel.portraitsOnly,
+  });
+}
+
 export default function SearchView({
   onOpenArtwork,
   showToast,
@@ -95,15 +108,18 @@ export default function SearchView({
     catalogTotal,
   } = useCatalog();
   const [text, setText] = useState("");
+  const deferredText = useDeferredValue(text);
   const [sel, setSel] = useState<Selection>(EMPTY_SELECTION);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [node, setNode] = useState<FilterNode>({ kind: "root" });
   const [canvasId, setCanvasId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
+  const categoryKey = categoryFilterKey(sel);
+
   const results = useMemo(() => {
-    const list = searchArtworks({
-      text,
+    return searchArtworks({
+      text: deferredText,
       categories: sel.categories.length ? sel.categories : undefined,
       periods: sel.periods.length ? sel.periods : undefined,
       empires: sel.empires.length ? sel.empires : undefined,
@@ -112,19 +128,16 @@ export default function SearchView({
       cities: sel.cities.length ? sel.cities : undefined,
       museums: sel.museums.length ? sel.museums : undefined,
       portraitsOnly: sel.portraitsOnly || undefined,
+      canvas: sel.canvas,
     });
-    if (sel.canvas === "available") return list.filter(isCanvasSellable);
-    if (sel.canvas === "unavailable")
-      return list.filter((art) => !isCanvasSellable(art));
-    return list;
-  }, [text, sel, searchArtworks]);
+  }, [deferredText, sel, searchArtworks]);
 
   const { visible, sentinelRef, hasMore } = useInfiniteScroll(results, {
-    resetKey: `${text}|${JSON.stringify(sel)}`,
+    resetKey: `${deferredText}|${categoryKey}`,
+    softResetKey: sel.canvas,
     rootRef: scrollRef,
   });
 
-  // Only artists who actually appear in the searchable catalog.
   const searchableArtists = useMemo(() => {
     const ids = new Set(artworks.map((a) => a.artistId));
     return artists
@@ -152,7 +165,7 @@ export default function SearchView({
         if (b === "#") return -1;
         return a.localeCompare(b);
       }),
-    [artistsByLetter]
+    [artistsByLetter],
   );
 
   const collectionGroups = useMemo(() => {
@@ -162,23 +175,13 @@ export default function SearchView({
       .map((group) => ({
         group,
         items: allCategories.filter(
-          (c) => c.group === group && available.has(c.id)
+          (c) => c.group === group && available.has(c.id),
         ),
       }))
       .filter((g) => g.items.length > 0);
   }, [searchFacets.categories]);
 
   const placeTree = useMemo(() => placeTreeOf(artworks), [artworks]);
-
-  const canvasCounts = useMemo(() => {
-    let available = 0;
-    let unavailable = 0;
-    for (const art of artworks) {
-      if (isCanvasSellable(art)) available += 1;
-      else unavailable += 1;
-    }
-    return { available, unavailable };
-  }, [artworks]);
 
   const activeArtwork = canvasId ? getArtwork(canvasId) ?? null : null;
 
@@ -248,14 +251,14 @@ export default function SearchView({
     add(
       sel.categories,
       sel.categories[0] ? categoryMap[sel.categories[0]].label : "",
-      "categories"
+      "categories",
     );
     add(sel.periods, sel.periods[0] ?? "", "periods");
     add(sel.empires, sel.empires[0] ?? "", "empires");
     add(
       sel.artistIds,
       searchableArtists.find((a) => a.id === sel.artistIds[0])?.name ?? "",
-      "artists"
+      "artists",
     );
     add(sel.countries, sel.countries[0] ?? "", "countries");
     add(sel.cities, sel.cities[0] ?? "", "cities");
@@ -322,7 +325,6 @@ export default function SearchView({
           )}
         </div>
 
-        {/* Drill-down filter — one tree level on screen; Done closes it */}
         <div className="mt-4">
           <button
             onClick={() => (filtersOpen ? closeFilters() : openFilters())}
@@ -353,12 +355,6 @@ export default function SearchView({
             <div className="flex gap-2">
               {(["any", "available", "unavailable"] as const).map((value) => {
                 const active = sel.canvas === value;
-                const count =
-                  value === "any"
-                    ? null
-                    : value === "available"
-                      ? canvasCounts.available
-                      : canvasCounts.unavailable;
                 return (
                   <button
                     key={value}
@@ -373,7 +369,6 @@ export default function SearchView({
                     }`}
                   >
                     {CANVAS_FILTER_LABEL[value]}
-                    {count ? ` · ${count.toLocaleString()}` : ""}
                   </button>
                 );
               })}
@@ -486,7 +481,7 @@ export default function SearchView({
                       <div className="space-y-1">
                         {collectionGroups.map(({ group, items }) => {
                           const selectedInGroup = items.filter((c) =>
-                            sel.categories.includes(c.id)
+                            sel.categories.includes(c.id),
                           ).length;
                           return (
                             <BranchRow
@@ -512,7 +507,7 @@ export default function SearchView({
                           .filter(
                             (c) =>
                               c.group === node.group &&
-                              searchFacets.categories.includes(c.id)
+                              searchFacets.categories.includes(c.id),
                           )
                           .map((c) => (
                             <OptionRow
@@ -558,10 +553,10 @@ export default function SearchView({
                       <div className="space-y-1">
                         {placeTree.countries.map((country) => {
                           const citySet = new Set(
-                            country.cities.map((c) => c.city)
+                            country.cities.map((c) => c.city),
                           );
                           const museumSet = new Set(
-                            country.cities.flatMap((c) => c.museums)
+                            country.cities.flatMap((c) => c.museums),
                           );
                           const selectedHere =
                             (sel.countries.includes(country.country) ? 1 : 0) +
@@ -590,7 +585,7 @@ export default function SearchView({
                             detail={`${placeTree.otherMuseums.length} museums`}
                             count={
                               sel.museums.filter((m) =>
-                                placeTree.otherMuseums.includes(m)
+                                placeTree.otherMuseums.includes(m),
                               ).length
                             }
                             onClick={() => setNode({ kind: "place-other" })}
@@ -609,13 +604,13 @@ export default function SearchView({
                         </OptionRow>
                         {(
                           placeTree.countries.find(
-                            (c) => c.country === node.country
+                            (c) => c.country === node.country,
                           )?.cities ?? []
                         ).map((city) => {
                           const selectedHere =
                             (sel.cities.includes(city.city) ? 1 : 0) +
                             sel.museums.filter((m) =>
-                              city.museums.includes(m)
+                              city.museums.includes(m),
                             ).length;
                           return (
                             <BranchRow
@@ -684,7 +679,7 @@ export default function SearchView({
                         {artistLetters.map((letter) => {
                           const list = artistsByLetter.get(letter) ?? [];
                           const selectedHere = list.filter((a) =>
-                            sel.artistIds.includes(a.id)
+                            sel.artistIds.includes(a.id),
                           ).length;
                           return (
                             <BranchRow
@@ -746,8 +741,6 @@ export default function SearchView({
           )}
         </div>
 
-        {/* The archive streams in after the cached window paints, so say how far
-            along it is — otherwise the first 80 works look like the whole thing. */}
         {!catalogComplete && (
           <p className="mt-1.5 flex items-center gap-2 text-[11px] text-white/45">
             <span className="h-3 w-3 shrink-0 animate-spin rounded-full border border-white/25 border-t-accent" />
@@ -771,6 +764,8 @@ export default function SearchView({
                   index={i}
                   onOpen={onOpenArtwork}
                   onOrderCanvas={setCanvasId}
+                  animateOnMount={i < 2}
+                  deferPaint={i >= 8}
                 />
               ))}
             </div>
@@ -786,11 +781,15 @@ export default function SearchView({
         )}
       </div>
 
-      <CanvasPurchaseSheet
-        artwork={activeArtwork}
-        onClose={() => setCanvasId(null)}
-        showToast={showToast}
-      />
+      {canvasId && (
+        <Suspense fallback={null}>
+          <CanvasPurchaseSheet
+            artwork={activeArtwork}
+            onClose={() => setCanvasId(null)}
+            showToast={showToast}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

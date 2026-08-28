@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { motion } from "framer-motion";
 import type { Artwork } from "@/data";
 import { originLabel } from "@/data";
@@ -15,14 +16,20 @@ interface ArtworkTileProps {
   index?: number;
   /** When set, sellable works get an Order canvas action. */
   onOrderCanvas?: (artworkId: string) => void;
+  /** Animate only the first visible row on mount (skip on filter switches). */
+  animateOnMount?: boolean;
+  /** Skip paint work for far-off-screen tiles in long grids. */
+  deferPaint?: boolean;
 }
 
-export default function ArtworkTile({
+function ArtworkTile({
   artwork,
   onOpen,
   showSave = true,
   index = 0,
   onOrderCanvas,
+  animateOnMount = true,
+  deferPaint = false,
 }: ArtworkTileProps) {
   const { getArtist } = useCatalog();
   const artist = getArtist(artwork.artistId);
@@ -44,10 +51,19 @@ export default function ArtworkTile({
 
   return (
     <motion.article
-      initial={{ opacity: 0, y: 12 }}
+      initial={animateOnMount ? { opacity: 0, y: 12 } : false}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: Math.min(index * 0.03, 0.3), duration: 0.3 }}
+      transition={
+        animateOnMount
+          ? { delay: Math.min(index * 0.03, 0.09), duration: 0.25 }
+          : { duration: 0 }
+      }
       className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]"
+      style={
+        deferPaint
+          ? { contentVisibility: "auto", containIntrinsicSize: "0 280px" }
+          : undefined
+      }
     >
       <button
         onClick={() => onOpen?.(artwork.id)}
@@ -60,7 +76,8 @@ export default function ArtworkTile({
             alt={artwork.title}
             accent={artwork.accent}
             className="transition-transform duration-500 group-hover:scale-105"
-            thumbWidth={240}
+            thumbWidth={180}
+            priority={animateOnMount && index < 2}
           />
         </div>
         <div className="p-3">
@@ -105,3 +122,5 @@ export default function ArtworkTile({
     </motion.article>
   );
 }
+
+export default memo(ArtworkTile);

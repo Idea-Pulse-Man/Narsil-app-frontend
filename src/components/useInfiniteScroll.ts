@@ -5,6 +5,8 @@ interface Options {
   pageSize?: number;
   /** Change this (e.g. active filters) to reset back to the first page. */
   resetKey?: unknown;
+  /** Changes that should swap results without collapsing the visible window. */
+  softResetKey?: unknown;
   /** Scroll container to observe against; defaults to the viewport. */
   rootRef?: RefObject<HTMLElement | null>;
 }
@@ -21,7 +23,7 @@ interface Options {
  * effect with the real element.
  */
 export function useInfiniteScroll<T>(items: T[], options: Options = {}) {
-  const { pageSize = 24, resetKey, rootRef } = options;
+  const { pageSize = 24, resetKey, softResetKey, rootRef } = options;
   const [count, setCount] = useState(pageSize);
   const [sentinel, setSentinel] = useState<HTMLElement | null>(null);
 
@@ -29,6 +31,11 @@ export function useInfiniteScroll<T>(items: T[], options: Options = {}) {
   useEffect(() => {
     setCount(pageSize);
   }, [resetKey, pageSize]);
+
+  // Canvas tab switches keep the current window size so tiles don't remount.
+  useEffect(() => {
+    setCount((current) => Math.min(Math.max(current, pageSize), items.length));
+  }, [softResetKey, items.length, pageSize]);
 
   const hasMore = count < items.length;
 

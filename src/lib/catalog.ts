@@ -25,6 +25,8 @@ export interface RemoteCatalog {
 }
 
 const PAGE_SIZE = 1000;
+/** How many Supabase pages to pull at once during the full catalog fetch. */
+const PAGE_CONCURRENCY = 4;
 /** First-paint window — enough for the feed after portrait/unknown filters. */
 export const CATALOG_PREVIEW_COUNT = 150;
 const ARTIST_IN_BATCH = 80;
@@ -209,6 +211,25 @@ async function fetchFypArtistCards(
 
 // ── Paginated table fetch ───────────────────────────────────────────────────
 
+async function fetchTablePage<T>(
+  table: string,
+  columns: string,
+  order: { column: string; ascending: boolean },
+  from: number,
+  signal?: AbortSignal,
+): Promise<T[]> {
+  if (!supabase) return [];
+  let query = supabase
+    .from(table)
+    .select(columns)
+    .order(order.column, { ascending: order.ascending })
+    .range(from, from + PAGE_SIZE - 1);
+  if (signal) query = query.abortSignal(signal);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data ?? []) as unknown as T[];
+}
+
 async function fetchTable<T>(
   table: string,
   columns: string,
@@ -218,20 +239,65 @@ async function fetchTable<T>(
   if (!supabase) return [];
   const out: T[] = [];
   for (let from = 0; ; from += PAGE_SIZE) {
-    let query = supabase
-      .from(table)
-      .select(columns)
-      .order(order.column, { ascending: order.ascending })
-      .range(from, from + PAGE_SIZE - 1);
-    if (signal) query = query.abortSignal(signal);
-
-    const { data, error } = await query;
-    if (error) throw error;
-    const rows = (data ?? []) as unknown as T[];
+    const rows = await fetchTablePage<T>(table, columns, order, from, signal);
     out.push(...rows);
     if (rows.length < PAGE_SIZE) break;
   }
   return out;
+}
+
+async function fetchArtworkTable(
+  columns: string,
+  signal?: AbortSignal,
+): Promise<ArtworkRow[]> {
+  if (!supabase) return [];
+
+  const fetchPage = (from: number) =>
+    new Promise<ArtworkRow[]>((resolve, reject) => {
+      let query = supabase!
+        .from("artworks")
+        .select(columns)
+        .not("image_url", "is", null)
+        .or("hidden.is.null,hidden.eq.false")
+        .order("created_at", { ascending: false })
+        .range(from, from + PAGE_SIZE - 1);
+      if (signal) query = query.abortSignal(signal);
+      void query.then(({ data, error }) => {
+        if (error) reject(error);
+        else resolve((data ?? []) as unknown as ArtworkRow[]);
+      });
+    });
+
+  const count = await fetchArtworkCount(signal);
+  if (count == null) {
+    const out: ArtworkRow[] = [];
+    for (let from = 0; ; from += PAGE_SIZE) {
+      const rows = await fetchPage(from);
+      out.push(...rows);
+      if (rows.length < PAGE_SIZE) break;
+    }
+    return out;
+  }
+
+  if (count <= PAGE_SIZE) {
+    return fetchPage(0);
+  }
+
+  const totalPages = Math.ceil(count / PAGE_SIZE);
+  const pages: ArtworkRow[][] = [];
+  for (let start = 0; start < totalPages; start += PAGE_CONCURRENCY) {
+    const batch = Array.from(
+      { length: Math.min(PAGE_CONCURRENCY, totalPages - start) },
+      (_, i) => start + i,
+    );
+    const batchRows = await Promise.all(
+      batch.map((pageIndex) => fetchPage(pageIndex * PAGE_SIZE)),
+    );
+    batch.forEach((pageIndex, i) => {
+      pages[pageIndex] = batchRows[i] ?? [];
+    });
+  }
+  return pages.flat();
 }
 
 async function fetchArtistsByIds(
@@ -333,12 +399,7 @@ export async function fetchSupabaseCatalog(
   if (!supabase) return { artworks: [], artists: [], fypArtistCards: [] };
 
   const [artworkRows, artistRows, tagMap, fypArtistCards] = await Promise.all([
-    fetchTable<ArtworkRow>(
-      "artworks",
-      ARTWORK_FULL_COLUMNS,
-      { column: "created_at", ascending: false },
-      signal,
-    ),
+    fetchArtworkTable(ARTWORK_FULL_COLUMNS, signal),
     fetchTable<ArtistRow>(
       "artists",
       ARTIST_FULL_COLUMNS,

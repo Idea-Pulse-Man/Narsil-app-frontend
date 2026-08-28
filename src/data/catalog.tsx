@@ -27,8 +27,6 @@ import {
   artworks as mockArtworks,
   artists as mockArtists,
   artworkMatchesCategory,
-  toSelectionList,
-  placeOfArtwork,
   uniquePlaceFacets,
 } from "./index";
 import type { Artwork, Artist, CategoryId, ArtworkSearchQuery, FypArtistCard } from "./index";
@@ -42,30 +40,41 @@ import {
   readCatalogSnapshot,
   writeCatalogSnapshot,
 } from "@/lib/catalogCache";
+import {
+  readCatalogMetaCache,
+  writeCatalogMetaCache,
+} from "@/lib/catalogMetaCache";
+import { buildSearchIndex } from "@/lib/searchIndex";
 import { warmFeedImages } from "@/lib/imageCache";
 import {
   isDefaultFeedEligible,
   isGenericMakerName,
-  isPortraitArtwork,
   sortByPopularity,
 } from "@/lib/feed-utils";
 
-/** Let the first feed images use the network before the full catalog download. */
-function waitForQuietNetwork(
+/** Yield to the browser so first paint can finish before heavy downloads. */
+function yieldToMainThread(
   signal?: AbortSignal,
-  ms = 1800,
+  timeoutMs = 120,
 ): Promise<void> {
   return new Promise((resolve) => {
+    if (signal?.aborted) {
+      resolve();
+      return;
+    }
     let settled = false;
     const finish = () => {
       if (settled) return;
       settled = true;
       signal?.removeEventListener("abort", finish);
-      clearTimeout(timer);
       resolve();
     };
     signal?.addEventListener("abort", finish);
-    const timer = window.setTimeout(finish, ms);
+    if ("requestIdleCallback" in window) {
+      window.requestIdleCallback(finish, { timeout: timeoutMs });
+    } else {
+      globalThis.setTimeout(finish, 0);
+    }
   });
 }
 
@@ -184,6 +193,7 @@ function persistFeedWindow(
 export function CatalogProvider({ children }: { children: React.ReactNode }) {
   const snapshotRef = useRef(readCatalogSnapshot());
   const snapshot = snapshotRef.current;
+  const metaHydratedRef = useRef(false);
   const [remote, setRemote] = useState<RemoteCatalog | null>(snapshot);
   const [source, setSource] = useState<CatalogSource>(
     snapshot ? "supabase" : "mock",
@@ -209,7 +219,10 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
       setRemote(data);
       setSource("supabase");
       setLoading(false);
-      if (opts?.complete) setCatalogComplete(true);
+      if (opts?.complete) {
+        setCatalogComplete(true);
+        void writeCatalogMetaCache(data);
+      }
     },
     [],
   );
@@ -229,14 +242,14 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
             const preview = await fetchCatalogPreview(signal);
             if (signal?.aborted) return;
             applyRemote(preview);
-            await waitForQuietNetwork(signal);
+            await yieldToMainThread(signal);
             if (signal?.aborted) return;
           } catch (err) {
             if (signal?.aborted) return;
             console.warn("Catalog preview failed, trying full catalog.", err);
           }
         } else {
-          await waitForQuietNetwork(signal, 800);
+          await yieldToMainThread(signal, 80);
           if (signal?.aborted) return;
         }
         const full = await fetchSupabaseCatalog(signal);
@@ -254,11 +267,20 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const controller = new AbortController();
-    void load(controller.signal, {
-      skipPreview: Boolean(snapshotRef.current),
-    });
+    void (async () => {
+      if (!snapshotRef.current) {
+        const cached = await readCatalogMetaCache();
+        if (cached && !controller.signal.aborted) {
+          metaHydratedRef.current = true;
+          applyRemote(cached, { complete: true });
+        }
+      }
+      await load(controller.signal, {
+        skipPreview: Boolean(snapshotRef.current || metaHydratedRef.current),
+      });
+    })();
     return () => controller.abort();
-  }, [load]);
+  }, [load, applyRemote]);
 
   // After any live catalog lands, remember the opening feed + its images.
   useEffect(() => {
@@ -320,64 +342,10 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
       ...uniquePlaceFacets(browseArtworks),
     };
 
-    const searchArtworks = (query: ArtworkSearchQuery): Artwork[] => {
-      const text = query.text?.trim().toLowerCase() ?? "";
-      const periodList = toSelectionList(query.period, query.periods);
-      const empireList = toSelectionList(query.empire, query.empires);
-      const categoryList = toSelectionList(query.category, query.categories);
-      const artistList = toSelectionList(query.artistId, query.artistIds);
-      const countryList = toSelectionList(undefined, query.countries);
-      const cityList = toSelectionList(undefined, query.cities);
-      const museumList = toSelectionList(undefined, query.museums);
-      return browseArtworks.filter((art) => {
-        const place = placeOfArtwork(art);
-        if (query.portraitsOnly && !isPortraitArtwork(art)) return false;
-        if (periodList.length && !periodList.includes(art.period)) return false;
-        if (empireList.length && !(art.empire && empireList.includes(art.empire)))
-          return false;
-        if (
-          categoryList.length > 0 &&
-          !categoryList.some((id) => artworkMatchesCategory(art, id))
-        )
-          return false;
-        if (artistList.length && !artistList.includes(art.artistId))
-          return false;
-        if (
-          countryList.length &&
-          !(place.country && countryList.includes(place.country))
-        )
-          return false;
-        if (cityList.length && !(place.city && cityList.includes(place.city)))
-          return false;
-        if (museumList.length && !museumList.includes(place.museum))
-          return false;
-        if (text) {
-          const artist = artistMap[art.artistId];
-          const haystack = [
-            art.title,
-            art.description,
-            art.period,
-            art.year,
-            art.medium,
-            art.empire ?? "",
-            art.source,
-            place.museum,
-            place.city ?? "",
-            place.country ?? "",
-            artist?.name ?? "",
-            ...art.tags,
-          ]
-            .join(" ")
-            .toLowerCase();
-          // Match if EVERY whitespace-separated term appears somewhere in the
-          // metadata, so multi-word queries (e.g. "silene botanical") still hit
-          // works whose terms are split across title, description and tags.
-          const terms = text.split(/\s+/).filter(Boolean);
-          if (!terms.every((term) => haystack.includes(term))) return false;
-        }
-        return true;
-      });
-    };
+    const searchIndex = buildSearchIndex(browseArtworks, artistMap);
+
+    const searchArtworks = (query: ArtworkSearchQuery): Artwork[] =>
+      searchIndex.search(query);
 
     // The For You feed (and, by extension, the Buy page, which derives from it)
     // should feature real, named makers — not the huge pile of works the museum
