@@ -29,6 +29,8 @@ interface SearchViewProps {
 
 /** Every facet supports multiple selections; an artwork matches ANY value
  * within a facet, and must satisfy every facet that has selections. */
+type CanvasFilter = "any" | "available" | "unavailable";
+
 interface Selection {
   categories: CategoryId[];
   periods: string[];
@@ -38,6 +40,7 @@ interface Selection {
   cities: string[];
   museums: string[];
   portraitsOnly: boolean;
+  canvas: CanvasFilter;
 }
 
 const EMPTY_SELECTION: Selection = {
@@ -49,6 +52,13 @@ const EMPTY_SELECTION: Selection = {
   cities: [],
   museums: [],
   portraitsOnly: false,
+  canvas: "any",
+};
+
+const CANVAS_FILTER_LABEL: Record<CanvasFilter, string> = {
+  any: "Any",
+  available: "Canvas",
+  unavailable: "Not available",
 };
 
 const GROUP_LABEL: Record<CategoryGroup, string> = {
@@ -69,13 +79,15 @@ type FilterNode =
   | { kind: "city"; country: string; city: string }
   | { kind: "place-other" }
   | { kind: "artist" }
-  | { kind: "artist-letter"; letter: string };
+  | { kind: "artist-letter"; letter: string }
+  | { kind: "canvas" };
 
 export default function SearchView({
   onOpenArtwork,
   showToast,
 }: SearchViewProps) {
-  const { artists, searchArtworks, searchFacets, artworks } = useCatalog();
+  const { artists, searchArtworks, searchFacets, artworks, getArtwork } =
+    useCatalog();
   const [text, setText] = useState("");
   const [sel, setSel] = useState<Selection>(EMPTY_SELECTION);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -83,21 +95,23 @@ export default function SearchView({
   const [canvasId, setCanvasId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  const results = useMemo(
-    () =>
-      searchArtworks({
-        text,
-        categories: sel.categories.length ? sel.categories : undefined,
-        periods: sel.periods.length ? sel.periods : undefined,
-        empires: sel.empires.length ? sel.empires : undefined,
-        artistIds: sel.artistIds.length ? sel.artistIds : undefined,
-        countries: sel.countries.length ? sel.countries : undefined,
-        cities: sel.cities.length ? sel.cities : undefined,
-        museums: sel.museums.length ? sel.museums : undefined,
-        portraitsOnly: sel.portraitsOnly || undefined,
-      }),
-    [text, sel, searchArtworks]
-  );
+  const results = useMemo(() => {
+    const list = searchArtworks({
+      text,
+      categories: sel.categories.length ? sel.categories : undefined,
+      periods: sel.periods.length ? sel.periods : undefined,
+      empires: sel.empires.length ? sel.empires : undefined,
+      artistIds: sel.artistIds.length ? sel.artistIds : undefined,
+      countries: sel.countries.length ? sel.countries : undefined,
+      cities: sel.cities.length ? sel.cities : undefined,
+      museums: sel.museums.length ? sel.museums : undefined,
+      portraitsOnly: sel.portraitsOnly || undefined,
+    });
+    if (sel.canvas === "available") return list.filter(isCanvasSellable);
+    if (sel.canvas === "unavailable")
+      return list.filter((art) => !isCanvasSellable(art));
+    return list;
+  }, [text, sel, searchArtworks]);
 
   const { visible, sentinelRef, hasMore } = useInfiniteScroll(results, {
     resetKey: `${text}|${JSON.stringify(sel)}`,
@@ -150,7 +164,17 @@ export default function SearchView({
 
   const placeTree = useMemo(() => placeTreeOf(artworks), [artworks]);
 
-  const activeArtwork = results.find((a) => a.id === canvasId) ?? null;
+  const canvasCounts = useMemo(() => {
+    let available = 0;
+    let unavailable = 0;
+    for (const art of artworks) {
+      if (isCanvasSellable(art)) available += 1;
+      else unavailable += 1;
+    }
+    return { available, unavailable, total: artworks.length };
+  }, [artworks]);
+
+  const activeArtwork = canvasId ? getArtwork(canvasId) ?? null : null;
 
   const toggle = (kind: keyof Selection, value: string) => {
     setSel((prev) => {
@@ -170,7 +194,8 @@ export default function SearchView({
     sel.countries.length +
     sel.cities.length +
     sel.museums.length +
-    (sel.portraitsOnly ? 1 : 0);
+    (sel.portraitsOnly ? 1 : 0) +
+    (sel.canvas !== "any" ? 1 : 0);
   const hasFilters = totalSelected > 0;
 
   const clearAll = () => setSel(EMPTY_SELECTION);
@@ -229,6 +254,7 @@ export default function SearchView({
     add(sel.cities, sel.cities[0] ?? "", "cities");
     add(sel.museums, sel.museums[0] ?? "", "museums");
     if (sel.portraitsOnly) parts.push("Portraits");
+    if (sel.canvas !== "any") parts.push(CANVAS_FILTER_LABEL[sel.canvas]);
     return parts.length ? parts.join(" · ") : "All categories";
   })();
 
@@ -258,6 +284,8 @@ export default function SearchView({
         return "Artist";
       case "artist-letter":
         return node.letter === "#" ? "Other" : `Artists · ${node.letter}`;
+      case "canvas":
+        return "Canvas";
     }
   })();
 
@@ -351,6 +379,12 @@ export default function SearchView({
                     {node.kind === "root" && (
                       <div className="space-y-1">
                         <BranchRow
+                          label="Canvas"
+                          detail={CANVAS_FILTER_LABEL[sel.canvas]}
+                          count={sel.canvas !== "any" ? 1 : 0}
+                          onClick={() => setNode({ kind: "canvas" })}
+                        />
+                        <BranchRow
                           label="Subject"
                           detail={sel.portraitsOnly ? "Portraits" : "Any"}
                           count={sel.portraitsOnly ? 1 : 0}
@@ -398,6 +432,41 @@ export default function SearchView({
                           onClick={() => setNode({ kind: "artist" })}
                         />
                       </div>
+                    )}
+
+                    {node.kind === "canvas" && (
+                      <OptionList>
+                        <OptionRow
+                          active={sel.canvas === "any"}
+                          onClick={() =>
+                            setSel((prev) => ({ ...prev, canvas: "any" }))
+                          }
+                        >
+                          Any
+                        </OptionRow>
+                        <OptionRow
+                          active={sel.canvas === "available"}
+                          onClick={() =>
+                            setSel((prev) => ({
+                              ...prev,
+                              canvas: "available",
+                            }))
+                          }
+                        >
+                          Canvas · {canvasCounts.available}
+                        </OptionRow>
+                        <OptionRow
+                          active={sel.canvas === "unavailable"}
+                          onClick={() =>
+                            setSel((prev) => ({
+                              ...prev,
+                              canvas: "unavailable",
+                            }))
+                          }
+                        >
+                          Not available · {canvasCounts.unavailable}
+                        </OptionRow>
+                      </OptionList>
                     )}
 
                     {node.kind === "subject" && (
@@ -693,9 +762,7 @@ export default function SearchView({
                   artwork={art}
                   index={i}
                   onOpen={onOpenArtwork}
-                  onOrderCanvas={
-                    isCanvasSellable(art) ? setCanvasId : undefined
-                  }
+                  onOrderCanvas={setCanvasId}
                 />
               ))}
             </div>

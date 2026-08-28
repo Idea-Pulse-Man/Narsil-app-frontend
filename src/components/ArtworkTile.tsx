@@ -13,7 +13,7 @@ interface ArtworkTileProps {
   /** Show the quick-save bookmark overlay. */
   showSave?: boolean;
   index?: number;
-  /** When set, renders an "Order canvas" action below the tile. */
+  /** When set, shows canvas availability: order button or a "Not available" badge. */
   onOrderCanvas?: (artworkId: string) => void;
 }
 
@@ -28,7 +28,8 @@ export default function ArtworkTile({
   const artist = getArtist(artwork.artistId);
   const { isSaved, toggleSaved } = useAppState();
   const saved = isSaved(artwork.id);
-  const canOrderCanvas = Boolean(onOrderCanvas) && isCanvasSellable(artwork);
+  const canvasAware = Boolean(onOrderCanvas);
+  const canOrderCanvas = canvasAware && isCanvasSellable(artwork);
 
   return (
     <motion.article
@@ -51,16 +52,16 @@ export default function ArtworkTile({
             thumbWidth={240}
           />
         </div>
-        <div className={canOrderCanvas ? "px-3 pt-3" : "p-3"}>
+        <div className={canvasAware ? "px-3 pt-3" : "p-3"}>
           <p className="truncate font-serif text-sm text-white">
             {artwork.title}
           </p>
           <p className="mt-0.5 truncate text-[11px] text-white/45">
             {artist?.name} · {artwork.year}
           </p>
-          {/* When a Canvas action is present the origin badge moves into the
+          {/* When canvas status is shown the origin badge moves into the
               footer row below so both pills sit side by side. */}
-          {!canOrderCanvas && (
+          {!canvasAware && (
             <span
               className={`mt-1.5 inline-block whitespace-nowrap rounded-full px-1.5 py-0.5 text-[8px] font-semibold uppercase leading-none tracking-[0.05em] ${
                 artwork.origin === "artist-original"
@@ -74,7 +75,7 @@ export default function ArtworkTile({
         </div>
       </button>
 
-      {canOrderCanvas && onOrderCanvas && (
+      {canvasAware && (
         <div className="flex flex-wrap items-center gap-2 px-3 pb-3 pt-1.5">
           <span
             className={`inline-block whitespace-nowrap rounded-full px-1.5 py-0.5 text-[8px] font-semibold uppercase leading-none tracking-[0.05em] ${
@@ -85,12 +86,18 @@ export default function ArtworkTile({
           >
             {originLabel(artwork.origin)}
           </span>
-          <button
-            onClick={() => onOrderCanvas(artwork.id)}
-            className="inline-block whitespace-nowrap rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[8px] font-semibold uppercase leading-none tracking-[0.05em] text-white/85 transition-colors hover:bg-white/20"
-          >
-            Canvas
-          </button>
+          {canOrderCanvas && onOrderCanvas ? (
+            <button
+              onClick={() => onOrderCanvas(artwork.id)}
+              className="inline-block whitespace-nowrap rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[8px] font-semibold uppercase leading-none tracking-[0.05em] text-white/85 transition-colors hover:bg-white/20"
+            >
+              Canvas
+            </button>
+          ) : (
+            <span className="inline-block whitespace-nowrap rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[8px] font-semibold uppercase leading-none tracking-[0.05em] text-white/45">
+              Not available
+            </span>
+          )}
         </div>
       )}
 
