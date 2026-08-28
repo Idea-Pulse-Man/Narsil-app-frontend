@@ -11,6 +11,7 @@ import {
 import type {
   Artwork,
   Artist,
+  FypArtistCard,
   CategoryId,
   ArtworkOrigin,
   ArtistProfileType,

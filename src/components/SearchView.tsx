@@ -85,8 +85,15 @@ export default function SearchView({
   onOpenArtwork,
   showToast,
 }: SearchViewProps) {
-  const { artists, searchArtworks, searchFacets, artworks, getArtwork } =
-    useCatalog();
+  const {
+    artists,
+    searchArtworks,
+    searchFacets,
+    artworks,
+    getArtwork,
+    catalogComplete,
+    catalogTotal,
+  } = useCatalog();
   const [text, setText] = useState("");
   const [sel, setSel] = useState<Selection>(EMPTY_SELECTION);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -769,6 +776,17 @@ export default function SearchView({
             </button>
           )}
         </div>
+
+        {/* The archive streams in after the cached window paints, so say how far
+            along it is — otherwise the first 80 works look like the whole thing. */}
+        {!catalogComplete && (
+          <p className="mt-1.5 flex items-center gap-2 text-[11px] text-white/45">
+            <span className="h-3 w-3 shrink-0 animate-spin rounded-full border border-white/25 border-t-accent" />
+            {catalogTotal
+              ? `Searching ${artworks.length.toLocaleString()} of ${catalogTotal.toLocaleString()} artworks — still loading the archive…`
+              : "Still loading the archive…"}
+          </p>
+        )}
 
         {results.length === 0 ? (
           <p className="mt-8 text-center text-sm text-white/45">

@@ -33,6 +33,7 @@ import {
 } from "./index";
 import type { Artwork, Artist, CategoryId, ArtworkSearchQuery, FypArtistCard } from "./index";
 import {
+  fetchArtworkCount,
   fetchCatalogPreview,
   fetchSupabaseCatalog,
   type RemoteCatalog,
@@ -50,17 +51,20 @@ import {
 } from "@/lib/feed-utils";
 
 /** Let the first feed images use the network before the full catalog download. */
-function waitForQuietNetwork(signal: AbortSignal, ms = 1800): Promise<void> {
+function waitForQuietNetwork(
+  signal?: AbortSignal,
+  ms = 1800,
+): Promise<void> {
   return new Promise((resolve) => {
     let settled = false;
     const finish = () => {
       if (settled) return;
       settled = true;
-      signal.removeEventListener("abort", finish);
+      signal?.removeEventListener("abort", finish);
       clearTimeout(timer);
       resolve();
     };
-    signal.addEventListener("abort", finish);
+    signal?.addEventListener("abort", finish);
     const timer = window.setTimeout(finish, ms);
   });
 }
@@ -89,6 +93,14 @@ interface CatalogValue {
   };
   source: CatalogSource;
   loading: boolean;
+  /**
+   * False while browse surfaces are still showing the cached feed window (80
+   * works) or the popular preview page instead of the whole archive. Search
+   * relies on this so its result count never reads as the full catalog.
+   */
+  catalogComplete: boolean;
+  /** Browsable artworks in the archive, counted server-side. Null when unknown. */
+  catalogTotal: number | null;
   /** Re-fetch the catalog from Supabase (e.g. after the user posts new art). */
   refresh: () => Promise<void>;
 
@@ -177,16 +189,38 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
     snapshot ? "supabase" : "mock",
   );
   const [loading, setLoading] = useState(!snapshot);
+  // The snapshot is only the first feed window, so a hydrated app still has to
+  // wait for the full table before Search can see the whole archive.
+  const [catalogComplete, setCatalogComplete] = useState(false);
+  const [catalogTotal, setCatalogTotal] = useState<number | null>(null);
 
-  const applyRemote = useCallback((data: RemoteCatalog) => {
-    if (data.artworks.length === 0) return;
-    setRemote(data);
-    setSource("supabase");
-    setLoading(false);
-  }, []);
+  const applyRemote = useCallback(
+    (data: RemoteCatalog, opts?: { complete?: boolean }) => {
+      if (data.artworks.length === 0) {
+        // Without this warning a failed full fetch looks like a working app that
+        // simply owns 80 artworks, because the cached window stays on screen.
+        if (opts?.complete) {
+          console.warn(
+            "Catalog: the full fetch returned no usable artworks (rows missing image_url?) — browse surfaces stay on the cached feed window.",
+          );
+        }
+        return;
+      }
+      setRemote(data);
+      setSource("supabase");
+      setLoading(false);
+      if (opts?.complete) setCatalogComplete(true);
+    },
+    [],
+  );
 
   const load = useCallback(
     async (signal?: AbortSignal, opts?: { skipPreview?: boolean }) => {
+      // Cheap head-count alongside the row fetches, so the archive size is on
+      // screen long before the rows themselves finish downloading.
+      void fetchArtworkCount(signal).then((count) => {
+        if (count !== null && !signal?.aborted) setCatalogTotal(count);
+      });
       try {
         // First visit: a single popular page unblocks the feed. Return visits
         // already painted from the snapshot, so skip straight to the full table.
@@ -207,7 +241,7 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
         }
         const full = await fetchSupabaseCatalog(signal);
         if (signal?.aborted) return;
-        applyRemote(full);
+        applyRemote(full, { complete: true });
       } catch (err) {
         if (signal?.aborted) return;
         console.warn("Catalog: using cached or mock data (Supabase unavailable).", err);
@@ -369,6 +403,8 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
       searchFacets,
       source,
       loading,
+      catalogComplete,
+      catalogTotal,
       refresh,
       getArtist: (id) => artistMap[id],
       getFypArtistCard: (artistId) => fypArtistCardMap[artistId],
@@ -388,7 +424,7 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
         browseArtworks.filter((a) => artworkMatchesCategory(a, id)),
       searchArtworks,
     };
-  }, [remote, source, loading, refresh]);
+  }, [remote, source, loading, catalogComplete, catalogTotal, refresh]);
 
   return (
     <CatalogContext.Provider value={value}>{children}</CatalogContext.Provider>

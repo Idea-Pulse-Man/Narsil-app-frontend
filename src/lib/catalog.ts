@@ -260,6 +260,30 @@ async function fetchArtistsByIds(
 }
 
 /**
+ * How many browsable artworks the archive holds, without downloading them.
+ * Lets the UI show the real archive size while the rows are still streaming in,
+ * so a partial catalog never reads as the whole collection. Null when unknown.
+ */
+export async function fetchArtworkCount(
+  signal?: AbortSignal,
+): Promise<number | null> {
+  if (!supabase) return null;
+  try {
+    let query = supabase
+      .from("artworks")
+      .select("id", { count: "exact", head: true })
+      .not("image_url", "is", null)
+      .or("hidden.is.null,hidden.eq.false");
+    if (signal) query = query.abortSignal(signal);
+    const { count, error } = await query;
+    if (error) throw error;
+    return count ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * One round-trip of popular, image-backed artworks plus the artists they
  * reference. Enough to fill the For You feed; not the whole museum.
  */
