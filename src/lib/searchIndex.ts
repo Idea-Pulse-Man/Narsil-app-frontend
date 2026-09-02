@@ -31,6 +31,73 @@ export interface SearchIndex {
   search: (query: ArtworkSearchQuery) => Artwork[];
 }
 
+/** Filter a loaded pool without waiting for the precomputed index. */
+export function filterArtworks(
+  artworks: Artwork[],
+  query: ArtworkSearchQuery,
+  artistMap: Record<string, Artist>,
+): Artwork[] {
+  const text = query.text?.trim().toLowerCase() ?? "";
+  const terms = text ? text.split(/\s+/).filter(Boolean) : [];
+  const periodList = toSelectionList(query.period, query.periods);
+  const empireList = toSelectionList(query.empire, query.empires);
+  const categoryList = toSelectionList(query.category, query.categories);
+  const artistList = toSelectionList(query.artistId, query.artistIds);
+  const countryList = toSelectionList(undefined, query.countries);
+  const cityList = toSelectionList(undefined, query.cities);
+  const museumList = toSelectionList(undefined, query.museums);
+  const canvas = query.canvas ?? "any";
+  const needsPlace =
+    countryList.length > 0 ||
+    cityList.length > 0 ||
+    museumList.length > 0 ||
+    terms.length > 0;
+
+  const out: Artwork[] = [];
+  for (const art of artworks) {
+    if (canvas === "available" && !isCanvasSellable(art)) continue;
+    if (canvas === "unavailable" && isCanvasSellable(art)) continue;
+    if (query.portraitsOnly && !isPortraitArtwork(art)) continue;
+    if (periodList.length && !periodList.includes(art.period)) continue;
+    if (empireList.length && !(art.empire && empireList.includes(art.empire)))
+      continue;
+    if (
+      categoryList.length > 0 &&
+      !categoryList.some((id) => artworkMatchesCategory(art, id))
+    )
+      continue;
+    if (artistList.length && !artistList.includes(art.artistId)) continue;
+    if (needsPlace) {
+      const place = placeOfArtwork(art);
+      if (countryList.length && !place.country) continue;
+      if (countryList.length && !countryList.includes(place.country ?? ""))
+        continue;
+      if (cityList.length && !place.city) continue;
+      if (cityList.length && !cityList.includes(place.city ?? "")) continue;
+      if (museumList.length && !museumList.includes(place.museum)) continue;
+    }
+    if (terms.length) {
+      const artist = artistMap[art.artistId];
+      const haystack = [
+        art.title,
+        art.description,
+        art.period,
+        art.year,
+        art.medium,
+        art.empire ?? "",
+        art.source,
+        artist?.name ?? "",
+        ...art.tags,
+      ]
+        .join(" ")
+        .toLowerCase();
+      if (!terms.every((term) => haystack.includes(term))) continue;
+    }
+    out.push(art);
+  }
+  return out;
+}
+
 /** Cheap O(n) canvas partitions — available before the full text index finishes. */
 export function buildCanvasPartitions(artworks: Artwork[]): Pick<
   SearchIndex,

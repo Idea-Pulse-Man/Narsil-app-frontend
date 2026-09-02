@@ -262,6 +262,25 @@ async function fetchTable<T>(
   return out;
 }
 
+async function fetchArtworkTablePage(
+  columns: string,
+  from: number,
+  signal?: AbortSignal,
+): Promise<ArtworkRow[]> {
+  if (!supabase) return [];
+  let query = supabase
+    .from("artworks")
+    .select(columns)
+    .not("image_url", "is", null)
+    .or("hidden.is.null,hidden.eq.false")
+    .order("created_at", { ascending: false })
+    .range(from, from + PAGE_SIZE - 1);
+  if (signal) query = query.abortSignal(signal);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data ?? []) as unknown as ArtworkRow[];
+}
+
 async function fetchArtworkTable(
   columns: string,
   signal?: AbortSignal,
@@ -269,20 +288,7 @@ async function fetchArtworkTable(
   if (!supabase) return [];
 
   const fetchPage = (from: number) =>
-    new Promise<ArtworkRow[]>((resolve, reject) => {
-      let query = supabase!
-        .from("artworks")
-        .select(columns)
-        .not("image_url", "is", null)
-        .or("hidden.is.null,hidden.eq.false")
-        .order("created_at", { ascending: false })
-        .range(from, from + PAGE_SIZE - 1);
-      if (signal) query = query.abortSignal(signal);
-      void query.then(({ data, error }) => {
-        if (error) reject(error);
-        else resolve((data ?? []) as unknown as ArtworkRow[]);
-      });
-    });
+    fetchArtworkTablePage(columns, from, signal);
 
   const count = await fetchArtworkCount(signal);
   if (count == null) {
@@ -419,6 +425,40 @@ export async function fetchCatalogPreview(
 ): Promise<RemoteCatalog> {
   return fetchArtworkBatch(0, CATALOG_PREVIEW_COUNT, signal);
 }
+
+/** One archive page (up to 1000 rows) plus artists for those works. */
+export async function fetchCatalogArchivePage(
+  from: number,
+  signal?: AbortSignal,
+): Promise<RemoteCatalog> {
+  if (!supabase) return { artworks: [], artists: [], fypArtistCards: [] };
+
+  const artworkRows = (await fetchArtworkTablePage(
+    ARTWORK_FULL_COLUMNS,
+    from,
+    signal,
+  )).filter((r) => r.image_url);
+  const artistIds = artworkRows
+    .map((r) => r.artist_id)
+    .filter((id): id is string => Boolean(id));
+  const artistRows = await fetchArtistsByIds(
+    artistIds,
+    ARTIST_FULL_COLUMNS,
+    signal,
+  );
+
+  return {
+    artworks: artworkRows
+      .map((r) => mapArtwork(r))
+      .filter((art): art is Artwork => art !== null),
+    artists: artistRows
+      .map(mapArtist)
+      .filter((artist): artist is Artist => artist !== null),
+    fypArtistCards: [],
+  };
+}
+
+export const CATALOG_ARCHIVE_PAGE_SIZE = PAGE_SIZE;
 
 /**
  * Fetch the whole catalog from Supabase. Only artworks that have an image

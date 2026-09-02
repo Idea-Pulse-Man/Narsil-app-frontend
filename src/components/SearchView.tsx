@@ -110,6 +110,7 @@ export default function SearchView({
     catalogComplete,
     catalogTotal,
     ensureFullCatalog,
+    pauseFullCatalog,
   } = useCatalog();
   const [text, setText] = useState("");
   const deferredText = useDeferredValue(text);
@@ -119,11 +120,16 @@ export default function SearchView({
   const [canvasId, setCanvasId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  // Pull the full archive only when Search is opened — keeps startup light.
+  // Load the archive in pages only while Search is on screen. Leaving the tab
+  // pauses the download so the new page can use the network.
   useEffect(() => {
-    if (!active || catalogComplete) return;
+    if (!active) {
+      pauseFullCatalog();
+      return;
+    }
+    if (catalogComplete) return;
     void ensureFullCatalog();
-  }, [active, catalogComplete, ensureFullCatalog]);
+  }, [active, catalogComplete, ensureFullCatalog, pauseFullCatalog]);
 
   const categoryKey = categoryFilterKey(sel);
 
@@ -143,6 +149,7 @@ export default function SearchView({
   }, [deferredText, sel, searchArtworks]);
 
   const { visible, sentinelRef, hasMore } = useInfiniteScroll(results, {
+    pageSize: 8,
     resetKey: `${deferredText}|${categoryKey}`,
     softResetKey: sel.canvas,
     rootRef: scrollRef,
@@ -775,7 +782,7 @@ export default function SearchView({
           <p className="mt-8 text-center text-sm text-white/45">
             No artworks match your search. Try a different term or filter.
           </p>
-        ) : active ? (
+        ) : (
           <>
             <div className="mt-4 grid grid-cols-2 gap-3">
               {visible.map((art, i) => (
@@ -787,6 +794,7 @@ export default function SearchView({
                   onOrderCanvas={setCanvasId}
                   animateOnMount={i < 2}
                   deferPaint={i >= 8}
+                  loadImages={active}
                 />
               ))}
             </div>
@@ -799,7 +807,7 @@ export default function SearchView({
               </div>
             )}
           </>
-        ) : null}
+        )}
       </div>
 
       {canvasId && (

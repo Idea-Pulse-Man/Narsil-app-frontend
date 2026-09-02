@@ -28,6 +28,8 @@ interface BlurImageProps {
   syncToken?: number;
   /** When set, requests a smaller source image for grids and thumbnails. */
   thumbWidth?: number;
+  /** When false, do not attach a src (pause downloads on a hidden tab). */
+  load?: boolean;
 }
 
 const ZOOM_TRANSITION = {
@@ -66,6 +68,7 @@ export default function BlurImage({
   zoomable = false,
   syncToken,
   thumbWidth,
+  load = true,
 }: BlurImageProps) {
   const [displaySrc, setDisplaySrc] = useState(src);
   const [loaded, setLoaded] = useState(false);
@@ -82,7 +85,7 @@ export default function BlurImage({
     enabled: !priority && isThumb,
     rootMargin: "160px",
   });
-  const shouldLoad = priority || !isThumb || inView;
+  const shouldLoad = load && (priority || !isThumb || inView);
   const srcWarmed = isImageWarmed(src);
   const renderSrc =
     isThumb && !displaySrc.startsWith("blob:")
@@ -115,13 +118,14 @@ export default function BlurImage({
   useEffect(() => {
     let active = true;
     setDisplaySrc(src);
-    if (!isImageWarmed(src)) setLoaded(false);
 
     if (!shouldLoad) {
       return () => {
         active = false;
       };
     }
+
+    if (!isImageWarmed(src)) setLoaded(false);
 
     if (isNgrokUrl(src)) {
       resolveNgrokImageSrc(src)

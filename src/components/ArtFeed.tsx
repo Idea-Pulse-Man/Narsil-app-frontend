@@ -33,6 +33,8 @@ interface ArtFeedProps {
   /** Source toggle: mixed (all), museum (public-domain) or freelance originals. */
   filter?: FeedFilter;
   tutorial?: TutorialBridge;
+  /** False when another tab is visible — pause feed batch fetches. */
+  active?: boolean;
 }
 
 export default function ArtFeed({
@@ -44,6 +46,7 @@ export default function ArtFeed({
   onViewIndex,
   filter = "all",
   tutorial,
+  active = true,
 }: ArtFeedProps) {
   const {
     feedPool,
@@ -152,6 +155,7 @@ export default function ArtFeed({
           ? item.artwork
           : getArtwork(item.backdropArtworkId);
       if (!art?.image || preloaded.current.has(art.id)) return;
+      if (!active) return;
       preloaded.current.add(art.id);
       markImageWarmed(art.image);
       const img = new Image();
@@ -159,7 +163,7 @@ export default function ArtFeed({
       img.onload = () => markImageWarmed(art.image);
       img.src = art.image;
     },
-    [getArtwork],
+    [getArtwork, active],
   );
 
   // Lock vertical scrolling except on the step that teaches it, so the user
@@ -213,7 +217,7 @@ export default function ArtFeed({
   }, [artworks.length]);
 
   useEffect(() => {
-    if (loading || loadingBatch || !hasMoreBatches || artworks.length === 0) {
+    if (!active || loading || loadingBatch || !hasMoreBatches || artworks.length === 0) {
       return;
     }
     const artworksViewed = items
@@ -232,6 +236,7 @@ export default function ArtFeed({
     loadingBatch,
     hasMoreBatches,
     loadNextBatch,
+    active,
   ]);
 
   // Tutorial resets should close the shared placard.

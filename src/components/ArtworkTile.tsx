@@ -21,6 +21,8 @@ interface ArtworkTileProps {
   animateOnMount?: boolean;
   /** Skip paint work for far-off-screen tiles in long grids. */
   deferPaint?: boolean;
+  /** When false (hidden tab), do not start new image downloads. */
+  loadImages?: boolean;
 }
 
 function ArtworkTile({
@@ -31,6 +33,7 @@ function ArtworkTile({
   onOrderCanvas,
   animateOnMount = true,
   deferPaint = false,
+  loadImages = true,
 }: ArtworkTileProps) {
   const { getArtist } = useCatalog();
   const artist = getArtist(artwork.artistId);
@@ -78,7 +81,12 @@ function ArtworkTile({
             accent={artwork.accent}
             className="transition-transform duration-500 group-hover:scale-105"
             thumbWidth={180}
-            priority={animateOnMount && (index < 2 || isImageWarmed(artwork.image))}
+            priority={
+              loadImages &&
+              animateOnMount &&
+              (index < 2 || isImageWarmed(artwork.image))
+            }
+            load={loadImages}
           />
         </div>
         <div className="p-3">

@@ -376,6 +376,7 @@ export default function MobileShell() {
                 onCleanChange={setClean}
                 onViewIndex={handleViewIndex}
                 tutorial={tutorialBridge}
+                active={screen === "for-you"}
               />
             </div>
           )}

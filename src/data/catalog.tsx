@@ -29,10 +29,11 @@ import {
 } from "./index";
 import type { Artwork, Artist, CategoryId, ArtworkSearchQuery, FypArtistCard } from "./index";
 import {
+  CATALOG_ARCHIVE_PAGE_SIZE,
   CATALOG_BATCH_SIZE,
   fetchArtworkBatch,
   fetchArtworkCount,
-  fetchSupabaseCatalog,
+  fetchCatalogArchivePage,
   type RemoteCatalog,
 } from "@/lib/catalog";
 import {
@@ -43,7 +44,7 @@ import {
   readCatalogMetaCache,
   writeCatalogMetaCache,
 } from "@/lib/catalogMetaCache";
-import { buildSearchIndex, buildCanvasPartitions, type SearchIndex } from "@/lib/searchIndex";
+import { buildSearchIndex, filterArtworks, type SearchIndex } from "@/lib/searchIndex";
 import { sanitizeRemoteCatalog, purgeLegacyCatalogCaches } from "@/lib/catalogValidate";
 import { warmFeedImages } from "@/lib/imageCache";
 import {
@@ -84,8 +85,10 @@ interface CatalogValue {
   catalogTotal: number | null;
   /** Fetch the next 80 artworks for the feed (no-op when exhausted or in flight). */
   loadNextBatch: () => Promise<void>;
-  /** Load the whole archive for Search — safe to call repeatedly. */
+  /** Load the archive in pages while Search is open — safe to call repeatedly. */
   ensureFullCatalog: () => Promise<void>;
+  /** Stop the archive download when the user leaves Search. */
+  pauseFullCatalog: () => void;
   refresh: () => Promise<void>;
 
   getArtist: (id: string) => Artist | undefined;
@@ -174,6 +177,7 @@ export function CatalogProvider({
   const batchControllerRef = useRef<AbortController | null>(null);
   const fullLoadControllerRef = useRef<AbortController | null>(null);
   const fullLoadStartedRef = useRef(false);
+  const archiveOffsetRef = useRef(0);
   const serverOffsetRef = useRef(snapshot?.artworks.length ?? 0);
   const searchIndexRef = useRef<SearchIndex | null>(null);
   const [searchIndexReady, setSearchIndexReady] = useState(false);
@@ -203,13 +207,15 @@ export function CatalogProvider({
   }, []);
 
   const applyBatch = useCallback(
-    (data: RemoteCatalog, opts?: { fetchedCount?: number }) => {
+    (data: RemoteCatalog, opts?: { fetchedCount?: number; skipHasMore?: boolean }) => {
       const clean = sanitizeRemoteCatalog(data);
       if (!clean || clean.artworks.length === 0) return false;
       setRemote((prev) => mergeRemoteCatalog(prev, clean));
       setSource("supabase");
       setLoading(false);
-      updateHasMore(opts?.fetchedCount ?? clean.artworks.length);
+      if (!opts?.skipHasMore) {
+        updateHasMore(opts?.fetchedCount ?? clean.artworks.length);
+      }
       return true;
     },
     [updateHasMore],
@@ -224,6 +230,7 @@ export function CatalogProvider({
     setCatalogComplete(true);
     setHasMoreBatches(false);
     serverOffsetRef.current = clean.artworks.length;
+    archiveOffsetRef.current = clean.artworks.length;
     void writeCatalogMetaCache(clean);
   }, []);
 
@@ -287,6 +294,12 @@ export function CatalogProvider({
     }
   }, [loadingBatch, hasMoreBatches, catalogComplete, fetchBatchAtOffset]);
 
+  const pauseFullCatalog = useCallback(() => {
+    fullLoadControllerRef.current?.abort();
+    fullLoadControllerRef.current = null;
+    fullLoadStartedRef.current = false;
+  }, []);
+
   const ensureFullCatalog = useCallback(async () => {
     if (catalogComplete) return;
     if (fullLoadStartedRef.current) return;
@@ -297,21 +310,49 @@ export function CatalogProvider({
     fullLoadControllerRef.current = controller;
 
     try {
-      const cached = await readCatalogMetaCache();
-      if (cached && !controller.signal.aborted) {
-        applyFullCatalog(cached);
+      if (archiveOffsetRef.current === 0) {
+        const cached = await readCatalogMetaCache();
+        if (cached && !controller.signal.aborted) {
+          applyFullCatalog(cached);
+          return;
+        }
       }
-      const full = await fetchSupabaseCatalog(controller.signal);
-      if (controller.signal.aborted) return;
-      applyFullCatalog(full);
+
+      while (!controller.signal.aborted) {
+        const page = await fetchCatalogArchivePage(
+          archiveOffsetRef.current,
+          controller.signal,
+        );
+        if (controller.signal.aborted) return;
+        archiveOffsetRef.current += page.artworks.length;
+        const clean = sanitizeRemoteCatalog(page);
+        if (clean) {
+          setRemote((prev) => mergeRemoteCatalog(prev, clean));
+          setSource("supabase");
+          setLoading(false);
+        }
+        if (page.artworks.length < CATALOG_ARCHIVE_PAGE_SIZE) {
+          setCatalogComplete(true);
+          setHasMoreBatches(false);
+          serverOffsetRef.current = archiveOffsetRef.current;
+          setRemote((prev) => {
+            if (prev) void writeCatalogMetaCache(prev);
+            return prev;
+          });
+          break;
+        }
+      }
     } catch (err) {
       if (!controller.signal.aborted) {
-        console.warn("Catalog: full archive load failed.", err);
+        console.warn("Catalog: archive page load failed.", err);
         fullLoadStartedRef.current = false;
       }
     } finally {
       if (fullLoadControllerRef.current === controller) {
         fullLoadControllerRef.current = null;
+      }
+      if (controller.signal.aborted) {
+        fullLoadStartedRef.current = false;
       }
     }
   }, [catalogComplete, applyFullCatalog]);
@@ -360,6 +401,13 @@ export function CatalogProvider({
       searchIndexRef.current = buildSearchIndex(remote.artworks, artistMap);
       setSearchIndexReady(true);
     };
+    // Small pools (first feed batches) index immediately so typing in Search works.
+    if (remote.artworks.length <= 400) {
+      build();
+      return () => {
+        cancelled = true;
+      };
+    }
     if ("requestIdleCallback" in window) {
       const id = window.requestIdleCallback(build, { timeout: 2500 });
       return () => {
@@ -397,6 +445,7 @@ export function CatalogProvider({
     fullLoadControllerRef.current?.abort();
     fullLoadStartedRef.current = false;
     serverOffsetRef.current = 0;
+    archiveOffsetRef.current = 0;
     setHasMoreBatches(true);
     setCatalogComplete(false);
 
@@ -451,20 +500,11 @@ export function CatalogProvider({
       ...uniquePlaceFacets(browseArtworks),
     };
 
-    const canvasPartitions = buildCanvasPartitions(browseArtworks);
     const searchArtworks = (query: ArtworkSearchQuery): Artwork[] => {
       if (searchIndexRef.current) {
         return searchIndexRef.current.search(query);
       }
-      const canvas = query.canvas ?? "any";
-      const pool =
-        canvas === "available"
-          ? canvasPartitions.sellable
-          : canvas === "unavailable"
-            ? canvasPartitions.unsellable
-            : canvasPartitions.all;
-      if (query.text?.trim()) return pool;
-      return pool;
+      return filterArtworks(browseArtworks, query, artistMap);
     };
 
     void searchIndexReady;
@@ -511,6 +551,7 @@ export function CatalogProvider({
       catalogTotal,
       loadNextBatch,
       ensureFullCatalog,
+      pauseFullCatalog,
       refresh,
       getArtist: (id) => artistMap[id],
       getFypArtistCard: (artistId) => fypArtistCardMap[artistId],
@@ -535,6 +576,7 @@ export function CatalogProvider({
     catalogTotal,
     loadNextBatch,
     ensureFullCatalog,
+    pauseFullCatalog,
     refresh,
     searchIndexReady,
   ]);
