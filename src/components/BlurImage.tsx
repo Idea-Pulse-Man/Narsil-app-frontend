@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type Ref } from "react";
 import { motion } from "framer-motion";
 import { sizedImageUrl, previewImageUrl } from "@/lib/imageUrl";
-import { resolveCachedImage } from "@/lib/imageCache";
+import { resolveCachedImage, isImageWarmed, markImageWarmed } from "@/lib/imageCache";
 import { isNgrokUrl, resolveNgrokImageSrc } from "@/lib/ngrok";
 import { useInView } from "@/hooks/useInView";
 
@@ -83,9 +83,12 @@ export default function BlurImage({
     rootMargin: "160px",
   });
   const shouldLoad = priority || !isThumb || inView;
+  const srcWarmed = isImageWarmed(src);
   const renderSrc =
     isThumb && !displaySrc.startsWith("blob:")
-      ? sizedImageUrl(displaySrc, thumbWidth)
+      ? srcWarmed
+        ? displaySrc
+        : sizedImageUrl(displaySrc, thumbWidth)
       : displaySrc;
   // Tiny blur-up is for full-bleed cards. Thumbnails skip it so the first
   // screen does not fire a second wsrv.nl request per row.
@@ -112,7 +115,7 @@ export default function BlurImage({
   useEffect(() => {
     let active = true;
     setDisplaySrc(src);
-    setLoaded(false);
+    if (!isImageWarmed(src)) setLoaded(false);
 
     if (!shouldLoad) {
       return () => {
@@ -133,9 +136,7 @@ export default function BlurImage({
       };
     }
 
-    // Feed-image Cache API only stores a handful of full-bleed cards. Skip
-    // the lookup for grid thumbs — it adds latency and never hits.
-    if (isThumb) {
+    if (isThumb && !isImageWarmed(src)) {
       return () => {
         active = false;
       };
@@ -163,9 +164,10 @@ export default function BlurImage({
   }, []);
 
   const markLoaded = useCallback(() => {
+    markImageWarmed(src);
     setLoaded(true);
     if (zoomable) measure();
-  }, [measure, zoomable]);
+  }, [measure, zoomable, src]);
 
   const syncLoadedFromCache = useCallback(() => {
     for (const img of [mainImgRef.current, coverRef.current, containRef.current]) {
@@ -185,6 +187,10 @@ export default function BlurImage({
   // Cached images may finish before onLoad is attached — especially after the
   // tutorial resets state while the same URL is already in memory.
   useEffect(() => {
+    if (isImageWarmed(src)) {
+      syncLoadedFromCache();
+      return;
+    }
     setLoaded(false);
     let inner = 0;
     const outer = requestAnimationFrame(() => {
@@ -195,7 +201,7 @@ export default function BlurImage({
       cancelAnimationFrame(outer);
       cancelAnimationFrame(inner);
     };
-  }, [renderSrc, syncLoadedFromCache]);
+  }, [renderSrc, syncLoadedFromCache, src]);
 
   useEffect(() => {
     if (loaded) return;

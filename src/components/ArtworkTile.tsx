@@ -4,6 +4,7 @@ import type { Artwork } from "@/data";
 import { originLabel } from "@/data";
 import { useCatalog } from "@/data/catalog";
 import { isCanvasSellable } from "@/lib/sellability";
+import { isImageWarmed } from "@/lib/imageCache";
 import BlurImage from "./BlurImage";
 import { BookmarkIcon } from "./Icons";
 import { useAppState } from "./AppState";
@@ -77,7 +78,7 @@ function ArtworkTile({
             accent={artwork.accent}
             className="transition-transform duration-500 group-hover:scale-105"
             thumbWidth={180}
-            priority={animateOnMount && index < 2}
+            priority={animateOnMount && (index < 2 || isImageWarmed(artwork.image))}
           />
         </div>
         <div className="p-3">

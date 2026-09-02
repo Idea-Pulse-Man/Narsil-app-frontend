@@ -18,6 +18,17 @@ const CACHE_NAME = "narsil-feed-images-v1";
 const MAX_CACHED = 4;
 
 const blobUrls = new Map<string, string>();
+/** Original artwork URLs whose bytes are in the HTTP or Cache API store. */
+const warmedUrls = new Set<string>();
+
+/** Mark an artwork URL as fetched so grids can sort it first and skip resize hops. */
+export function markImageWarmed(url: string): void {
+  if (url) warmedUrls.add(url);
+}
+
+export function isImageWarmed(url: string): boolean {
+  return Boolean(url && warmedUrls.has(url));
+}
 
 function canUseCacheApi(): boolean {
   return typeof caches !== "undefined";
@@ -39,8 +50,10 @@ async function persist(url: string): Promise<void> {
 }
 
 function warmHttpCache(url: string): void {
+  markImageWarmed(url);
   const img = new Image();
   img.decoding = "async";
+  img.onload = () => markImageWarmed(url);
   img.src = url;
 }
 
@@ -67,6 +80,7 @@ export async function resolveCachedImage(src: string): Promise<string> {
     const cache = await caches.open(CACHE_NAME);
     const hit = await cache.match(src);
     if (!hit) return src;
+    markImageWarmed(src);
     const blob = await hit.blob();
     const objectUrl = URL.createObjectURL(blob);
     blobUrls.set(src, objectUrl);

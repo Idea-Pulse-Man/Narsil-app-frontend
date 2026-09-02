@@ -4,6 +4,7 @@ import { feedItemKey } from "@/data";
 import { useCatalog } from "@/data/catalog";
 import { orderSessionFeed, interleaveStorySlides } from "@/lib/feed-utils";
 import { isRenderableFeedItem } from "@/lib/feedItemGuards";
+import { markImageWarmed } from "@/lib/imageCache";
 import { useAppState } from "./AppState";
 import ArtworkCard from "./ArtworkCard";
 import StoryCard from "./StoryCard";
@@ -152,7 +153,10 @@ export default function ArtFeed({
           : getArtwork(item.backdropArtworkId);
       if (!art?.image || preloaded.current.has(art.id)) return;
       preloaded.current.add(art.id);
+      markImageWarmed(art.image);
       const img = new Image();
+      img.decoding = "async";
+      img.onload = () => markImageWarmed(art.image);
       img.src = art.image;
     },
     [getArtwork],

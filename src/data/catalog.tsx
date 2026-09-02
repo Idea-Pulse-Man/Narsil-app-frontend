@@ -155,7 +155,7 @@ function persistFeedWindow(
   });
   warmFeedImages(
     feedWindow.map((a) => a.image),
-    3,
+    12,
   );
 }
 
@@ -320,6 +320,12 @@ export function CatalogProvider({
     if (paused) return;
 
     purgeLegacyCatalogCaches();
+    if (snapshotRef.current?.artworks.length) {
+      warmFeedImages(
+        snapshotRef.current.artworks.map((a) => a.image),
+        12,
+      );
+    }
     const controller = new AbortController();
     loadControllerRef.current = controller;
     void loadInitial(controller.signal);
