@@ -1,4 +1,4 @@
-import { lazy, Suspense, useDeferredValue, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   categories as allCategories,
@@ -109,6 +109,7 @@ export default function SearchView({
     getArtwork,
     catalogComplete,
     catalogTotal,
+    ensureFullCatalog,
   } = useCatalog();
   const [text, setText] = useState("");
   const deferredText = useDeferredValue(text);
@@ -117,6 +118,12 @@ export default function SearchView({
   const [node, setNode] = useState<FilterNode>({ kind: "root" });
   const [canvasId, setCanvasId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  // Pull the full archive only when Search is opened — keeps startup light.
+  useEffect(() => {
+    if (!active || catalogComplete) return;
+    void ensureFullCatalog();
+  }, [active, catalogComplete, ensureFullCatalog]);
 
   const categoryKey = categoryFilterKey(sel);
 

@@ -10,9 +10,8 @@
  * Public catalog tables are world-readable (RLS `using(true)`), so the app's
  * anon key is enough — no secret ever reaches the client.
  *
- * Loading is two-phase so the For You feed can paint before every row arrives:
- *   1. `fetchCatalogPreview` — one page of popular works + their artists
- *   2. `fetchSupabaseCatalog` — the rest of the tables (background)
+ * Feed loading is paginated (80 popular works at a time via `fetchArtworkBatch`).
+ * The full archive (`fetchSupabaseCatalog`) loads on demand — e.g. when Search opens.
  */
 import { supabase } from "./supabase";
 import { fetchCommunityTags } from "./tags";
@@ -27,7 +26,9 @@ export interface RemoteCatalog {
 const PAGE_SIZE = 1000;
 /** How many Supabase pages to pull at once during the full catalog fetch. */
 const PAGE_CONCURRENCY = 4;
-/** First-paint window — enough for the feed after portrait/unknown filters. */
+/** How many artworks each feed batch request pulls from Supabase. */
+export const CATALOG_BATCH_SIZE = 80;
+/** @deprecated Use `fetchArtworkBatch` — kept for tests and one-shot previews. */
 export const CATALOG_PREVIEW_COUNT = 150;
 const ARTIST_IN_BATCH = 80;
 
@@ -365,10 +366,12 @@ export async function fetchArtworkCount(
 }
 
 /**
- * One round-trip of popular, image-backed artworks plus the artists they
- * reference. Enough to fill the For You feed; not the whole museum.
+ * One page of popular, image-backed artworks plus the artists they reference.
+ * Used for the For You feed — 80 rows per batch, offset for infinite scroll.
  */
-export async function fetchCatalogPreview(
+export async function fetchArtworkBatch(
+  offset: number,
+  limit: number = CATALOG_BATCH_SIZE,
   signal?: AbortSignal,
 ): Promise<RemoteCatalog> {
   if (!supabase) return { artworks: [], artists: [], fypArtistCards: [] };
@@ -381,7 +384,7 @@ export async function fetchCatalogPreview(
     .order("featured", { ascending: false, nullsFirst: false })
     .order("like_count", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
-    .range(0, CATALOG_PREVIEW_COUNT - 1);
+    .range(offset, offset + limit - 1);
   if (signal) query = query.abortSignal(signal);
 
   const { data, error } = await query;
@@ -394,7 +397,7 @@ export async function fetchCatalogPreview(
     .filter((id): id is string => Boolean(id));
   const [artistRows, fypArtistCards] = await Promise.all([
     fetchArtistsByIds(artistIds, ARTIST_PREVIEW_COLUMNS, signal),
-    fetchFypArtistCards(signal),
+    offset === 0 ? fetchFypArtistCards(signal) : Promise.resolve([]),
   ]);
 
   return {
@@ -406,6 +409,15 @@ export async function fetchCatalogPreview(
       .filter((artist): artist is Artist => artist !== null),
     fypArtistCards,
   };
+}
+
+/**
+ * One round-trip of popular works — first batch only, larger window for legacy callers.
+ */
+export async function fetchCatalogPreview(
+  signal?: AbortSignal,
+): Promise<RemoteCatalog> {
+  return fetchArtworkBatch(0, CATALOG_PREVIEW_COUNT, signal);
 }
 
 /**

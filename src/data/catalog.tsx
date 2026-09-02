@@ -2,16 +2,14 @@
  * Live catalog provider.
  * ---------------------------------------------------------------------------
  * Hydrates from a local snapshot (last visit's first ~80 feed works) so the
- * For You screen can paint immediately, then:
- *   1. fetches a popular preview page if there was no snapshot
- *   2. fetches the full catalog in the background
+ * For You screen can paint immediately, then loads the feed in 80-artwork
+ * batches from Supabase. The next batch is fetched when the user scrolls
+ * halfway through the current pool — not the whole archive at once.
+ *
+ * The full catalog loads on demand (Search tab) via `ensureFullCatalog`.
  *
  * Browse surfaces never show bundled mock artworks; History lookups still
  * merge mocks so curated timeline ids resolve.
- *
- * Components read everything dynamic (artworks, artists, lookups, search) from
- * `useCatalog()` so they re-render once the backend data arrives. Static config
- * (categories, history eras, shop) still comes from `@/data` directly.
  */
 
 import {
@@ -31,8 +29,9 @@ import {
 } from "./index";
 import type { Artwork, Artist, CategoryId, ArtworkSearchQuery, FypArtistCard } from "./index";
 import {
+  CATALOG_BATCH_SIZE,
+  fetchArtworkBatch,
   fetchArtworkCount,
-  fetchCatalogPreview,
   fetchSupabaseCatalog,
   type RemoteCatalog,
 } from "@/lib/catalog";
@@ -55,32 +54,6 @@ import {
   sortByPopularity,
 } from "@/lib/feed-utils";
 
-/** Yield to the browser so first paint can finish before heavy downloads. */
-function yieldToMainThread(
-  signal?: AbortSignal,
-  timeoutMs = 120,
-): Promise<void> {
-  return new Promise((resolve) => {
-    if (signal?.aborted) {
-      resolve();
-      return;
-    }
-    let settled = false;
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      signal?.removeEventListener("abort", finish);
-      resolve();
-    };
-    signal?.addEventListener("abort", finish);
-    if ("requestIdleCallback" in window) {
-      window.requestIdleCallback(finish, { timeout: timeoutMs });
-    } else {
-      globalThis.setTimeout(finish, 0);
-    }
-  });
-}
-
 /** Where the currently-shown data came from. */
 type CatalogSource = "mock" | "supabase";
 
@@ -89,11 +62,8 @@ interface CatalogValue {
   artists: Artist[];
   artworkMap: Record<string, Artwork>;
   artistMap: Record<string, Artist>;
-  /** Active For You artist story cards keyed by artist id. */
   fypArtistCardMap: Record<string, FypArtistCard>;
   feedArtworks: Artwork[];
-  /** Full named + interleaved feed order (uncapped) — used by the For You feed
-   *  so it can pick unseen works from the whole pool, not just the first window. */
   feedPool: Artwork[];
   searchFacets: {
     periods: string[];
@@ -105,15 +75,17 @@ interface CatalogValue {
   };
   source: CatalogSource;
   loading: boolean;
-  /**
-   * False while browse surfaces are still showing the cached feed window (80
-   * works) or the popular preview page instead of the whole archive. Search
-   * relies on this so its result count never reads as the full catalog.
-   */
+  /** True while a scroll-triggered batch is in flight. */
+  loadingBatch: boolean;
+  /** False until the full archive is loaded (Search) or every batch is fetched. */
   catalogComplete: boolean;
-  /** Browsable artworks in the archive, counted server-side. Null when unknown. */
+  /** More popular-artwork batches remain on the server. */
+  hasMoreBatches: boolean;
   catalogTotal: number | null;
-  /** Re-fetch the catalog from Supabase (e.g. after the user posts new art). */
+  /** Fetch the next 80 artworks for the feed (no-op when exhausted or in flight). */
+  loadNextBatch: () => Promise<void>;
+  /** Load the whole archive for Search — safe to call repeatedly. */
+  ensureFullCatalog: () => Promise<void>;
   refresh: () => Promise<void>;
 
   getArtist: (id: string) => Artist | undefined;
@@ -139,12 +111,17 @@ function mergeById<T extends { id: string }>(base: T[], extra: T[]): T[] {
   return out;
 }
 
-/**
- * Max number of artworks loaded into the browse feed at once. Keeps the "For
- * You" page fast (only ~80 images decode) and, since Buy + History + Search all
- * derive from this same feed, keeps every browse surface showing the same set.
- */
-export const FEED_LIMIT = 80;
+function mergeRemoteCatalog(
+  base: RemoteCatalog | null,
+  incoming: RemoteCatalog,
+): RemoteCatalog {
+  if (!base) return incoming;
+  return {
+    artworks: mergeById(base.artworks, incoming.artworks),
+    artists: mergeById(base.artists, incoming.artists),
+    fypArtistCards: mergeById(base.fypArtistCards, incoming.fypArtistCards),
+  };
+}
 
 /** Popularity-ranked pool with freelance originals woven in every few items. */
 function buildFeed(
@@ -172,7 +149,7 @@ function persistFeedWindow(
 ): void {
   const artistIds = new Set(feedWindow.map((a) => a.artistId));
   writeCatalogSnapshot({
-    artworks: feedWindow,
+    artworks: feedWindow.slice(0, CATALOG_BATCH_SIZE),
     artists: artists.filter((a) => artistIds.has(a.id)),
     fypArtistCards,
   });
@@ -182,9 +159,10 @@ function persistFeedWindow(
   );
 }
 
+export const FEED_LIMIT = CATALOG_BATCH_SIZE;
+
 export function CatalogProvider({
   children,
-  /** When true, defer network fetches (e.g. while the terms gate is open). */
   paused = false,
 }: {
   children: React.ReactNode;
@@ -192,8 +170,11 @@ export function CatalogProvider({
 }) {
   const snapshotRef = useRef(readCatalogSnapshot());
   const snapshot = snapshotRef.current;
-  const metaHydratedRef = useRef(false);
   const loadControllerRef = useRef<AbortController | null>(null);
+  const batchControllerRef = useRef<AbortController | null>(null);
+  const fullLoadControllerRef = useRef<AbortController | null>(null);
+  const fullLoadStartedRef = useRef(false);
+  const serverOffsetRef = useRef(snapshot?.artworks.length ?? 0);
   const searchIndexRef = useRef<SearchIndex | null>(null);
   const [searchIndexReady, setSearchIndexReady] = useState(false);
   const [remote, setRemote] = useState<RemoteCatalog | null>(snapshot);
@@ -201,80 +182,139 @@ export function CatalogProvider({
     snapshot ? "supabase" : "mock",
   );
   const [loading, setLoading] = useState(!snapshot);
-  // The snapshot is only the first feed window, so a hydrated app still has to
-  // wait for the full table before Search can see the whole archive.
+  const [loadingBatch, setLoadingBatch] = useState(false);
   const [catalogComplete, setCatalogComplete] = useState(false);
+  const [hasMoreBatches, setHasMoreBatches] = useState(true);
   const [catalogTotal, setCatalogTotal] = useState<number | null>(null);
+  const catalogTotalRef = useRef<number | null>(null);
+  catalogTotalRef.current = catalogTotal;
 
-  const applyRemote = useCallback(
-    (data: RemoteCatalog, opts?: { complete?: boolean }) => {
+  const updateHasMore = useCallback((fetchedCount: number) => {
+    if (fetchedCount < CATALOG_BATCH_SIZE) {
+      setHasMoreBatches(false);
+      return;
+    }
+    const total = catalogTotalRef.current;
+    if (total !== null && serverOffsetRef.current >= total) {
+      setHasMoreBatches(false);
+      return;
+    }
+    setHasMoreBatches(true);
+  }, []);
+
+  const applyBatch = useCallback(
+    (data: RemoteCatalog, opts?: { fetchedCount?: number }) => {
       const clean = sanitizeRemoteCatalog(data);
-      if (!clean) {
-        if (opts?.complete) {
-          console.warn(
-            "Catalog: cached or fetched data failed validation — browse surfaces stay on the last good window.",
-          );
-        }
-        return;
-      }
-      if (clean.artworks.length === 0) {
-        // Without this warning a failed full fetch looks like a working app that
-        // simply owns 80 artworks, because the cached window stays on screen.
-        if (opts?.complete) {
-          console.warn(
-            "Catalog: the full fetch returned no usable artworks (rows missing image_url?) — browse surfaces stay on the cached feed window.",
-          );
-        }
-        return;
-      }
-      setRemote(clean);
+      if (!clean || clean.artworks.length === 0) return false;
+      setRemote((prev) => mergeRemoteCatalog(prev, clean));
       setSource("supabase");
       setLoading(false);
-      if (opts?.complete) {
-        setCatalogComplete(true);
-        void writeCatalogMetaCache(clean);
-      }
+      updateHasMore(opts?.fetchedCount ?? clean.artworks.length);
+      return true;
     },
-    [],
+    [updateHasMore],
   );
 
-  const load = useCallback(
-    async (signal?: AbortSignal, opts?: { skipPreview?: boolean }) => {
-      // Cheap head-count alongside the row fetches, so the archive size is on
-      // screen long before the rows themselves finish downloading.
+  const applyFullCatalog = useCallback((data: RemoteCatalog) => {
+    const clean = sanitizeRemoteCatalog(data);
+    if (!clean || clean.artworks.length === 0) return;
+    setRemote(clean);
+    setSource("supabase");
+    setLoading(false);
+    setCatalogComplete(true);
+    setHasMoreBatches(false);
+    serverOffsetRef.current = clean.artworks.length;
+    void writeCatalogMetaCache(clean);
+  }, []);
+
+  const fetchBatchAtOffset = useCallback(
+    async (offset: number, signal?: AbortSignal) => {
+      const batch = await fetchArtworkBatch(offset, CATALOG_BATCH_SIZE, signal);
+      if (signal?.aborted) return null;
+      serverOffsetRef.current = offset + batch.artworks.length;
+      applyBatch(batch, { fetchedCount: batch.artworks.length });
+      return batch;
+    },
+    [applyBatch],
+  );
+
+  const loadInitial = useCallback(
+    async (signal: AbortSignal) => {
       void fetchArtworkCount(signal).then((count) => {
-        if (count !== null && !signal?.aborted) setCatalogTotal(count);
-      });
-      try {
-        // First visit: a single popular page unblocks the feed. Return visits
-        // already painted from the snapshot, so skip straight to the full table.
-        if (!opts?.skipPreview) {
-          try {
-            const preview = await fetchCatalogPreview(signal);
-            if (signal?.aborted) return;
-            applyRemote(preview);
-            await yieldToMainThread(signal);
-            if (signal?.aborted) return;
-          } catch (err) {
-            if (signal?.aborted) return;
-            console.warn("Catalog preview failed, trying full catalog.", err);
-          }
-        } else {
-          await yieldToMainThread(signal, 80);
-          if (signal?.aborted) return;
+        if (count !== null && !signal.aborted) {
+          setCatalogTotal(count);
+          if (serverOffsetRef.current >= count) setHasMoreBatches(false);
         }
-        const full = await fetchSupabaseCatalog(signal);
-        if (signal?.aborted) return;
-        applyRemote(full, { complete: true });
+      });
+
+      if (snapshotRef.current) {
+        setLoading(false);
+        if (serverOffsetRef.current === 0) {
+          await fetchBatchAtOffset(0, signal);
+        }
+        return;
+      }
+
+      try {
+        await fetchBatchAtOffset(0, signal);
       } catch (err) {
-        if (signal?.aborted) return;
-        console.warn("Catalog: using cached or mock data (Supabase unavailable).", err);
+        if (signal.aborted) return;
+        console.warn("Catalog: first batch failed.", err);
       } finally {
-        if (!signal?.aborted) setLoading(false);
+        if (!signal.aborted) setLoading(false);
       }
     },
-    [applyRemote],
+    [fetchBatchAtOffset],
   );
+
+  const loadNextBatch = useCallback(async () => {
+    if (loadingBatch || !hasMoreBatches || catalogComplete) return;
+    batchControllerRef.current?.abort();
+    const controller = new AbortController();
+    batchControllerRef.current = controller;
+    setLoadingBatch(true);
+    try {
+      await fetchBatchAtOffset(serverOffsetRef.current, controller.signal);
+    } catch (err) {
+      if (!controller.signal.aborted) {
+        console.warn("Catalog: next batch failed.", err);
+      }
+    } finally {
+      if (batchControllerRef.current === controller) {
+        batchControllerRef.current = null;
+      }
+      if (!controller.signal.aborted) setLoadingBatch(false);
+    }
+  }, [loadingBatch, hasMoreBatches, catalogComplete, fetchBatchAtOffset]);
+
+  const ensureFullCatalog = useCallback(async () => {
+    if (catalogComplete) return;
+    if (fullLoadStartedRef.current) return;
+    fullLoadStartedRef.current = true;
+
+    fullLoadControllerRef.current?.abort();
+    const controller = new AbortController();
+    fullLoadControllerRef.current = controller;
+
+    try {
+      const cached = await readCatalogMetaCache();
+      if (cached && !controller.signal.aborted) {
+        applyFullCatalog(cached);
+      }
+      const full = await fetchSupabaseCatalog(controller.signal);
+      if (controller.signal.aborted) return;
+      applyFullCatalog(full);
+    } catch (err) {
+      if (!controller.signal.aborted) {
+        console.warn("Catalog: full archive load failed.", err);
+        fullLoadStartedRef.current = false;
+      }
+    } finally {
+      if (fullLoadControllerRef.current === controller) {
+        fullLoadControllerRef.current = null;
+      }
+    }
+  }, [catalogComplete, applyFullCatalog]);
 
   useEffect(() => {
     if (paused) return;
@@ -282,28 +322,23 @@ export function CatalogProvider({
     purgeLegacyCatalogCaches();
     const controller = new AbortController();
     loadControllerRef.current = controller;
-    void (async () => {
-      if (!snapshotRef.current) {
-        const cached = await readCatalogMetaCache();
-        if (cached && !controller.signal.aborted) {
-          metaHydratedRef.current = true;
-          applyRemote(cached, { complete: true });
-        }
-      }
-      await load(controller.signal, {
-        skipPreview: Boolean(snapshotRef.current || metaHydratedRef.current),
-      });
-    })();
+    void loadInitial(controller.signal);
+
     return () => {
       controller.abort();
       if (loadControllerRef.current === controller) {
         loadControllerRef.current = null;
       }
     };
-  }, [load, applyRemote, paused]);
+  }, [loadInitial, paused]);
 
-  // Build the heavy text/place search index during idle time so catalog hydration
-  // does not block the first feed paint.
+  useEffect(() => {
+    if (catalogTotal === null) return;
+    if (serverOffsetRef.current >= catalogTotal) {
+      setHasMoreBatches(false);
+    }
+  }, [catalogTotal, remote?.artworks.length]);
+
   useEffect(() => {
     if (!remote?.artworks.length) {
       searchIndexRef.current = null;
@@ -339,7 +374,6 @@ export function CatalogProvider({
     window: Artwork[];
   } | null>(null);
 
-  // After any live catalog lands, remember the opening feed + its images.
   useEffect(() => {
     if (!remote || source !== "supabase") return;
     const key = `${remote.artworks.length}:${remote.artists.length}`;
@@ -351,27 +385,36 @@ export function CatalogProvider({
     );
   }, [remote, source]);
 
-  // Pull fresh rows on demand (e.g. right after a user publishes new art) so the
-  // new post shows up immediately instead of only after a full app reload.
   const refresh = useCallback(async () => {
     loadControllerRef.current?.abort();
+    batchControllerRef.current?.abort();
+    fullLoadControllerRef.current?.abort();
+    fullLoadStartedRef.current = false;
+    serverOffsetRef.current = 0;
+    setHasMoreBatches(true);
+    setCatalogComplete(false);
+
     const controller = new AbortController();
     loadControllerRef.current = controller;
-    await load(controller.signal, { skipPreview: false });
-  }, [load]);
+    setLoading(true);
+    setRemote(null);
+    try {
+      await fetchBatchAtOffset(0, controller.signal);
+    } catch (err) {
+      if (!controller.signal.aborted) {
+        console.warn("Catalog refresh failed.", err);
+      }
+    } finally {
+      if (!controller.signal.aborted) setLoading(false);
+    }
+  }, [fetchBatchAtOffset]);
 
   const value = useMemo<CatalogValue>(() => {
     const hasRemote = !!remote && remote.artworks.length > 0;
 
-    // Browse surfaces (For You feed, Search, Discover, Buy) show ONLY real museum
-    // art from the backend. Before it arrives (or if the backend is down) they
-    // stay empty rather than seeding fake/mock artworks — the UI shows a loading
-    // state instead (see `loading`).
     const browseArtworks = hasRemote ? remote!.artworks : [];
     const browseArtists = hasRemote ? remote!.artists : [];
 
-    // Lookups still include the curated mock data so the History timeline and
-    // previously-saved items resolve by id.
     const allArtworks = hasRemote
       ? mergeById(remote!.artworks, mockArtworks)
       : mockArtworks;
@@ -431,7 +474,7 @@ export function CatalogProvider({
       0,
       FEED_POOL_CAP,
     );
-    const namedFeed = namedFeedFull.slice(0, FEED_LIMIT);
+    const namedFeed = namedFeedFull.slice(0, CATALOG_BATCH_SIZE);
     rankedFeedRef.current = {
       key: `${browseArtworks.length}:${browseArtists.length}`,
       pool: namedFeedFull,
@@ -456,17 +499,17 @@ export function CatalogProvider({
       searchFacets,
       source,
       loading,
+      loadingBatch,
       catalogComplete,
+      hasMoreBatches,
       catalogTotal,
+      loadNextBatch,
+      ensureFullCatalog,
       refresh,
       getArtist: (id) => artistMap[id],
       getFypArtistCard: (artistId) => fypArtistCardMap[artistId],
       getArtwork: (id) => artworkMap[id],
-      // Profiles resolve works from the full pool (real + curated).
       getArtworksByArtist: (artistId) => artworksByArtistId[artistId] ?? [],
-      // Suppress portrait photos for anonymous/generic makers ("a Chinese
-      // artist", "British School", workshops…) — they have no personal likeness,
-      // so fall back to the monogram even if a stale avatar is stored upstream.
       getArtistAvatar: (artistId) => {
         const artist = artistMap[artistId];
         if (!artist || isGenericMakerName(artist.name)) return undefined;
@@ -476,7 +519,19 @@ export function CatalogProvider({
         browseArtworks.filter((a) => artworkMatchesCategory(a, id)),
       searchArtworks,
     };
-  }, [remote, source, loading, catalogComplete, catalogTotal, refresh, searchIndexReady]);
+  }, [
+    remote,
+    source,
+    loading,
+    loadingBatch,
+    catalogComplete,
+    hasMoreBatches,
+    catalogTotal,
+    loadNextBatch,
+    ensureFullCatalog,
+    refresh,
+    searchIndexReady,
+  ]);
 
   return (
     <CatalogContext.Provider value={value}>{children}</CatalogContext.Provider>

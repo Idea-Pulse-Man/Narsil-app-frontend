@@ -50,6 +50,9 @@ export default function ArtFeed({
     getArtwork,
     getFypArtistCard,
     loading,
+    loadingBatch,
+    hasMoreBatches,
+    loadNextBatch,
     fypArtistCardMap,
   } = useCatalog();
   const { seen, markSeen } = useAppState();
@@ -197,6 +200,35 @@ export default function ArtFeed({
     preloadItem(items[1]);
     preloadItem(items[2]);
   }, [items, markSeen, preloadItem]);
+
+  // WhatsApp-style batching: when the user has scrolled through half of the
+  // loaded artwork pool, fetch the next 80 from Supabase.
+  const batchRequested = useRef(false);
+  useEffect(() => {
+    batchRequested.current = false;
+  }, [artworks.length]);
+
+  useEffect(() => {
+    if (loading || loadingBatch || !hasMoreBatches || artworks.length === 0) {
+      return;
+    }
+    const artworksViewed = items
+      .slice(0, currentIndex + 1)
+      .filter((item) => item.kind === "artwork").length;
+    const halfway = Math.max(1, Math.floor(artworks.length / 2));
+    if (artworksViewed >= halfway && !batchRequested.current) {
+      batchRequested.current = true;
+      void loadNextBatch();
+    }
+  }, [
+    currentIndex,
+    items,
+    artworks.length,
+    loading,
+    loadingBatch,
+    hasMoreBatches,
+    loadNextBatch,
+  ]);
 
   // Tutorial resets should close the shared placard.
   useEffect(() => {

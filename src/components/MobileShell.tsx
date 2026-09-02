@@ -45,7 +45,7 @@ const TUTORIAL_ALLOW: TutorialAction[] = [
 
 export default function MobileShell() {
   const isNative = Capacitor.isNativePlatform();
-  const { getArtist, getArtwork, loading: catalogLoading, catalogComplete } = useCatalog();
+  const { getArtist, getArtwork, loading: catalogLoading } = useCatalog();
   const {
     ready,
     preferences,
@@ -87,7 +87,6 @@ export default function MobileShell() {
 
   // Sign-in / sign-up screen (full-screen overlay above the shell).
   const [authOpen, setAuthOpen] = useState(false);
-  const [termsOpen, setTermsOpen] = useState(false);
   const [termsReview, setTermsReview] = useState(false);
   const [musicPromptOpen, setMusicPromptOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
@@ -111,16 +110,16 @@ export default function MobileShell() {
   const [advancing, setAdvancing] = useState(false);
   const advancingRef = useRef(false);
 
-  // Terms gate first, then auth on first launch.
-  useEffect(() => {
-    if (ready && !termsAccepted) {
-      setTermsOpen(true);
-      return;
-    }
-    if (ready && termsAccepted && !authSeen && isGuest && !authRedirectPending.current) {
-      setAuthOpen(true);
-    }
-  }, [ready, termsAccepted, authSeen, isGuest]);
+  // First-launch gates — derived on render so Terms/Auth never flash after the feed.
+  const firstLaunchTerms = ready && !termsAccepted;
+  const firstLaunchAuth =
+    ready &&
+    termsAccepted &&
+    !authSeen &&
+    isGuest &&
+    !authRedirectPending.current;
+  const onboardingGate = firstLaunchTerms || firstLaunchAuth;
+  const showAuthOverlay = authOpen || firstLaunchAuth;
 
   // Music prompt after terms (and after auth dismissed or seen).
   useEffect(() => {
@@ -202,10 +201,10 @@ export default function MobileShell() {
     });
   }, [screen]);
 
-  // Preload other top-level tabs once the catalog has settled so idle work
-  // does not compete with full-archive hydration or the first feed image.
+  // Preload other top-level tabs once the first feed batch has landed so idle
+  // work does not compete with the opening card image.
   useEffect(() => {
-    if (!termsAccepted || catalogLoading || !catalogComplete) return;
+    if (!ready || catalogLoading) return;
 
     const preload = () => {
       void import("./DiscoverView");
@@ -220,7 +219,7 @@ export default function MobileShell() {
     }
     const timer = globalThis.setTimeout(preload, 3500);
     return () => globalThis.clearTimeout(timer);
-  }, [termsAccepted, catalogLoading, catalogComplete]);
+  }, [ready, catalogLoading]);
 
   // ── Preference modal triggers ──────────────────────────────────────
   const handleViewIndex = useCallback(
@@ -324,8 +323,7 @@ export default function MobileShell() {
     ? getArtist(activeArtwork.artistId)
     : undefined;
 
-  const showChrome = !clean && !tutorialActive && termsAccepted;
-  const firstLaunchGate = ready && !termsAccepted;
+  const showChrome = !clean && !tutorialActive && termsAccepted && !onboardingGate;
 
   return (
     <div
@@ -353,15 +351,14 @@ export default function MobileShell() {
           )}
         </AnimatePresence>
 
-        {/* Screens — keep-alive after first visit. Hide inactive tabs with
-            `hidden` instead of unmounting so tab switches stay instant and
-            For You does not rebuild its feed when you come back. */}
+        {/* Screens — mount when ready so the catalog can warm behind onboarding,
+            but stay visually hidden until Terms + first-launch auth are done. */}
         <div
-          className={`absolute inset-0 bg-ink ${firstLaunchGate || termsOpen ? "pointer-events-none" : ""}`}
-          aria-hidden={firstLaunchGate || termsOpen}
-          inert={firstLaunchGate || termsOpen ? true : undefined}
+          className={`absolute inset-0 bg-ink ${onboardingGate ? "invisible pointer-events-none" : ""}`}
+          aria-hidden={onboardingGate}
+          inert={onboardingGate ? true : undefined}
         >
-          {termsAccepted && (
+          {ready && (
             <>
           {visitedScreens.has("for-you") && (
             <div
@@ -589,11 +586,10 @@ export default function MobileShell() {
         )}
 
         <AnimatePresence>
-          {termsOpen && (
+          {firstLaunchTerms && (
             <TermsView
               onAccept={() => {
                 acceptTerms();
-                setTermsOpen(false);
               }}
             />
           )}
@@ -653,7 +649,7 @@ export default function MobileShell() {
         </AnimatePresence>
 
         <AnimatePresence>
-          {authOpen && (
+          {showAuthOverlay && (
             <Suspense fallback={null}>
               <AuthView
                 onClose={() => {

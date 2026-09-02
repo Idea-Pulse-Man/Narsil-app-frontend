@@ -8,12 +8,11 @@ import { CatalogProvider } from "@/data/catalog";
 
 setupIonicReact();
 
-/** Hold catalog/network hydration until first-launch terms are accepted. */
+/** Start catalog hydration as soon as local app state is ready — public artwork
+ *  data is not gated on Terms acceptance so the feed can load behind the overlay. */
 function CatalogGate({ children }: { children: React.ReactNode }) {
-  const { ready, termsAccepted } = useAppState();
-  return (
-    <CatalogProvider paused={!ready || !termsAccepted}>{children}</CatalogProvider>
-  );
+  const { ready } = useAppState();
+  return <CatalogProvider paused={!ready}>{children}</CatalogProvider>;
 }
 
 export default function App() {
