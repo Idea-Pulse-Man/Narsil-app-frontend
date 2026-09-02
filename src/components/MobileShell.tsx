@@ -10,6 +10,7 @@ import BottomNav from "./BottomNav";
 import { type Screen } from "./navigation";
 import ArtFeed from "./ArtFeed";
 import Toast, { type ToastState } from "./Toast";
+import TermsView from "./TermsView";
 import { useAppState } from "./AppState";
 import { SHARE_ART_PARAM } from "@/lib/download";
 import type { TutorialAction } from "./tutorial";
@@ -28,7 +29,6 @@ const ArtworkViewer = lazy(() => import("./ArtworkViewer"));
 const AuthView = lazy(() => import("./AuthView"));
 const PreferenceModal = lazy(() => import("./PreferenceModal"));
 const TutorialCoach = lazy(() => import("./TutorialCoach"));
-const TermsView = lazy(() => import("./TermsView"));
 const MusicPrompt = lazy(() => import("./MusicPrompt"));
 const ProPaywall = lazy(() => import("./ProPaywall"));
 const DownloadSheet = lazy(() => import("./DownloadSheet"));
@@ -205,7 +205,7 @@ export default function MobileShell() {
   // Preload other top-level tabs once the catalog has settled so idle work
   // does not compete with full-archive hydration or the first feed image.
   useEffect(() => {
-    if (catalogLoading || !catalogComplete) return;
+    if (!termsAccepted || catalogLoading || !catalogComplete) return;
 
     const preload = () => {
       void import("./DiscoverView");
@@ -220,7 +220,7 @@ export default function MobileShell() {
     }
     const timer = globalThis.setTimeout(preload, 3500);
     return () => globalThis.clearTimeout(timer);
-  }, [catalogLoading, catalogComplete]);
+  }, [termsAccepted, catalogLoading, catalogComplete]);
 
   // ── Preference modal triggers ──────────────────────────────────────
   const handleViewIndex = useCallback(
@@ -324,7 +324,8 @@ export default function MobileShell() {
     ? getArtist(activeArtwork.artistId)
     : undefined;
 
-  const showChrome = !clean && !tutorialActive;
+  const showChrome = !clean && !tutorialActive && termsAccepted;
+  const firstLaunchGate = ready && !termsAccepted;
 
   return (
     <div
@@ -355,7 +356,13 @@ export default function MobileShell() {
         {/* Screens — keep-alive after first visit. Hide inactive tabs with
             `hidden` instead of unmounting so tab switches stay instant and
             For You does not rebuild its feed when you come back. */}
-        <div className="absolute inset-0 bg-ink">
+        <div
+          className={`absolute inset-0 bg-ink ${firstLaunchGate || termsOpen ? "pointer-events-none" : ""}`}
+          aria-hidden={firstLaunchGate || termsOpen}
+          inert={firstLaunchGate || termsOpen ? true : undefined}
+        >
+          {termsAccepted && (
+            <>
           {visitedScreens.has("for-you") && (
             <div
               className={
@@ -509,6 +516,8 @@ export default function MobileShell() {
               </Suspense>
             </div>
           )}
+            </>
+          )}
         </div>
 
         {/* Bottom navigation */}
@@ -581,26 +590,22 @@ export default function MobileShell() {
 
         <AnimatePresence>
           {termsOpen && (
-            <Suspense fallback={null}>
-              <TermsView
-                onAccept={() => {
-                  acceptTerms();
-                  setTermsOpen(false);
-                }}
-              />
-            </Suspense>
+            <TermsView
+              onAccept={() => {
+                acceptTerms();
+                setTermsOpen(false);
+              }}
+            />
           )}
         </AnimatePresence>
 
         <AnimatePresence>
           {termsReview && (
-            <Suspense fallback={null}>
-              <TermsView
-                required={false}
-                onClose={() => setTermsReview(false)}
-                onAccept={() => setTermsReview(false)}
-              />
-            </Suspense>
+            <TermsView
+              required={false}
+              onClose={() => setTermsReview(false)}
+              onAccept={() => setTermsReview(false)}
+            />
           )}
         </AnimatePresence>
 

@@ -182,7 +182,14 @@ function persistFeedWindow(
   );
 }
 
-export function CatalogProvider({ children }: { children: React.ReactNode }) {
+export function CatalogProvider({
+  children,
+  /** When true, defer network fetches (e.g. while the terms gate is open). */
+  paused = false,
+}: {
+  children: React.ReactNode;
+  paused?: boolean;
+}) {
   const snapshotRef = useRef(readCatalogSnapshot());
   const snapshot = snapshotRef.current;
   const metaHydratedRef = useRef(false);
@@ -270,6 +277,8 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
+    if (paused) return;
+
     purgeLegacyCatalogCaches();
     const controller = new AbortController();
     loadControllerRef.current = controller;
@@ -291,7 +300,7 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
         loadControllerRef.current = null;
       }
     };
-  }, [load, applyRemote]);
+  }, [load, applyRemote, paused]);
 
   // Build the heavy text/place search index during idle time so catalog hydration
   // does not block the first feed paint.
