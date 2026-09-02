@@ -23,6 +23,8 @@ import type { ToastState } from "./Toast";
 const CanvasPurchaseSheet = lazy(() => import("./CanvasPurchaseSheet"));
 
 interface SearchViewProps {
+  /** False when another tab is visible — pauses image loads and heavy memos. */
+  active?: boolean;
   onOpenArtwork: (artworkId: string) => void;
   showToast: (message: string, variant?: ToastState["variant"]) => void;
 }
@@ -95,6 +97,7 @@ function categoryFilterKey(sel: Selection): string {
 }
 
 export default function SearchView({
+  active = true,
   onOpenArtwork,
   showToast,
 }: SearchViewProps) {
@@ -136,15 +139,20 @@ export default function SearchView({
     resetKey: `${deferredText}|${categoryKey}`,
     softResetKey: sel.canvas,
     rootRef: scrollRef,
+    enabled: active,
   });
 
+  const searchableArtistsRef = useRef<typeof artists>([]);
   const searchableArtists = useMemo(() => {
+    if (!active) return searchableArtistsRef.current;
     const ids = new Set(artworks.map((a) => a.artistId));
-    return artists
+    const next = artists
       .filter((a) => ids.has(a.id))
       .slice()
       .sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
-  }, [artists, artworks]);
+    searchableArtistsRef.current = next;
+    return next;
+  }, [active, artists, artworks]);
 
   const artistsByLetter = useMemo(() => {
     const map = new Map<string, typeof searchableArtists>();
@@ -181,7 +189,13 @@ export default function SearchView({
       .filter((g) => g.items.length > 0);
   }, [searchFacets.categories]);
 
-  const placeTree = useMemo(() => placeTreeOf(artworks), [artworks]);
+  const placeTreeRef = useRef(placeTreeOf([]));
+  const placeTree = useMemo(() => {
+    if (!active) return placeTreeRef.current;
+    const next = placeTreeOf(artworks);
+    placeTreeRef.current = next;
+    return next;
+  }, [active, artworks]);
 
   const activeArtwork = canvasId ? getArtwork(canvasId) ?? null : null;
 
@@ -250,7 +264,7 @@ export default function SearchView({
     };
     add(
       sel.categories,
-      sel.categories[0] ? categoryMap[sel.categories[0]].label : "",
+      sel.categories[0] ? (categoryMap[sel.categories[0]]?.label ?? "") : "",
       "categories",
     );
     add(sel.periods, sel.periods[0] ?? "", "periods");
@@ -754,7 +768,7 @@ export default function SearchView({
           <p className="mt-8 text-center text-sm text-white/45">
             No artworks match your search. Try a different term or filter.
           </p>
-        ) : (
+        ) : active ? (
           <>
             <div className="mt-4 grid grid-cols-2 gap-3">
               {visible.map((art, i) => (
@@ -778,7 +792,7 @@ export default function SearchView({
               </div>
             )}
           </>
-        )}
+        ) : null}
       </div>
 
       {canvasId && (

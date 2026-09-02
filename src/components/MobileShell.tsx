@@ -418,6 +418,7 @@ export default function MobileShell() {
             >
               <Suspense fallback={null}>
                 <SearchView
+                  active={screen === "search"}
                   onOpenArtwork={openArtwork}
                   showToast={showToast}
                 />

@@ -9,6 +9,8 @@ interface Options {
   softResetKey?: unknown;
   /** Scroll container to observe against; defaults to the viewport. */
   rootRef?: RefObject<HTMLElement | null>;
+  /** When false, stops prefetching more rows (e.g. tab hidden but keep-alive). */
+  enabled?: boolean;
 }
 
 /**
@@ -23,7 +25,8 @@ interface Options {
  * effect with the real element.
  */
 export function useInfiniteScroll<T>(items: T[], options: Options = {}) {
-  const { pageSize = 24, resetKey, softResetKey, rootRef } = options;
+  const { pageSize = 24, resetKey, softResetKey, rootRef, enabled = true } =
+    options;
   const [count, setCount] = useState(pageSize);
   const [sentinel, setSentinel] = useState<HTMLElement | null>(null);
 
@@ -40,7 +43,7 @@ export function useInfiniteScroll<T>(items: T[], options: Options = {}) {
   const hasMore = count < items.length;
 
   useEffect(() => {
-    if (!hasMore || !sentinel) return;
+    if (!enabled || !hasMore || !sentinel) return;
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
@@ -52,7 +55,7 @@ export function useInfiniteScroll<T>(items: T[], options: Options = {}) {
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [hasMore, pageSize, items.length, rootRef, sentinel]);
+  }, [enabled, hasMore, pageSize, items.length, rootRef, sentinel]);
 
   return { visible: items.slice(0, count), sentinelRef: setSentinel, hasMore };
 }
