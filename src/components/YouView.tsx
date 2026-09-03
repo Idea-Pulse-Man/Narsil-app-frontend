@@ -4,7 +4,7 @@ import { WORLD } from "@/data/worldCopy";
 import { FEED_MATCH_MODES, FEED_MATCH_COPY } from "@/lib/personalize";
 import { useAppState } from "./AppState";
 import { screenScrollClass, screenContentClass } from "./artwork-layout";
-import { CameraIcon, FlameIcon, SparkleIcon } from "./Icons";
+import { FlameIcon, PencilIcon, SparkleIcon } from "./Icons";
 import {
   effectiveStreak,
   hasPlayedToday,
@@ -217,14 +217,8 @@ export default function YouView({
             onChange={handleAvatarFile}
             className="hidden"
           />
-          <button
-            type="button"
-            onClick={handlePickAvatar}
-            disabled={avatarBusy}
-            aria-label={isGuest ? "Sign in to set avatar" : "Change avatar"}
-            className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full border border-white/15 bg-gradient-to-br from-white/20 to-white/5 font-serif text-2xl text-white disabled:opacity-70"
-          >
-            <span className="flex h-full w-full items-center justify-center">
+          <div className="relative h-16 w-16 shrink-0">
+            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-gradient-to-br from-white/20 to-white/5 font-serif text-2xl text-white">
               {avatarUrl ? (
                 <img
                   src={avatarUrl}
@@ -234,11 +228,17 @@ export default function YouView({
               ) : (
                 initial
               )}
-            </span>
-            <span className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-black/55 py-1">
-              <CameraIcon className="h-3.5 w-3.5 text-white" />
-            </span>
-          </button>
+            </div>
+            <button
+              type="button"
+              onClick={handlePickAvatar}
+              disabled={avatarBusy}
+              aria-label={isGuest ? "Sign in to set avatar" : "Edit avatar"}
+              className="absolute -bottom-0.5 -right-0.5 flex h-7 w-7 items-center justify-center rounded-full border border-white/25 bg-white text-ink shadow-sm disabled:opacity-70"
+            >
+              <PencilIcon className="h-3.5 w-3.5" />
+            </button>
+          </div>
           <div className="min-w-0">
             <h1 className="truncate font-serif text-2xl leading-none text-white">
               {displayName}

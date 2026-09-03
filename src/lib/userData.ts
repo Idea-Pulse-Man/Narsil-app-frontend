@@ -79,7 +79,15 @@ export async function setAvatarRemote(file: File): Promise<string> {
       upsert: false,
       contentType: type,
     });
-  if (uploadError) throw uploadError;
+  if (uploadError) {
+    const detail = uploadError.message || "Upload failed";
+    if (/bucket not found/i.test(detail)) {
+      throw new Error(
+        "Avatar storage isn't set up. In Supabase, run supabase/avatars.sql (SQL Editor).",
+      );
+    }
+    throw new Error(detail);
+  }
 
   const avatarUrl = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path)
     .data.publicUrl;

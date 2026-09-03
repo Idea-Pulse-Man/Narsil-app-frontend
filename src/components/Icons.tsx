@@ -259,7 +259,7 @@ export function UserIcon({ filled, ...props }: IconProps) {
   );
 }
 
-export function CameraIcon(props: IconProps) {
+export function PencilIcon(props: IconProps) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -270,8 +270,8 @@ export function CameraIcon(props: IconProps) {
       strokeLinejoin="round"
       {...props}
     >
-      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3l2-3h8l2 3h3a2 2 0 0 1 2 2z" />
-      <circle cx="12" cy="13" r="4" />
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
     </svg>
   );
 }
