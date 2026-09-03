@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useCatalog } from "@/data/catalog";
 import { WORLD } from "@/data/worldCopy";
 import { FEED_MATCH_MODES, FEED_MATCH_COPY } from "@/lib/personalize";
 import { useAppState } from "./AppState";
 import { screenScrollClass, screenContentClass } from "./artwork-layout";
-import { FlameIcon, SparkleIcon } from "./Icons";
+import { CameraIcon, FlameIcon, SparkleIcon } from "./Icons";
 import {
   effectiveStreak,
   hasPlayedToday,
@@ -68,6 +68,7 @@ export default function YouView({
     signOut,
     isPro,
     requestPro,
+    setAvatar,
   } = useAppState();
   const {
     enabled: musicOn,
@@ -82,6 +83,8 @@ export default function YouView({
   const [proOpen, setProOpen] = useState(false);
   const [quizProgress, setQuizProgress] =
     useState<QuizProgress>(EMPTY_PROGRESS);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     setQuizProgress(loadProgress());
@@ -139,6 +142,8 @@ export default function YouView({
   const meta = (user?.user_metadata ?? {}) as {
     full_name?: string;
     name?: string;
+    avatar_url?: string;
+    picture?: string;
   };
   const displayName = isGuest
     ? "Guest"
@@ -147,8 +152,36 @@ export default function YouView({
       meta.name ??
       email?.split("@")[0] ??
       "Member";
-  const avatarUrl = profile?.avatar_url ?? null;
+  const avatarUrl =
+    profile?.avatar_url ?? meta.avatar_url ?? meta.picture ?? null;
   const initial = (displayName.charAt(0) || "?").toUpperCase();
+
+  const handlePickAvatar = () => {
+    if (isGuest) {
+      onSignIn();
+      return;
+    }
+    if (avatarBusy) return;
+    avatarInputRef.current?.click();
+  };
+
+  const handleAvatarFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setAvatarBusy(true);
+    try {
+      await setAvatar(file);
+      showToast("Avatar updated");
+    } catch (err) {
+      showToast(
+        err instanceof Error ? err.message : "Could not update avatar",
+        "error",
+      );
+    } finally {
+      setAvatarBusy(false);
+    }
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -177,17 +210,35 @@ export default function YouView({
       <div className={screenContentClass}>
         {/* Identity */}
         <div className="flex items-center gap-4">
-          <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-gradient-to-br from-white/20 to-white/5 font-serif text-2xl text-white">
-            {avatarUrl ? (
-              <img
-                src={avatarUrl}
-                alt={displayName}
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              initial
-            )}
-          </div>
+          <input
+            ref={avatarInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            onChange={handleAvatarFile}
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={handlePickAvatar}
+            disabled={avatarBusy}
+            aria-label={isGuest ? "Sign in to set avatar" : "Change avatar"}
+            className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full border border-white/15 bg-gradient-to-br from-white/20 to-white/5 font-serif text-2xl text-white disabled:opacity-70"
+          >
+            <span className="flex h-full w-full items-center justify-center">
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                initial
+              )}
+            </span>
+            <span className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-black/55 py-1">
+              <CameraIcon className="h-3.5 w-3.5 text-white" />
+            </span>
+          </button>
           <div className="min-w-0">
             <h1 className="truncate font-serif text-2xl leading-none text-white">
               {displayName}

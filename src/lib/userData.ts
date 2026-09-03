@@ -51,6 +51,51 @@ export async function fetchProfile(): Promise<Profile | null> {
   }
 }
 
+const AVATAR_BUCKET = "avatars";
+const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
+
+/** Upload a photo and save its public URL on the signed-in user's profile. */
+export async function setAvatarRemote(file: File): Promise<string> {
+  if (!supabase) throw new Error("Sign-in is not configured.");
+  if (file.size > MAX_AVATAR_BYTES) {
+    throw new Error("Image too large (max 5 MB)");
+  }
+  const type = file.type || "image/jpeg";
+  if (!/^image\/(jpeg|png|webp)$/i.test(type)) {
+    throw new Error("Use a JPG, PNG, or WebP image");
+  }
+
+  const { data: auth } = await supabase.auth.getUser();
+  const uid = auth.user?.id;
+  if (!uid) throw new Error("You must be signed in.");
+
+  const ext = type.split("/")[1] === "jpeg" ? "jpg" : type.split("/")[1] || "jpg";
+  const path = `${uid}/${crypto.randomUUID()}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(AVATAR_BUCKET)
+    .upload(path, file, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: type,
+    });
+  if (uploadError) throw uploadError;
+
+  const avatarUrl = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path)
+    .data.publicUrl;
+
+  const { error: updateError } = await supabase
+    .from("profiles")
+    .update({
+      avatar_url: avatarUrl,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", uid);
+  if (updateError) throw updateError;
+
+  return avatarUrl;
+}
+
 /** Persist ToS acceptance on the signed-in user's profile. */
 export async function acceptTermsRemote(version: string): Promise<void> {
   if (!supabase) return;

@@ -30,6 +30,7 @@ import {
   setCollection,
   setFollow,
   acceptTermsRemote,
+  setAvatarRemote,
   type Profile,
 } from "@/lib/userData";
 import {
@@ -131,6 +132,8 @@ interface AppStateValue {
   user: User | null;
   /** The current user's profile row (name/avatar), when loaded. */
   profile: Profile | null;
+  /** Upload a photo and persist it as the signed-in user's avatar. */
+  setAvatar: (file: File) => Promise<void>;
   /** True when there is no real (non-anonymous) account signed in. */
   isGuest: boolean;
   /** Sign the current user out. */
@@ -360,6 +363,21 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     await authSignOut();
   }, []);
 
+  const setAvatar = useCallback(async (file: File) => {
+    const avatarUrl = await setAvatarRemote(file);
+    setProfile((prev) => {
+      if (prev) return { ...prev, avatar_url: avatarUrl };
+      if (!user) return prev;
+      const meta = (user.user_metadata ?? {}) as { full_name?: string; name?: string };
+      return {
+        id: user.id,
+        full_name: meta.full_name ?? meta.name ?? null,
+        email: user.email ?? null,
+        avatar_url: avatarUrl,
+      };
+    });
+  }, [user]);
+
   const markAuthSeen = useCallback(() => {
     setAuthSeen(true);
     writeJSON(STORAGE_KEYS.authSeen, true);
@@ -566,6 +584,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       isAdmin,
       user,
       profile,
+      setAvatar,
       isGuest: !user || user.is_anonymous === true,
       signOut,
       subscription,
@@ -611,6 +630,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       isAdmin,
       user,
       profile,
+      setAvatar,
       signOut,
       subscription,
       setSubscription,
