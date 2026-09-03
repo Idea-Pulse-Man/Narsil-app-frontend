@@ -33,7 +33,9 @@ export type PaywallReason =
   | "hi-res-download"
   | "canvas-discount"
   /** Opened deliberately from Settings rather than by hitting a gate. */
-  | "settings";
+  | "settings"
+  /** Create tab — only Explorer's Guild members may upload artworks. */
+  | "create-upload";
 
 /** Apple's subscription management page — the only place a user can cancel. */
 export const APPLE_SUBSCRIPTIONS_URL =

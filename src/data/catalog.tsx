@@ -33,9 +33,11 @@ import {
   CATALOG_BATCH_SIZE,
   fetchArtworkBatch,
   fetchArtworkCount,
+  fetchArtworksByIds,
   fetchCatalogArchivePage,
   type RemoteCatalog,
 } from "@/lib/catalog";
+import { supabase } from "@/lib/supabase";
 import {
   readCatalogSnapshot,
   writeCatalogSnapshot,
@@ -100,6 +102,11 @@ interface CatalogValue {
   searchArtworks: (query: ArtworkSearchQuery) => Artwork[];
   /** Remember server search hits for artist/artwork lookups without bloating the feed. */
   rememberSearchHits: (data: RemoteCatalog) => void;
+  /**
+   * Load vault/liked ids that are not in the current feed window.
+   * Returns `notFound` ids after a successful fetch, or null when skipped.
+   */
+  ensureArtworks: (ids: string[]) => Promise<{ notFound: string[] } | null>;
 }
 
 const CatalogContext = createContext<CatalogValue | null>(null);
@@ -303,6 +310,41 @@ export function CatalogProvider({
     setLookups((prev) => mergeRemoteCatalog(prev, clean));
   }, []);
 
+  const knownArtworkIdsRef = useRef(new Set<string>());
+  const ensureInFlightRef = useRef(new Set<string>());
+
+  const ensureArtworks = useCallback(
+    async (ids: string[]): Promise<{ notFound: string[] } | null> => {
+      if (!supabase) return null;
+      const missing = [
+        ...new Set(
+          ids.filter(
+            (id) =>
+              id &&
+              !knownArtworkIdsRef.current.has(id) &&
+              !ensureInFlightRef.current.has(id),
+          ),
+        ),
+      ];
+      if (missing.length === 0) return { notFound: [] };
+
+      missing.forEach((id) => ensureInFlightRef.current.add(id));
+      try {
+        const data = await fetchArtworksByIds(missing);
+        rememberSearchHits(data);
+        const found = new Set(data.artworks.map((art) => art.id));
+        for (const id of found) knownArtworkIdsRef.current.add(id);
+        return { notFound: missing.filter((id) => !found.has(id)) };
+      } catch (err) {
+        console.warn("Catalog: collection lookup failed.", err);
+        return null;
+      } finally {
+        missing.forEach((id) => ensureInFlightRef.current.delete(id));
+      }
+    },
+    [rememberSearchHits],
+  );
+
   const pauseFullCatalog = useCallback(() => {
     fullLoadControllerRef.current?.abort();
     fullLoadControllerRef.current = null;
@@ -448,6 +490,14 @@ export function CatalogProvider({
     );
   }, [remote, source]);
 
+  useEffect(() => {
+    const ids = new Set<string>();
+    for (const art of remote?.artworks ?? []) ids.add(art.id);
+    for (const art of lookups?.artworks ?? []) ids.add(art.id);
+    for (const art of mockArtworks) ids.add(art.id);
+    knownArtworkIdsRef.current = ids;
+  }, [remote, lookups]);
+
   const refresh = useCallback(async () => {
     loadControllerRef.current?.abort();
     batchControllerRef.current?.abort();
@@ -579,6 +629,7 @@ export function CatalogProvider({
         browseArtworks.filter((a) => artworkMatchesCategory(a, id)),
       searchArtworks,
       rememberSearchHits,
+      ensureArtworks,
     };
   }, [
     remote,
@@ -595,6 +646,7 @@ export function CatalogProvider({
     searchIndexReady,
     lookups,
     rememberSearchHits,
+    ensureArtworks,
   ]);
 
   return (

@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { categories, type CategoryId, type ArtworkOrigin } from "@/data";
+import { WORLD } from "@/data/worldCopy";
 import { useCatalog } from "@/data/catalog";
 import { screenScrollClass, screenContentClass } from "./artwork-layout";
 import { useAppState } from "./AppState";
@@ -11,17 +12,19 @@ import {
   setArtistSellOptIn,
 } from "@/lib/artworkUpload";
 import { addCommunityTag } from "@/lib/tags";
+import ContactAdminSheet from "./ContactAdminSheet";
 import type { ToastState } from "./Toast";
 
 interface CreateViewProps {
   showToast: (message: string, variant?: ToastState["variant"]) => void;
-  /** Called after a successful post so the shell can jump to the new artwork. */
+  /** Called after a successful post so the shell can jump away from Create. */
   onPublished?: () => void;
 }
 
 /**
  * Artist posting flow — uploads the image to Supabase Storage and inserts a row
  * into `artworks`, attributed to the user's freelance artist profile.
+ * Only Explorer's Guild (Pro) members may publish; posts wait for admin approval.
  */
 const ORIGIN_OPTIONS: { value: ArtworkOrigin; label: string }[] = [
   { value: "artist-original", label: "Original" },
@@ -32,7 +35,7 @@ const ORIGIN_OPTIONS: { value: ArtworkOrigin; label: string }[] = [
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB
 
 export default function CreateView({ showToast, onPublished }: CreateViewProps) {
-  const { isGuest, profile, user } = useAppState();
+  const { isGuest, isPro, profile, user, requestPro } = useAppState();
   const { refresh } = useCatalog();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -44,10 +47,15 @@ export default function CreateView({ showToast, onPublished }: CreateViewProps) 
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const canPublish =
-    title.trim().length > 0 && description.trim().length > 0 && !busy;
+    isPro &&
+    !isGuest &&
+    title.trim().length > 0 &&
+    description.trim().length > 0 &&
+    !busy;
 
   const pickImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -74,11 +82,15 @@ export default function CreateView({ showToast, onPublished }: CreateViewProps) 
   };
 
   const handlePublish = async () => {
-    if (!canPublish) return;
     if (isGuest) {
-      showToast("Sign in from the You tab to publish", "error");
+      showToast("Sign in from the Profile tab to publish", "error");
       return;
     }
+    if (!isPro) {
+      requestPro("create-upload");
+      return;
+    }
+    if (!canPublish) return;
     setBusy(true);
     try {
       const imageUrl = imageFile ? await uploadArtworkImage(imageFile) : null;
@@ -108,10 +120,8 @@ export default function CreateView({ showToast, onPublished }: CreateViewProps) 
           await addCommunityTag(artworkId, tag);
         }
       }
-      showToast("Posted to Narsil");
+      showToast("Submitted for admin review");
       reset();
-      // Re-pull the catalog so the new artwork is in memory, then let the shell
-      // surface it — otherwise the post only appears after a full app reload.
       await refresh();
       onPublished?.();
     } catch (err) {
@@ -123,6 +133,58 @@ export default function CreateView({ showToast, onPublished }: CreateViewProps) 
       setBusy(false);
     }
   };
+
+  if (isGuest || !isPro) {
+    return (
+      <div className={screenScrollClass}>
+        <div className={screenContentClass}>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
+            Contribute
+          </p>
+          <h1 className="mt-2 font-serif text-[28px] leading-tight text-white">
+            Create
+          </h1>
+          <div className="mt-8 rounded-2xl border border-accent/30 bg-accent/10 p-5">
+            <h2 className="font-serif text-xl text-white">
+              {WORLD.explorersGuild} only
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-white/60">
+              Uploading artwork is a Guild benefit. Subscribe to submit originals
+              for admin review, then contact us if you need help.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                if (isGuest) {
+                  showToast("Sign in from the Profile tab first", "error");
+                  return;
+                }
+                requestPro("create-upload");
+              }}
+              className="mt-5 w-full rounded-full bg-accent py-3.5 text-sm font-semibold text-ink"
+            >
+              {isGuest ? "Sign in to continue" : `Join ${WORLD.explorersGuild}`}
+            </button>
+            {!isGuest && (
+              <button
+                type="button"
+                onClick={() => setContactOpen(true)}
+                className="mt-3 w-full rounded-full border border-white/15 py-3 text-sm text-white/70"
+              >
+                Contact admin
+              </button>
+            )}
+          </div>
+          <ContactAdminSheet
+            open={contactOpen}
+            onClose={() => setContactOpen(false)}
+            showToast={showToast}
+            emailSubject="Narsil Create / Guild question"
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={screenScrollClass}>
@@ -176,7 +238,7 @@ export default function CreateView({ showToast, onPublished }: CreateViewProps) 
           className="mt-6 space-y-4"
           onSubmit={(e) => {
             e.preventDefault();
-            handlePublish();
+            void handlePublish();
           }}
         >
           <Field label="Title">
@@ -290,15 +352,29 @@ export default function CreateView({ showToast, onPublished }: CreateViewProps) 
             whileTap={canPublish ? { scale: 0.98 } : undefined}
             className="mt-2 flex w-full items-center justify-center rounded-full bg-accent py-3.5 text-sm font-semibold text-ink transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {busy ? "Publishing…" : "Post to Narsil"}
+            {busy ? "Submitting…" : "Submit for review"}
           </motion.button>
         </form>
 
-        <p className="mt-5 text-center text-[11px] leading-relaxed text-white/30">
-          {isGuest
-            ? "Sign in from the You tab to publish your work."
-            : "Your post is uploaded to Narsil and attributed to your profile."}
+        <button
+          type="button"
+          onClick={() => setContactOpen(true)}
+          className="mt-5 w-full text-center text-sm text-white/55 underline-offset-2 hover:text-white/80 hover:underline"
+        >
+          Contact admin
+        </button>
+
+        <p className="mt-3 text-center text-[11px] leading-relaxed text-white/30">
+          Posts stay hidden until an admin approves them. Email support first, or
+          use live chat as a last option.
         </p>
+
+        <ContactAdminSheet
+          open={contactOpen}
+          onClose={() => setContactOpen(false)}
+          showToast={showToast}
+          emailSubject="Narsil artwork submission"
+        />
       </div>
     </div>
   );

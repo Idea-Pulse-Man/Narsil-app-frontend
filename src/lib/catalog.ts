@@ -347,6 +347,83 @@ async function fetchArtistsByIds(
   return pages.flat();
 }
 
+function stubArtist(id: string): Artist {
+  return {
+    id,
+    name: "Unknown",
+    initials: "?",
+    profileType: "historical",
+    lifespan: "—",
+    nationality: "—",
+    period: "—",
+    style: "—",
+    knownFor: "",
+    bio: "",
+    followers: 0,
+    likes: 0,
+    saves: 0,
+  };
+}
+
+/**
+ * Resolve specific artwork ids that may sit outside the loaded feed window
+ * (vault / likes). Hidden works are included so a saved piece still appears
+ * after it is dropped from For You.
+ */
+export async function fetchArtworksByIds(
+  ids: string[],
+  signal?: AbortSignal,
+): Promise<RemoteCatalog> {
+  const empty: RemoteCatalog = { artworks: [], artists: [], fypArtistCards: [] };
+  if (!supabase || ids.length === 0) return empty;
+
+  const unique = [...new Set(ids.filter(Boolean))];
+  const chunks: string[][] = [];
+  for (let i = 0; i < unique.length; i += ARTIST_IN_BATCH) {
+    chunks.push(unique.slice(i, i + ARTIST_IN_BATCH));
+  }
+
+  const pages = await Promise.all(
+    chunks.map(async (chunk) => {
+      let query = supabase!
+        .from("artworks")
+        .select(ARTWORK_PREVIEW_COLUMNS)
+        .in("id", chunk);
+      if (signal) query = query.abortSignal(signal);
+      const { data, error } = await query;
+      if (error) throw error;
+      return ((data ?? []) as unknown as ArtworkRow[]).filter((r) => r.image_url);
+    }),
+  );
+  const artworkRows = pages.flat();
+  const artistIds = artworkRows
+    .map((r) => r.artist_id)
+    .filter((id): id is string => Boolean(id));
+  const artistRows = await fetchArtistsByIds(
+    artistIds,
+    ARTIST_PREVIEW_COLUMNS,
+    signal,
+  );
+  const artists = artistRows
+    .map(mapArtist)
+    .filter((artist): artist is Artist => artist !== null);
+  const haveArtist = new Set(artists.map((a) => a.id));
+  for (const id of artistIds) {
+    if (!haveArtist.has(id)) {
+      artists.push(stubArtist(id));
+      haveArtist.add(id);
+    }
+  }
+
+  return {
+    artworks: artworkRows
+      .map((r) => mapArtwork(r))
+      .filter((art): art is Artwork => art !== null),
+    artists,
+    fypArtistCards: [],
+  };
+}
+
 /**
  * How many browsable artworks the archive holds, without downloading them.
  * Lets the UI show the real archive size while the rows are still streaming in,

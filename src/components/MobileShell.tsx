@@ -45,9 +45,12 @@ const TUTORIAL_ALLOW: TutorialAction[] = [
 
 export default function MobileShell() {
   const isNative = Capacitor.isNativePlatform();
-  const { getArtist, getArtwork, loading: catalogLoading } = useCatalog();
+  const { getArtist, getArtwork, loading: catalogLoading, ensureArtworks } = useCatalog();
   const {
     ready,
+    saved,
+    liked,
+    forgetArtworks,
     preferences,
     savePreferences,
     dismissPreferences,
@@ -153,6 +156,19 @@ export default function MobileShell() {
       setMusicPromptOpen(true);
     }
   }, [ready, termsAccepted, authSeen, onboardingDone, promptSeen, musicPromptOpen]);
+
+  useEffect(() => {
+    const ids = [...saved, ...liked];
+    if (ids.length === 0) return;
+    let cancelled = false;
+    void ensureArtworks(ids).then((result) => {
+      if (cancelled || !result?.notFound.length) return;
+      forgetArtworks(result.notFound);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [saved, liked, ensureArtworks, forgetArtworks]);
 
   const showToast = useCallback(
     (message: string, variant: ToastState["variant"] = "default") => {

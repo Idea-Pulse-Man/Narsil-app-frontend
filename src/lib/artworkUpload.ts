@@ -79,7 +79,11 @@ export interface NewArtworkInput {
   tags?: string[];
 }
 
-/** Insert a new artwork row owned by the current user. */
+/**
+ * Insert a new artwork row owned by the current user.
+ * Member uploads start pending + hidden; a DB trigger enforces the same so
+ * clients can't skip the admin queue (see supabase/artwork-approval.sql).
+ */
 export async function createArtwork(input: NewArtworkInput) {
   if (!supabase) throw new Error("Supabase is not configured.");
   const uid = await currentUserId();
@@ -95,6 +99,8 @@ export async function createArtwork(input: NewArtworkInput) {
       created_by: uid,
       for_sale: input.forSale ?? false,
       tags: input.tags ?? [],
+      approval_status: "pending",
+      hidden: true,
     })
     .select("id")
     .single();

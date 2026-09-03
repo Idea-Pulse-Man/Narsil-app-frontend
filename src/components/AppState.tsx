@@ -31,6 +31,7 @@ import {
   setFollow,
   acceptTermsRemote,
   setAvatarRemote,
+  type CollectionKind,
   type Profile,
 } from "@/lib/userData";
 import {
@@ -93,6 +94,8 @@ interface AppStateValue {
   toggleSaved: (id: string) => void;
   toggleLiked: (id: string) => void;
   toggleFollowing: (id: string) => void;
+  /** Drop collection ids that no longer exist in the catalog. */
+  forgetArtworks: (ids: string[]) => void;
 
   /** Artwork ids the user has already viewed in the feed. */
   seen: string[];
@@ -443,6 +446,30 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     [makeToggle]
   );
 
+  const forgetArtworks = useCallback((ids: string[]) => {
+    if (ids.length === 0) return;
+    const gone = new Set(ids);
+    const drop = (
+      setter: React.Dispatch<React.SetStateAction<string[]>>,
+      key: string,
+      kind: CollectionKind,
+    ) => {
+      setter((prev) => {
+        const next = prev.filter((id) => !gone.has(id));
+        if (next.length === prev.length) return prev;
+        writeJSON(key, next);
+        if (cloudReady.current) {
+          for (const id of ids) {
+            if (prev.includes(id)) void setCollection(kind, id, false);
+          }
+        }
+        return next;
+      });
+    };
+    drop(setSaved, STORAGE_KEYS.saved, "saved");
+    drop(setLiked, STORAGE_KEYS.liked, "liked");
+  }, []);
+
   const refreshSubscription = useCallback(async () => {
     setSubscription(await fetchSubscription());
   }, []);
@@ -563,6 +590,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       toggleSaved,
       toggleLiked,
       toggleFollowing,
+      forgetArtworks,
       seen,
       isSeen,
       markSeen,
@@ -609,6 +637,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       toggleSaved,
       toggleLiked,
       toggleFollowing,
+      forgetArtworks,
       seen,
       isSeen,
       markSeen,

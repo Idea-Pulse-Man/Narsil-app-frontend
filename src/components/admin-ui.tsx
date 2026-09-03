@@ -97,7 +97,8 @@ export function AdminState({
         <p className="text-sm text-red-200">{error}</p>
         <p className="mt-1 text-xs text-red-200/60">
           If this mentions a missing column or function, run
-          supabase/admin-dashboard.sql.
+          supabase/admin-dashboard.sql, supabase/artwork-approval.sql, or
+          supabase/support-inbox.sql.
         </p>
         {onRetry && (
           <button

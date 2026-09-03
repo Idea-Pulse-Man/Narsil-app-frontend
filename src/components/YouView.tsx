@@ -17,6 +17,7 @@ import {
 import { useAudio } from "@/lib/audio/AudioProvider";
 import ArtworkTile from "./ArtworkTile";
 import AddressManager from "./AddressManager";
+import ContactAdminSheet from "./ContactAdminSheet";
 import OrdersSheet from "./OrdersSheet";
 import ProStatusSheet from "./ProStatusSheet";
 import type { ToastState } from "./Toast";
@@ -81,6 +82,7 @@ export default function YouView({
   const [addressOpen, setAddressOpen] = useState(false);
   const [ordersOpen, setOrdersOpen] = useState(false);
   const [proOpen, setProOpen] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
   const [quizProgress, setQuizProgress] =
     useState<QuizProgress>(EMPTY_PROGRESS);
   const [avatarBusy, setAvatarBusy] = useState(false);
@@ -118,6 +120,14 @@ export default function YouView({
       return;
     }
     setOrdersOpen(true);
+  };
+
+  const openContact = () => {
+    if (isGuest) {
+      onSignIn();
+      return;
+    }
+    setContactOpen(true);
   };
 
   /**
@@ -192,6 +202,9 @@ export default function YouView({
     .map((id) => getArtwork(id))
     .filter((a): a is NonNullable<typeof a> => !!a)
     .slice(0, 4);
+
+  const vaultCount = saved.filter((id) => getArtwork(id)).length;
+  const likedCount = liked.filter((id) => getArtwork(id)).length;
 
   const followedArtists = following
     .map((id) => getArtist(id))
@@ -269,8 +282,8 @@ export default function YouView({
 
         {/* Stats */}
         <div className="mt-6 grid grid-cols-3 gap-3">
-          <Stat label={WORLD.vault} value={saved.length} onClick={() => onNavigate("saved")} />
-          <Stat label="Liked" value={liked.length} />
+          <Stat label={WORLD.vault} value={vaultCount} onClick={() => onNavigate("saved")} />
+          <Stat label="Liked" value={likedCount} />
           <Stat label="Following" value={following.length} />
         </div>
 
@@ -427,6 +440,11 @@ export default function YouView({
             accent={!isPro}
           />
           <Row label="Terms of Service" onClick={onOpenTerms} />
+          <Row
+            label="Contact admin"
+            hint="Email or live chat"
+            onClick={openContact}
+          />
           <Row label="Canvas orders" onClick={openOrders} />
           <Row label="Delivery addresses" onClick={openAddresses} />
           <Row label="Replay the tutorial" onClick={onRestartTutorial} />
@@ -465,6 +483,11 @@ export default function YouView({
       <AddressManager
         open={addressOpen}
         onClose={() => setAddressOpen(false)}
+        showToast={showToast}
+      />
+      <ContactAdminSheet
+        open={contactOpen}
+        onClose={() => setContactOpen(false)}
         showToast={showToast}
       />
       <OrdersSheet open={ordersOpen} onClose={() => setOrdersOpen(false)} />

@@ -1,11 +1,12 @@
 /**
  * Admin dashboard — Artworks tab. Search + filter the whole catalog (not just
- * the newest page), flip moderation/commerce flags, and take a work down.
+ * the newest page), approve or reject member uploads, flip moderation/commerce
+ * flags, and take a work down.
  *
- * `hidden` drops a work out of the default feed (see lib/feed-utils), `featured`
- * pins it in regardless of engagement, `for_sale` allows canvas checkout — and
- * only ever on artist originals, which is why the Sell chip is hidden for
- * public-domain works (BuyView gates on origin too).
+ * User uploads start `approval_status = pending` + `hidden` (see
+ * supabase/artwork-approval.sql). Approve publishes them; reject keeps them
+ * out of the catalog. `featured` pins a live work; `for_sale` allows canvas
+ * checkout on artist originals only.
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -15,6 +16,7 @@ import {
   ARTWORK_FILTERS,
   deleteArtwork,
   fetchAdminArtworks,
+  setArtworkApproval,
   updateArtworkFlags,
   type AdminArtworkRow,
   type ArtworkFilter,
@@ -43,7 +45,7 @@ export default function AdminArtworks({ showToast }: AdminArtworksProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<ArtworkFilter>("all");
+  const [filter, setFilter] = useState<ArtworkFilter>("pending");
   const [offset, setOffset] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
@@ -78,12 +80,38 @@ export default function AdminArtworks({ showToast }: AdminArtworksProps) {
     setBusy(row.id);
     try {
       await updateArtworkFlags(row.id, { [flag]: next });
-      // Patch locally so the chip responds immediately; the feed refresh below
-      // makes the change visible outside the dashboard.
       setRows((prev) =>
         prev.map((r) => (r.id === row.id ? { ...r, [flag]: next } : r)),
       );
       showToast(next ? `${LABELS[flag]} on` : `${LABELS[flag]} off`);
+      await refresh();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Update failed.", "error");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const decide = async (
+    row: AdminArtworkRow,
+    status: "approved" | "rejected",
+  ) => {
+    setBusy(row.id);
+    try {
+      await setArtworkApproval(row.id, status);
+      const patch: Partial<AdminArtworkRow> = {
+        approval_status: status,
+        hidden: status !== "approved",
+      };
+      if (filter === "pending") {
+        setRows((prev) => prev.filter((r) => r.id !== row.id));
+        setTotal((t) => Math.max(0, t - 1));
+      } else {
+        setRows((prev) =>
+          prev.map((r) => (r.id === row.id ? { ...r, ...patch } : r)),
+        );
+      }
+      showToast(status === "approved" ? "Artwork approved" : "Artwork rejected");
       await refresh();
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Update failed.", "error");
@@ -137,7 +165,11 @@ export default function AdminArtworks({ showToast }: AdminArtworksProps) {
           error={error}
           empty={rows.length === 0}
           emptyLabel={
-            query ? `No artworks match “${query}”.` : "No artworks in this view."
+            query
+              ? `No artworks match “${query}”.`
+              : filter === "pending"
+                ? "No uploads waiting for review."
+                : "No artworks in this view."
           }
           onRetry={() => void load()}
         />
@@ -145,6 +177,9 @@ export default function AdminArtworks({ showToast }: AdminArtworksProps) {
         {rows.length > 0 && (
           <div className="space-y-3">
             {rows.map((row) => {
+              const status = row.approval_status ?? "approved";
+              const pending = status === "pending";
+              const rejected = status === "rejected";
               // Sell only applies to artist originals (BuyView gates on origin
               // too) — but still offer the chip on a mis-flagged work so an
               // admin can clear it.
@@ -166,9 +201,13 @@ export default function AdminArtworks({ showToast }: AdminArtworksProps) {
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium text-white">
-                        {row.title}
-                      </p>
+                      <div className="flex items-start gap-2">
+                        <p className="min-w-0 flex-1 truncate font-medium text-white">
+                          {row.title}
+                        </p>
+                        {pending && <ApprovalBadge tone="pending" />}
+                        {rejected && <ApprovalBadge tone="rejected" />}
+                      </div>
                       <p className="mt-0.5 truncate text-xs text-white/45">
                         ♥ {row.like_count} · ★ {row.save_count} ·{" "}
                         {fmtDate(row.created_at)}
@@ -180,17 +219,36 @@ export default function AdminArtworks({ showToast }: AdminArtworksProps) {
                     </div>
                   </div>
 
+                  {(pending || rejected) && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <Chip
+                        label="Approve"
+                        on
+                        disabled={busy === row.id}
+                        onClick={() => void decide(row, "approved")}
+                      />
+                      {pending && (
+                        <Chip
+                          label="Reject"
+                          tone="danger"
+                          disabled={busy === row.id}
+                          onClick={() => void decide(row, "rejected")}
+                        />
+                      )}
+                    </div>
+                  )}
+
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <Chip
                       label="Feature"
                       on={row.featured}
-                      disabled={busy === row.id}
+                      disabled={busy === row.id || pending || rejected}
                       onClick={() => void toggle(row, "featured")}
                     />
                     <Chip
                       label="Hide"
                       on={row.hidden}
-                      disabled={busy === row.id}
+                      disabled={busy === row.id || pending || rejected}
                       onClick={() => void toggle(row, "hidden")}
                     />
                     {sellable && (
@@ -243,6 +301,20 @@ export default function AdminArtworks({ showToast }: AdminArtworksProps) {
         />
       </div>
     </div>
+  );
+}
+
+function ApprovalBadge({ tone }: { tone: "pending" | "rejected" }) {
+  const styles =
+    tone === "pending"
+      ? "border-amber-300/25 bg-amber-400/10 text-amber-200"
+      : "border-red-400/30 bg-red-500/15 text-red-200";
+  return (
+    <span
+      className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium capitalize ${styles}`}
+    >
+      {tone}
+    </span>
   );
 }
 

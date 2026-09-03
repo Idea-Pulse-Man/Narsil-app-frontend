@@ -58,6 +58,8 @@ export interface AdminStats {
   hidden: number;
   featured: number;
   for_sale: number;
+  /** User uploads waiting for admin approve / reject. Absent until artwork-approval.sql is applied. */
+  pending_approvals?: number;
   orders: number;
   orders_by_status: Partial<Record<CanvasOrderStatus, number>>;
   /** Orders in `fulfillment_failed` or stuck in `paid` — the admin's to-do. */
@@ -75,6 +77,8 @@ export async function fetchAdminStats(): Promise<AdminStats> {
 
 // ── Artwork management ─────────────────────────────────────────────────────
 
+export type ArtworkApprovalStatus = "pending" | "approved" | "rejected";
+
 export interface AdminArtworkRow {
   id: string;
   title: string;
@@ -86,15 +90,23 @@ export interface AdminArtworkRow {
   featured: boolean;
   hidden: boolean;
   for_sale: boolean;
+  approval_status?: ArtworkApprovalStatus;
   like_count: number;
   save_count: number;
   created_at: string;
 }
 
-export type ArtworkFilter = "all" | "hidden" | "featured" | "for_sale" | "uploads";
+export type ArtworkFilter =
+  | "all"
+  | "pending"
+  | "hidden"
+  | "featured"
+  | "for_sale"
+  | "uploads";
 
 export const ARTWORK_FILTERS: { id: ArtworkFilter; label: string }[] = [
   { id: "all", label: "All" },
+  { id: "pending", label: "Pending" },
   { id: "hidden", label: "Hidden" },
   { id: "featured", label: "Featured" },
   { id: "for_sale", label: "For sale" },
@@ -102,7 +114,7 @@ export const ARTWORK_FILTERS: { id: ArtworkFilter; label: string }[] = [
 ];
 
 const ARTWORK_COLUMNS =
-  "id, title, image_url, accent, artist_id, origin, created_by, featured, hidden, for_sale, like_count, save_count, created_at";
+  "id, title, image_url, accent, artist_id, origin, created_by, featured, hidden, for_sale, approval_status, like_count, save_count, created_at";
 
 /**
  * Searchable, paged catalog view. Artworks are world-readable, so this runs as
@@ -126,6 +138,9 @@ export async function fetchAdminArtworks(opts: {
 
   if (search) query = query.ilike("title", `%${search}%`);
   switch (opts.filter) {
+    case "pending":
+      query = query.eq("approval_status", "pending");
+      break;
     case "hidden":
       query = query.eq("hidden", true);
       break;
@@ -161,6 +176,29 @@ export async function updateArtworkFlags(
   const { data, error } = await client()
     .from("artworks")
     .update(flags)
+    .eq("id", id)
+    .select("id");
+  if (error) throw new Error(error.message);
+  if (!data || data.length === 0) {
+    throw new Error("Update was rejected — admin rights required.");
+  }
+}
+
+/**
+ * Approve or reject a user upload. Approve clears `hidden` so the work enters
+ * the catalog; reject keeps it hidden. The DB trigger also forces hidden for
+ * pending/rejected so a flag flip can't leak a rejected work into the feed.
+ */
+export async function setArtworkApproval(
+  id: string,
+  status: Exclude<ArtworkApprovalStatus, "pending">,
+): Promise<void> {
+  const { data, error } = await client()
+    .from("artworks")
+    .update({
+      approval_status: status,
+      hidden: status !== "approved",
+    })
     .eq("id", id)
     .select("id");
   if (error) throw new Error(error.message);

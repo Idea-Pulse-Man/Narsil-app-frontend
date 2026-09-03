@@ -71,9 +71,18 @@ export default function AdminOverview({ onJumpToOrders }: AdminOverviewProps) {
         </button>
       )}
 
+      {(stats.pending_approvals ?? 0) > 0 && (
+        <div className="mt-3 rounded-2xl border border-amber-300/25 bg-amber-400/10 px-4 py-3.5 text-sm text-amber-100">
+          {stats.pending_approvals} upload
+          {stats.pending_approvals === 1 ? "" : "s"} waiting for approval — open
+          Artworks → Pending.
+        </div>
+      )}
+
       <AdminSection title="Catalog">
         <div className="grid grid-cols-2 gap-3">
           <Stat label="Artworks" value={stats.artworks} />
+          <Stat label="Pending" value={stats.pending_approvals ?? 0} />
           <Stat label="Featured" value={stats.featured} />
           <Stat label="Hidden" value={stats.hidden} />
           <Stat label="For sale" value={stats.for_sale} />
