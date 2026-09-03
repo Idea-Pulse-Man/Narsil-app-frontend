@@ -59,6 +59,18 @@ const EMPTY_PREFS: Preferences = {
   completed: false,
 };
 
+/** Fill missing preference fields from older localStorage shapes. */
+function normalizePreferences(raw: Partial<Preferences> | null | undefined): Preferences {
+  return {
+    artTypes: Array.isArray(raw?.artTypes) ? raw.artTypes : [],
+    periods: Array.isArray(raw?.periods) ? raw.periods : [],
+    empires: Array.isArray(raw?.empires) ? raw.empires : [],
+    artists: Array.isArray(raw?.artists) ? raw.artists : [],
+    interests: Array.isArray(raw?.interests) ? raw.interests : [],
+    completed: Boolean(raw?.completed),
+  };
+}
+
 function readFeedMatchMode(): FeedMatchMode {
   const stored = readJSON<FeedMatchMode | null>(STORAGE_KEYS.feedMatchMode, null);
   if (stored === "normal" || stored === "strong" || stored === "aggressive") {
@@ -240,7 +252,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setLiked(readJSON<string[]>(STORAGE_KEYS.liked, []));
     setFollowing(readJSON<string[]>(STORAGE_KEYS.following, []));
     setSeen(readJSON<string[]>(STORAGE_KEYS.seen, []));
-    setPreferences(readJSON<Preferences>(STORAGE_KEYS.preferences, EMPTY_PREFS));
+    setPreferences(
+      normalizePreferences(
+        readJSON<Partial<Preferences>>(STORAGE_KEYS.preferences, EMPTY_PREFS),
+      ),
+    );
     setFeedMatchModeState(readFeedMatchMode());
     setFeedMatchModeManual(
       readJSON<boolean>(STORAGE_KEYS.feedMatchModeManual, false),
@@ -465,7 +481,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   const savePreferences = useCallback(
     (prefs: Omit<Preferences, "completed">) => {
-      const next: Preferences = { ...prefs, completed: true };
+      const next: Preferences = normalizePreferences({ ...prefs, completed: true });
       setPreferences(next);
       writeJSON(STORAGE_KEYS.preferences, next);
       // First personalization → Strong, unless the user already picked a mode.
@@ -478,7 +494,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   const dismissPreferences = useCallback(() => {
     setPreferences((prev) => {
-      const next = { ...prev, completed: true };
+      const next = normalizePreferences({ ...prev, completed: true });
       writeJSON(STORAGE_KEYS.preferences, next);
       return next;
     });

@@ -165,11 +165,11 @@ export default function YouView({
     .filter((a): a is NonNullable<typeof a> => !!a);
 
   const prefTags = [
-    ...preferences.artTypes,
-    ...preferences.periods,
-    ...preferences.empires,
-    ...preferences.artists,
-    ...preferences.interests,
+    ...(preferences.artTypes ?? []),
+    ...(preferences.periods ?? []),
+    ...(preferences.empires ?? []),
+    ...(preferences.artists ?? []),
+    ...(preferences.interests ?? []),
   ];
 
   return (

@@ -120,6 +120,7 @@ export default function PreferenceModal({
       ...(initial?.periods ?? []),
       ...(initial?.empires ?? []),
       ...(initial?.artists ?? []),
+      ...(initial?.interests ?? []),
     ]);
     setSelected(seed);
   }, [open, initial]);

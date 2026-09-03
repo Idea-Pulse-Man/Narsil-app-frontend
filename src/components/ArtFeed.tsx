@@ -87,7 +87,7 @@ export default function ArtFeed({
   // this frozen list so they stay stable while scrolling.
   const frozenArtworks = useRef<Artwork[] | null>(null);
   const freezeKey = useRef<string>("");
-  const nextFreezeKey = `${filter}:${feedMatchMode}:${preferences.artTypes.join(",")}|${preferences.periods.join(",")}|${preferences.empires.join(",")}|${preferences.artists.join(",")}|${preferences.interests.join(",")}`;
+  const nextFreezeKey = `${filter}:${feedMatchMode}:${(preferences.artTypes ?? []).join(",")}|${(preferences.periods ?? []).join(",")}|${(preferences.empires ?? []).join(",")}|${(preferences.artists ?? []).join(",")}|${(preferences.interests ?? []).join(",")}`;
 
   const artworks = useMemo<Artwork[]>(() => {
     const filtered = feedPool.filter((art) => {

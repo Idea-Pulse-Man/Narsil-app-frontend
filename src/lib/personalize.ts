@@ -51,17 +51,17 @@ const ARTIST_ID_BY_PREFERENCE_LABEL: Record<string, string> = {
 
 export function hasTastePreferences(prefs: TastePrefs): boolean {
   return (
-    prefs.artTypes.length +
-      prefs.periods.length +
-      prefs.empires.length +
-      prefs.artists.length +
-      prefs.interests.length >
+    (prefs.artTypes?.length ?? 0) +
+      (prefs.periods?.length ?? 0) +
+      (prefs.empires?.length ?? 0) +
+      (prefs.artists?.length ?? 0) +
+      (prefs.interests?.length ?? 0) >
     0
   );
 }
 
-function lowerSet(values: string[]): Set<string> {
-  return new Set(values.map((x) => x.trim().toLowerCase()).filter(Boolean));
+function lowerSet(values: string[] | undefined): Set<string> {
+  return new Set((values ?? []).map((x) => x.trim().toLowerCase()).filter(Boolean));
 }
 
 /**
@@ -76,7 +76,7 @@ export function preferenceScore(
 ): number {
   const aggressive = mode === "aggressive";
   const selectedArtists = new Set<string>();
-  for (const label of prefs.artists) {
+  for (const label of prefs.artists ?? []) {
     const id = ARTIST_ID_BY_PREFERENCE_LABEL[label];
     if (id) selectedArtists.add(id);
   }
@@ -90,7 +90,7 @@ export function preferenceScore(
   const empireLower = (art.empire ?? "").toLowerCase();
   const mediumLower = (art.medium ?? "").toLowerCase();
   const titleLower = (art.title ?? "").toLowerCase();
-  const tagsLower = art.tags.join(" ").toLowerCase();
+  const tagsLower = (art.tags ?? []).join(" ").toLowerCase();
   const haystack = `${periodLower} ${empireLower} ${mediumLower} ${titleLower} ${tagsLower}`;
 
   let score = 0;
