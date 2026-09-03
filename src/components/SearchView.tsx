@@ -9,6 +9,7 @@ import {
   type CategoryId,
 } from "@/data";
 import { useCatalog } from "@/data/catalog";
+import { searchCatalog } from "@/lib/catalog";
 import { screenScrollClass, screenContentClass } from "./artwork-layout";
 import {
   SearchIcon,
@@ -107,10 +108,7 @@ export default function SearchView({
     searchFacets,
     artworks,
     getArtwork,
-    catalogComplete,
-    catalogTotal,
-    ensureFullCatalog,
-    pauseFullCatalog,
+    rememberSearchHits,
   } = useCatalog();
   const [text, setText] = useState("");
   const deferredText = useDeferredValue(text);
@@ -120,20 +118,46 @@ export default function SearchView({
   const [canvasId, setCanvasId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  // Load the archive in pages only while Search is on screen. Leaving the tab
-  // pauses the download so the new page can use the network.
+  const [remoteHits, setRemoteHits] = useState<typeof artworks>([]);
+  const [remoteSearching, setRemoteSearching] = useState(false);
+
+  // Ask the server for matches when the user types. Do not download the
+  // 13k-row archive — only one page of preview rows (no full-size images).
   useEffect(() => {
-    if (!active) {
-      pauseFullCatalog();
+    if (!active) return;
+    const query = deferredText.trim();
+    if (query.length < 2) {
+      setRemoteHits([]);
+      setRemoteSearching(false);
       return;
     }
-    if (catalogComplete) return;
-    void ensureFullCatalog();
-  }, [active, catalogComplete, ensureFullCatalog, pauseFullCatalog]);
+    const controller = new AbortController();
+    setRemoteSearching(true);
+    const timer = globalThis.setTimeout(() => {
+      void searchCatalog(query, controller.signal)
+        .then((hit) => {
+          if (controller.signal.aborted) return;
+          rememberSearchHits(hit);
+          setRemoteHits(hit.artworks);
+        })
+        .catch((err) => {
+          if (!controller.signal.aborted) {
+            console.warn("Search: server lookup failed.", err);
+          }
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setRemoteSearching(false);
+        });
+    }, 220);
+    return () => {
+      controller.abort();
+      globalThis.clearTimeout(timer);
+    };
+  }, [active, deferredText, rememberSearchHits]);
 
   const categoryKey = categoryFilterKey(sel);
 
-  const results = useMemo(() => {
+  const localResults = useMemo(() => {
     return searchArtworks({
       text: deferredText,
       categories: sel.categories.length ? sel.categories : undefined,
@@ -147,6 +171,13 @@ export default function SearchView({
       canvas: sel.canvas,
     });
   }, [deferredText, sel, searchArtworks]);
+
+  const results = useMemo(() => {
+    if (remoteHits.length === 0) return localResults;
+    const seen = new Set(localResults.map((art) => art.id));
+    const extra = remoteHits.filter((art) => !seen.has(art.id));
+    return [...localResults, ...extra];
+  }, [localResults, remoteHits]);
 
   const { visible, sentinelRef, hasMore } = useInfiniteScroll(results, {
     pageSize: 8,
@@ -769,12 +800,10 @@ export default function SearchView({
           )}
         </div>
 
-        {!catalogComplete && (
+        {remoteSearching && (
           <p className="mt-1.5 flex items-center gap-2 text-[11px] text-white/45">
             <span className="h-3 w-3 shrink-0 animate-spin rounded-full border border-white/25 border-t-accent" />
-            {catalogTotal
-              ? `Searching ${artworks.length.toLocaleString()} of ${catalogTotal.toLocaleString()} artworks — still loading the archive…`
-              : "Still loading the archive…"}
+            Searching the archive…
           </p>
         )}
 

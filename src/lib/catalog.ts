@@ -11,7 +11,7 @@
  * anon key is enough — no secret ever reaches the client.
  *
  * Feed loading is paginated (80 popular works at a time via `fetchArtworkBatch`).
- * The full archive (`fetchSupabaseCatalog`) loads on demand — e.g. when Search opens.
+ * Search queries the server for matches instead of downloading the whole archive.
  */
 import { supabase } from "./supabase";
 import { fetchCommunityTags } from "./tags";
@@ -459,6 +459,95 @@ export async function fetchCatalogArchivePage(
 }
 
 export const CATALOG_ARCHIVE_PAGE_SIZE = PAGE_SIZE;
+
+function ilikePattern(raw: string): string | null {
+  const needle = raw
+    .trim()
+    .slice(0, 80)
+    .replace(/[%_\\,()]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (needle.length < 2) return null;
+  return `%${needle}%`;
+}
+
+/**
+ * Find matching artworks on the server (title or artist name). Returns one
+ * page of preview rows — never the whole archive, never full-size images.
+ */
+export async function searchCatalog(
+  text: string,
+  signal?: AbortSignal,
+  limit: number = CATALOG_BATCH_SIZE,
+): Promise<RemoteCatalog> {
+  const empty: RemoteCatalog = { artworks: [], artists: [], fypArtistCards: [] };
+  if (!supabase) return empty;
+  const pattern = ilikePattern(text);
+  if (!pattern) return empty;
+
+  let artistQuery = supabase
+    .from("artists")
+    .select("id")
+    .ilike("name", pattern)
+    .limit(40);
+  if (signal) artistQuery = artistQuery.abortSignal(signal);
+  const { data: artistMatches } = await artistQuery;
+  const matchedArtistIds = ((artistMatches ?? []) as { id: string }[])
+    .map((row) => row.id)
+    .filter(Boolean);
+
+  const fetchPage = async (mode: "title" | "artist"): Promise<ArtworkRow[]> => {
+    if (mode === "artist" && matchedArtistIds.length === 0) return [];
+    let query = supabase!
+      .from("artworks")
+      .select(ARTWORK_PREVIEW_COLUMNS)
+      .not("image_url", "is", null)
+      .or("hidden.is.null,hidden.eq.false")
+      .order("like_count", { ascending: false, nullsFirst: false })
+      .limit(limit);
+    query =
+      mode === "title"
+        ? query.ilike("title", pattern)
+        : query.in("artist_id", matchedArtistIds);
+    if (signal) query = query.abortSignal(signal);
+    const { data, error } = await query;
+    if (error) throw error;
+    return ((data ?? []) as unknown as ArtworkRow[]).filter((r) => r.image_url);
+  };
+
+  const [titleRows, artistRows] = await Promise.all([
+    fetchPage("title"),
+    fetchPage("artist"),
+  ]);
+
+  const seen = new Set<string>();
+  const artworkRows: ArtworkRow[] = [];
+  for (const row of [...titleRows, ...artistRows]) {
+    if (!row.id || seen.has(row.id)) continue;
+    seen.add(row.id);
+    artworkRows.push(row);
+    if (artworkRows.length >= limit) break;
+  }
+
+  const artistIds = artworkRows
+    .map((r) => r.artist_id)
+    .filter((id): id is string => Boolean(id));
+  const artistFullRows = await fetchArtistsByIds(
+    artistIds,
+    ARTIST_PREVIEW_COLUMNS,
+    signal,
+  );
+
+  return {
+    artworks: artworkRows
+      .map((r) => mapArtwork(r))
+      .filter((art): art is Artwork => art !== null),
+    artists: artistFullRows
+      .map(mapArtist)
+      .filter((artist): artist is Artist => artist !== null),
+    fypArtistCards: [],
+  };
+}
 
 /**
  * Fetch the whole catalog from Supabase. Only artworks that have an image

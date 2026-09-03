@@ -98,6 +98,8 @@ interface CatalogValue {
   getArtistAvatar: (artistId: string) => string | undefined;
   getArtworksByCategory: (id: CategoryId) => Artwork[];
   searchArtworks: (query: ArtworkSearchQuery) => Artwork[];
+  /** Remember server search hits for artist/artwork lookups without bloating the feed. */
+  rememberSearchHits: (data: RemoteCatalog) => void;
 }
 
 const CatalogContext = createContext<CatalogValue | null>(null);
@@ -190,6 +192,7 @@ export function CatalogProvider({
   const [catalogComplete, setCatalogComplete] = useState(false);
   const [hasMoreBatches, setHasMoreBatches] = useState(true);
   const [catalogTotal, setCatalogTotal] = useState<number | null>(null);
+  const [lookups, setLookups] = useState<RemoteCatalog | null>(null);
   const catalogTotalRef = useRef<number | null>(null);
   catalogTotalRef.current = catalogTotal;
 
@@ -293,6 +296,12 @@ export function CatalogProvider({
       if (!controller.signal.aborted) setLoadingBatch(false);
     }
   }, [loadingBatch, hasMoreBatches, catalogComplete, fetchBatchAtOffset]);
+
+  const rememberSearchHits = useCallback((data: RemoteCatalog) => {
+    const clean = sanitizeRemoteCatalog(data);
+    if (!clean) return;
+    setLookups((prev) => mergeRemoteCatalog(prev, clean));
+  }, []);
 
   const pauseFullCatalog = useCallback(() => {
     fullLoadControllerRef.current?.abort();
@@ -469,13 +478,17 @@ export function CatalogProvider({
 
     const browseArtworks = hasRemote ? remote!.artworks : [];
     const browseArtists = hasRemote ? remote!.artists : [];
+    const extraArtworks = lookups?.artworks ?? [];
+    const extraArtists = lookups?.artists ?? [];
 
-    const allArtworks = hasRemote
-      ? mergeById(remote!.artworks, mockArtworks)
-      : mockArtworks;
-    const allArtists = hasRemote
-      ? mergeById(remote!.artists, mockArtists)
-      : mockArtists;
+    const allArtworks = mergeById(
+      hasRemote ? mergeById(remote!.artworks, extraArtworks) : extraArtworks,
+      mockArtworks,
+    );
+    const allArtists = mergeById(
+      hasRemote ? mergeById(remote!.artists, extraArtists) : extraArtists,
+      mockArtists,
+    );
 
     const artworkMap = Object.fromEntries(allArtworks.map((a) => [a.id, a]));
     const artistMap = Object.fromEntries(allArtists.map((a) => [a.id, a]));
@@ -565,6 +578,7 @@ export function CatalogProvider({
       getArtworksByCategory: (id) =>
         browseArtworks.filter((a) => artworkMatchesCategory(a, id)),
       searchArtworks,
+      rememberSearchHits,
     };
   }, [
     remote,
@@ -579,6 +593,8 @@ export function CatalogProvider({
     pauseFullCatalog,
     refresh,
     searchIndexReady,
+    lookups,
+    rememberSearchHits,
   ]);
 
   return (

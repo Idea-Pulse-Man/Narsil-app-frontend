@@ -86,12 +86,9 @@ export default function BlurImage({
     rootMargin: "160px",
   });
   const shouldLoad = load && (priority || !isThumb || inView);
-  const srcWarmed = isImageWarmed(src);
   const renderSrc =
     isThumb && !displaySrc.startsWith("blob:")
-      ? srcWarmed
-        ? displaySrc
-        : sizedImageUrl(displaySrc, thumbWidth)
+      ? sizedImageUrl(displaySrc, thumbWidth)
       : displaySrc;
   // Tiny blur-up is for full-bleed cards. Thumbnails skip it so the first
   // screen does not fire a second wsrv.nl request per row.
@@ -100,9 +97,7 @@ export default function BlurImage({
   // A single S3/CDN request can transiently time out (net::ERR_TIMED_OUT). Retry
   // the tile a few times instead of leaving it stuck on the accent placeholder:
   //  • attempt 0 — the (possibly CDN-resized) thumbnail
-  //  • attempt ≥1 — fall back to the direct, unresized URL (cache-busted so the
-  //    browser actually re-fetches), in case the resized/proxied variant is the
-  //    thing failing.
+  //  • attempt ≥1 — retry the same thumbnail URL (never the full S3 file).
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     setAttempt(0);
@@ -110,7 +105,7 @@ export default function BlurImage({
   const attemptSrc =
     attempt === 0
       ? renderSrc
-      : `${displaySrc}${displaySrc.includes("?") ? "&" : "?"}retry=${attempt}`;
+      : `${renderSrc}${renderSrc.includes("?") ? "&" : "?"}retry=${attempt}`;
   const handleError = useCallback(() => {
     setAttempt((a) => (a < MAX_IMAGE_ATTEMPTS ? a + 1 : a));
   }, []);
