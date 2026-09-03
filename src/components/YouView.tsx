@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useCatalog } from "@/data/catalog";
 import { WORLD } from "@/data/worldCopy";
+import { FEED_MATCH_MODES, FEED_MATCH_COPY } from "@/lib/personalize";
 import { useAppState } from "./AppState";
 import { screenScrollClass, screenContentClass } from "./artwork-layout";
 import { FlameIcon, SparkleIcon } from "./Icons";
@@ -59,6 +60,8 @@ export default function YouView({
     liked,
     following,
     preferences,
+    feedMatchMode,
+    setFeedMatchMode,
     user,
     profile,
     isGuest,
@@ -166,6 +169,7 @@ export default function YouView({
     ...preferences.periods,
     ...preferences.empires,
     ...preferences.artists,
+    ...preferences.interests,
   ];
 
   return (
@@ -277,6 +281,32 @@ export default function YouView({
               Personalize your museum to tune the For You feed.
             </p>
           )}
+
+          <div className="mt-5">
+            <p className="text-[13px] font-medium text-white/80">For You match</p>
+            <p className="mt-1 text-xs leading-relaxed text-white/45">
+              {FEED_MATCH_COPY[feedMatchMode].hint}
+            </p>
+            <div className="mt-3 flex gap-2">
+              {FEED_MATCH_MODES.map((mode) => {
+                const active = feedMatchMode === mode;
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setFeedMatchMode(mode)}
+                    className={`flex-1 rounded-full px-2 py-2 text-center text-xs font-medium transition-colors ${
+                      active
+                        ? "bg-accent text-ink"
+                        : "border border-white/15 bg-white/5 text-white/70 hover:text-white"
+                    }`}
+                  >
+                    {FEED_MATCH_COPY[mode].label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </section>
 
         {/* Following */}

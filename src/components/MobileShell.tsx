@@ -53,6 +53,8 @@ export default function MobileShell() {
     dismissPreferences,
     completeTutorial,
     restartTutorial,
+    onboardingDone,
+    completeOnboarding,
     authSeen,
     markAuthSeen,
     termsAccepted,
@@ -60,6 +62,7 @@ export default function MobileShell() {
     isAdmin,
     isGuest,
     proPrompt,
+    requestPro,
     dismissPro,
     setSubscription,
     downloadRequest,
@@ -118,21 +121,38 @@ export default function MobileShell() {
     !authSeen &&
     isGuest &&
     !authRedirectPending.current;
-  const onboardingGate = firstLaunchTerms || firstLaunchAuth;
+  // Show full-screen onboarding (personalization) after auth, before the app.
+  const firstLaunchOnboarding =
+    ready &&
+    termsAccepted &&
+    authSeen &&
+    !onboardingDone;
+  const onboardingGate = firstLaunchTerms || firstLaunchAuth || firstLaunchOnboarding;
   const showAuthOverlay = authOpen || firstLaunchAuth;
 
-  // Music prompt after terms (and after auth dismissed or seen).
+  // Auto-open the onboarding preference flow after auth is done.
+  const onboardingPrefsTriggered = useRef(false);
+  useEffect(() => {
+    if (firstLaunchOnboarding && !onboardingPrefsTriggered.current && !tutorialActive) {
+      onboardingPrefsTriggered.current = true;
+      setPrefsManual(false);
+      setPrefsOpen(true);
+    }
+  }, [firstLaunchOnboarding, tutorialActive]);
+
+  // Music prompt after the full onboarding is done.
   useEffect(() => {
     if (
       ready &&
       termsAccepted &&
       authSeen &&
+      onboardingDone &&
       !promptSeen &&
       !musicPromptOpen
     ) {
       setMusicPromptOpen(true);
     }
-  }, [ready, termsAccepted, authSeen, promptSeen, musicPromptOpen]);
+  }, [ready, termsAccepted, authSeen, onboardingDone, promptSeen, musicPromptOpen]);
 
   const showToast = useCallback(
     (message: string, variant: ToastState["variant"] = "default") => {
@@ -224,10 +244,13 @@ export default function MobileShell() {
   // ── Preference modal triggers ──────────────────────────────────────
   const handleViewIndex = useCallback(
     (index: number) => {
+      // Only auto-show preferences after 3 swipes for returning users who
+      // completed onboarding but never set preferences (edge case).
       if (
         ready &&
         termsAccepted &&
         authSeen &&
+        onboardingDone &&
         !preferences.completed &&
         !prefsTriggered.current &&
         index >= 3
@@ -237,7 +260,7 @@ export default function MobileShell() {
         setPrefsOpen(true);
       }
     },
-    [ready, authSeen, preferences.completed]
+    [ready, authSeen, onboardingDone, preferences.completed]
   );
 
   const editPreferences = useCallback(() => {
@@ -245,19 +268,37 @@ export default function MobileShell() {
     setPrefsOpen(true);
   }, []);
 
+  const startTutorialAfterOnboarding = useCallback(() => {
+    setTutorialStep(0);
+    setTutorialActive(true);
+    setResetToken((t) => t + 1);
+    setScreen("for-you");
+  }, []);
+
   const handleSavePrefs = useCallback(
     (prefs: Parameters<typeof savePreferences>[0]) => {
       savePreferences(prefs);
       setPrefsOpen(false);
-      showToast("Preferences saved");
+      // During onboarding, auto-start the tutorial instead of just toasting.
+      if (!prefsManual && !onboardingDone) {
+        startTutorialAfterOnboarding();
+      } else {
+        showToast("Preferences saved");
+      }
     },
-    [savePreferences, showToast]
+    [savePreferences, showToast, prefsManual, onboardingDone, startTutorialAfterOnboarding]
   );
 
   const handleSkipPrefs = useCallback(() => {
     setPrefsOpen(false);
-    if (!prefsManual) dismissPreferences();
-  }, [prefsManual, dismissPreferences]);
+    if (!prefsManual) {
+      dismissPreferences();
+      // During onboarding, auto-start tutorial even when prefs are skipped.
+      if (!onboardingDone) {
+        startTutorialAfterOnboarding();
+      }
+    }
+  }, [prefsManual, dismissPreferences, onboardingDone, startTutorialAfterOnboarding]);
 
   // ── Tutorial flow ──────────────────────────────────────────────────
   const endTutorial = useCallback(() => {
@@ -266,7 +307,13 @@ export default function MobileShell() {
     setActiveArtworkId(null);
     setResetToken((t) => t + 1);
     completeTutorial();
-  }, [completeTutorial]);
+    if (!onboardingDone) completeOnboarding();
+  }, [completeTutorial, onboardingDone, completeOnboarding]);
+
+  const handleUnlockPro = useCallback(() => {
+    endTutorial();
+    requestPro("settings");
+  }, [endTutorial, requestPro]);
 
   const reportGesture = useCallback(
     (action: TutorialAction) => {
@@ -323,7 +370,7 @@ export default function MobileShell() {
     ? getArtist(activeArtwork.artistId)
     : undefined;
 
-  const showChrome = !clean && !tutorialActive && termsAccepted && !onboardingGate;
+  const showChrome = !clean && !tutorialActive && termsAccepted && !onboardingGate && onboardingDone;
 
   return (
     <div
@@ -665,6 +712,7 @@ export default function MobileShell() {
         <Suspense fallback={null}>
           <PreferenceModal
             open={prefsOpen}
+            onboarding={!prefsManual && !onboardingDone}
             initial={preferences}
             onSave={handleSavePrefs}
             onSkip={handleSkipPrefs}
@@ -679,6 +727,7 @@ export default function MobileShell() {
             onSkip={endTutorial}
             onStart={endTutorial}
             onAdvance={() => reportGesture("actions")}
+            onUnlockPro={handleUnlockPro}
           />
         </Suspense>
       </div>

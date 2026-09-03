@@ -3,6 +3,7 @@ import type { Artwork, FeedItem } from "@/data";
 import { feedItemKey } from "@/data";
 import { useCatalog } from "@/data/catalog";
 import { orderSessionFeed, interleaveStorySlides } from "@/lib/feed-utils";
+import { prioritizeByTaste } from "@/lib/personalize";
 import { isRenderableFeedItem } from "@/lib/feedItemGuards";
 import { markImageWarmed } from "@/lib/imageCache";
 import { useAppState } from "./AppState";
@@ -59,7 +60,7 @@ export default function ArtFeed({
     loadNextBatch,
     fypArtistCardMap,
   } = useCatalog();
-  const { seen, markSeen } = useAppState();
+  const { seen, markSeen, preferences, feedMatchMode } = useAppState();
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastScrollTop = useRef(0);
   const lastIndex = useRef(0);
@@ -85,6 +86,8 @@ export default function ArtFeed({
   // jumping the card the user is looking at. Story slides are derived from
   // this frozen list so they stay stable while scrolling.
   const frozenArtworks = useRef<Artwork[] | null>(null);
+  const freezeKey = useRef<string>("");
+  const nextFreezeKey = `${filter}:${feedMatchMode}:${preferences.artTypes.join(",")}|${preferences.periods.join(",")}|${preferences.empires.join(",")}|${preferences.artists.join(",")}|${preferences.interests.join(",")}`;
 
   const artworks = useMemo<Artwork[]>(() => {
     const filtered = feedPool.filter((art) => {
@@ -92,13 +95,16 @@ export default function ArtFeed({
       if (filter === "freelance") return art.origin === "artist-original";
       return true;
     });
-    const ranked = orderSessionFeed(filtered, {
-      limit: filtered.length,
+
+    const prioritized = prioritizeByTaste(filtered, preferences, feedMatchMode);
+    const ranked = orderSessionFeed(prioritized, {
+      limit: prioritized.length,
       seen: seenSnapshot ?? undefined,
     });
 
     if (ranked.length === 0) return frozenArtworks.current ?? ranked;
-    if (frozenArtworks.current === null) {
+    if (frozenArtworks.current === null || freezeKey.current !== nextFreezeKey) {
+      freezeKey.current = nextFreezeKey;
       frozenArtworks.current = ranked;
       return ranked;
     }
@@ -110,7 +116,7 @@ export default function ArtFeed({
       ...extra,
     ];
     return frozenArtworks.current;
-  }, [feedPool, filter, seenSnapshot]);
+  }, [feedPool, filter, seenSnapshot, preferences, feedMatchMode, nextFreezeKey]);
 
   const renderGuard = useMemo(
     () => ({ getArtist, getFypArtistCard }),

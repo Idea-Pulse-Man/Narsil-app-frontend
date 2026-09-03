@@ -10,6 +10,10 @@ import {
 import type { User } from "@supabase/supabase-js";
 import type { Artwork } from "@/data";
 import { STORAGE_KEYS, readJSON, writeJSON } from "@/lib/storage";
+import {
+  hasTastePreferences,
+  type FeedMatchMode,
+} from "@/lib/personalize";
 import { supabase } from "@/lib/supabase";
 import {
   initNativeAuthListener,
@@ -41,6 +45,7 @@ export interface Preferences {
   periods: string[];
   empires: string[];
   artists: string[];
+  interests: string[];
   /** Set once the user has answered (or dismissed) the modal. */
   completed: boolean;
 }
@@ -50,8 +55,17 @@ const EMPTY_PREFS: Preferences = {
   periods: [],
   empires: [],
   artists: [],
+  interests: [],
   completed: false,
 };
+
+function readFeedMatchMode(): FeedMatchMode {
+  const stored = readJSON<FeedMatchMode | null>(STORAGE_KEYS.feedMatchMode, null);
+  if (stored === "normal" || stored === "strong" || stored === "aggressive") {
+    return stored;
+  }
+  return "normal";
+}
 
 interface AppStateValue {
   /** True after localStorage has hydrated — guard UI that depends on persisted state. */
@@ -77,9 +91,19 @@ interface AppStateValue {
   savePreferences: (prefs: Omit<Preferences, "completed">) => void;
   dismissPreferences: () => void;
 
+  /** How strongly For You boosts saved taste. Default is Normal. */
+  feedMatchMode: FeedMatchMode;
+  /** Persist a profile choice. Marks the mode as user-selected. */
+  setFeedMatchMode: (mode: FeedMatchMode) => void;
+
   tutorialDone: boolean;
   completeTutorial: () => void;
   restartTutorial: () => void;
+
+  /** True once the full onboarding flow (personalization + tutorial + paywall) is done. */
+  onboardingDone: boolean;
+  completeOnboarding: () => void;
+  restartOnboarding: () => void;
 
   /** True once the sign-in gate has been shown (and signed in or dismissed). */
   authSeen: boolean;
@@ -142,7 +166,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [following, setFollowing] = useState<string[]>([]);
   const [seen, setSeen] = useState<string[]>([]);
   const [preferences, setPreferences] = useState<Preferences>(EMPTY_PREFS);
+  const [feedMatchMode, setFeedMatchModeState] =
+    useState<FeedMatchMode>("normal");
+  const [feedMatchModeManual, setFeedMatchModeManual] = useState(false);
   const [tutorialDone, setTutorialDone] = useState(false);
+  const [onboardingDone, setOnboardingDone] = useState(false);
   const [authSeen, setAuthSeen] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [user, setUser] = useState<User | null>(null);
@@ -213,7 +241,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setFollowing(readJSON<string[]>(STORAGE_KEYS.following, []));
     setSeen(readJSON<string[]>(STORAGE_KEYS.seen, []));
     setPreferences(readJSON<Preferences>(STORAGE_KEYS.preferences, EMPTY_PREFS));
+    setFeedMatchModeState(readFeedMatchMode());
+    setFeedMatchModeManual(
+      readJSON<boolean>(STORAGE_KEYS.feedMatchModeManual, false),
+    );
     setTutorialDone(readJSON<boolean>(STORAGE_KEYS.tutorialDone, false));
+    setOnboardingDone(readJSON<boolean>(STORAGE_KEYS.onboardingDone, false));
     setAuthSeen(readJSON<boolean>(STORAGE_KEYS.authSeen, false));
     const localTermsVersion = readJSON<string | null>(STORAGE_KEYS.termsVersion, null);
     const localTermsAccepted = readJSON<boolean>(STORAGE_KEYS.termsAccepted, false);
@@ -411,13 +444,36 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user]);
 
+  const applyFeedMatchMode = useCallback(
+    (mode: FeedMatchMode, manual: boolean) => {
+      setFeedMatchModeState(mode);
+      writeJSON(STORAGE_KEYS.feedMatchMode, mode);
+      if (manual) {
+        setFeedMatchModeManual(true);
+        writeJSON(STORAGE_KEYS.feedMatchModeManual, true);
+      }
+    },
+    [],
+  );
+
+  const setFeedMatchMode = useCallback(
+    (mode: FeedMatchMode) => {
+      applyFeedMatchMode(mode, true);
+    },
+    [applyFeedMatchMode],
+  );
+
   const savePreferences = useCallback(
     (prefs: Omit<Preferences, "completed">) => {
       const next: Preferences = { ...prefs, completed: true };
       setPreferences(next);
       writeJSON(STORAGE_KEYS.preferences, next);
+      // First personalization → Strong, unless the user already picked a mode.
+      if (hasTastePreferences(next) && !feedMatchModeManual) {
+        applyFeedMatchMode("strong", false);
+      }
     },
-    []
+    [applyFeedMatchMode, feedMatchModeManual],
   );
 
   const dismissPreferences = useCallback(() => {
@@ -436,6 +492,16 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const restartTutorial = useCallback(() => {
     setTutorialDone(false);
     writeJSON(STORAGE_KEYS.tutorialDone, false);
+  }, []);
+
+  const completeOnboarding = useCallback(() => {
+    setOnboardingDone(true);
+    writeJSON(STORAGE_KEYS.onboardingDone, true);
+  }, []);
+
+  const restartOnboarding = useCallback(() => {
+    setOnboardingDone(false);
+    writeJSON(STORAGE_KEYS.onboardingDone, false);
   }, []);
 
   const savedSet = useMemo(() => new Set(saved), [saved]);
@@ -469,9 +535,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       preferences,
       savePreferences,
       dismissPreferences,
+      feedMatchMode,
+      setFeedMatchMode,
       tutorialDone,
       completeTutorial,
       restartTutorial,
+      onboardingDone,
+      completeOnboarding,
+      restartOnboarding,
       authSeen,
       markAuthSeen,
       termsAccepted,
@@ -509,9 +580,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       preferences,
       savePreferences,
       dismissPreferences,
+      feedMatchMode,
+      setFeedMatchMode,
       tutorialDone,
       completeTutorial,
       restartTutorial,
+      onboardingDone,
+      completeOnboarding,
+      restartOnboarding,
       authSeen,
       markAuthSeen,
       termsAccepted,

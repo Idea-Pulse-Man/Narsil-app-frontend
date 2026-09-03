@@ -416,7 +416,19 @@ function GestureHint({ hint, footer = false }: { hint: HintKey; footer?: boolean
   );
 }
 
-function TutorialFinale({ onStart }: { onStart: () => void }) {
+const PRO_PERKS = [
+  "Unlimited access to the Uncharted Archives",
+  "Extract uncompressed Master Files from museum scans",
+  "Early access to new collections and features",
+];
+
+function TutorialFinale({
+  onStart,
+  onUnlockPro,
+}: {
+  onStart: () => void;
+  onUnlockPro?: () => void;
+}) {
   return (
     <div className="absolute inset-0 overflow-hidden">
       {/* Curated masterpiece — full bleed, sharp, no modal barrier */}
@@ -437,7 +449,7 @@ function TutorialFinale({ onStart }: { onStart: () => void }) {
 
       {/* Soft vignettes — readability without hiding the art */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[42%] bg-gradient-to-b from-black/55 via-black/15 to-transparent" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[38%] bg-gradient-to-t from-black/65 via-black/20 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[48%] bg-gradient-to-t from-black/75 via-black/30 to-transparent" />
 
       {/* Top — brand + headline */}
       <motion.div
@@ -458,23 +470,55 @@ function TutorialFinale({ onStart }: { onStart: () => void }) {
           You&apos;re ready
         </h2>
         <p className="mx-auto mt-3 max-w-[17rem] text-[15px] leading-relaxed text-white/75 drop-shadow-md">
-          Start exploring the endless public-domain museum.
+          Choose how you&apos;d like to explore the museum.
         </p>
       </motion.div>
 
-      {/* Bottom — frosted-glass CTA in the thumb zone */}
+      {/* Bottom — free vs paid choice */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.55, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        className="absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+2rem)] px-8"
+        className="absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+1.5rem)] px-8"
       >
+        {/* Pro perks teaser */}
+        <div className="mb-5 rounded-2xl border border-white/10 bg-black/40 px-5 py-4 backdrop-blur-xl">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
+            The Explorer&apos;s Guild
+          </p>
+          <ul className="space-y-2">
+            {PRO_PERKS.map((perk) => (
+              <li
+                key={perk}
+                className="flex items-start gap-2.5 text-[13px] leading-snug text-white/80"
+              >
+                <span className="mt-0.5 shrink-0 text-amber-300">
+                  <CheckIcon className="h-3.5 w-3.5" />
+                </span>
+                {perk}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Unlock Pro CTA */}
+        {onUnlockPro && (
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={onUnlockPro}
+            className="pointer-events-auto mb-3 w-full rounded-full bg-accent py-4 text-[15px] font-semibold text-ink shadow-[0_8px_32px_rgba(0,0,0,0.35)] transition-transform"
+          >
+            Unlock Pro
+          </motion.button>
+        )}
+
+        {/* Continue Free CTA */}
         <motion.button
           whileTap={{ scale: 0.97 }}
           onClick={onStart}
-          className="pointer-events-auto w-full rounded-full border border-sky-300/55 bg-white/10 py-4 text-[15px] font-semibold tracking-wide text-white shadow-[0_8px_32px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.18)] backdrop-blur-xl transition-colors hover:border-sky-200/70 hover:bg-white/15"
+          className="pointer-events-auto w-full rounded-full border border-white/20 bg-white/10 py-4 text-[15px] font-semibold tracking-wide text-white shadow-[0_8px_32px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.18)] backdrop-blur-xl transition-colors hover:border-white/30 hover:bg-white/15"
         >
-          Start Exploring
+          Continue Free
         </motion.button>
       </motion.div>
     </div>
@@ -488,6 +532,7 @@ export default function TutorialCoach({
   onSkip,
   onStart,
   onAdvance,
+  onUnlockPro,
 }: {
   open: boolean;
   /** 0..STEPS.length-1 for gesture steps, STEPS.length for the final card. */
@@ -498,6 +543,8 @@ export default function TutorialCoach({
   onStart: () => void;
   /** Advances a non-gesture (informational) step, e.g. the quick-actions step. */
   onAdvance?: () => void;
+  /** Opens the Pro paywall from the finale screen. */
+  onUnlockPro?: () => void;
 }) {
   const isFinal = step >= STEPS.length;
   const current = STEPS[Math.min(step, STEPS.length - 1)];
@@ -539,7 +586,7 @@ export default function TutorialCoach({
               className="pointer-events-none absolute inset-0"
             >
               {isFinal ? (
-                <TutorialFinale onStart={onStart} />
+                <TutorialFinale onStart={onStart} onUnlockPro={onUnlockPro} />
               ) : (
                 <>
                   {/* Instruction card near the top. */}
