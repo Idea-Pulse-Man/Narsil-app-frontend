@@ -5,10 +5,9 @@ import { artworks } from "./artworks";
  * `narsil-museum-backend/src/services/pricing.ts`, which is the authority:
  * checkout always recomputes the charge server-side. Keep the two in sync.
  *
- * Prices are costed against Printful's real US catalog (product 3) with
- * shipping absorbed, and set so the SUBSCRIBER price (after the Narsil Pro
- * discount) still clears ~36% margin. See the backend file for the full
- * derivation table.
+ * Prices are costed against Printful's live US catalog (product 3) with
+ * shipping absorbed. There is no subscriber discount on canvas. See the
+ * backend file for the derivation table.
  */
 export type CanvasSize = "Small" | "Medium" | "Large";
 
@@ -19,17 +18,10 @@ export interface CanvasOption {
 }
 
 export const CANVAS_SIZES: CanvasOption[] = [
-  { size: "Small", dimensions: '12 × 16"', price: 69 },
-  { size: "Medium", dimensions: '18 × 24"', price: 99 },
-  { size: "Large", dimensions: '24 × 36"', price: 149 },
+  { size: "Small", dimensions: '12 × 16"', price: 59 },
+  { size: "Medium", dimensions: '18 × 24"', price: 89 },
+  { size: "Large", dimensions: '24 × 36"', price: 129 },
 ];
-
-/** Narsil Pro discount on canvas orders. Mirrors the backend constant. */
-export const SUBSCRIBER_DISCOUNT_PCT = 20;
-
-/** Apply the Narsil Pro discount to a list price (display only). */
-export const subscriberPrice = (listPrice: number): number =>
-  Math.round(listPrice * (1 - SUBSCRIBER_DISCOUNT_PCT / 100) * 100) / 100;
 
 export interface CanvasProduct {
   id: string;

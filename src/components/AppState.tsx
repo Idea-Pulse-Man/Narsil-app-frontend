@@ -395,7 +395,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   /**
    * Re-read entitlement whenever the signed-in user changes. Signing out must
    * clear it immediately — leaving a stale `isPro` behind would show the next
-   * user of the device a 20% discount that checkout then refuses to honour.
+   * user of the device a Pro badge that checkout then refuses to honour.
    */
   useEffect(() => {
     if (!user || user.is_anonymous) {

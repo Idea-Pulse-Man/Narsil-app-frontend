@@ -84,12 +84,12 @@ export const APPRAISAL_RANKS: Record<number, AppraisalRank> = {
   6: {
     title: "Knighted by the Crown",
     message:
-      "A masterful display of historical knowledge. You are hereby dubbed a true Knight of the Archives and granted the Patron's Advantage.",
+      "A masterful display of historical knowledge. You are hereby dubbed a true Knight of the Archives.",
   },
   7: {
     title: "Ascended to the Throne",
     message:
-      "Flawless perfection. The crown is yours. You rule the Explorer's Guild with absolute authority. Take your 20% Patron's Advantage and claim your treasure.",
+      "Flawless perfection. The crown is yours. You rule the Explorer's Guild with absolute authority. Claim your treasure.",
   },
 };
 

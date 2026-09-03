@@ -28,8 +28,8 @@ const REASON_COPY: Record<PaywallReason, { title: string; lead: string }> = {
     lead: "Get the museum's original scan instead of the 2000px version.",
   },
   "canvas-discount": {
-    title: WORLD.patronsAdvantage,
-    lead: `${WORLD.explorersGuild} takes 20% off every print, with ${WORLD.dispatchIncluded}.`,
+    title: WORLD.explorersGuild,
+    lead: WORLD.subscribePitch,
   },
   settings: {
     title: WORLD.explorersGuild,
@@ -40,7 +40,6 @@ const REASON_COPY: Record<PaywallReason, { title: string; lead: string }> = {
 const PERKS = [
   `${WORLD.unchartedArchives} — play as long as you can keep answering`,
   `Extract uncompressed ${WORLD.masterFile}s straight from the museum scan`,
-  `${WORLD.patronsAdvantage} — 20% off every canvas print, ${WORLD.dispatchIncluded}`,
 ];
 
 interface ProPaywallProps {

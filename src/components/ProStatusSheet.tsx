@@ -15,7 +15,6 @@ import type { ToastState } from "./Toast";
 const PERKS = [
   WORLD.unchartedArchives,
   `Extract ${WORLD.masterFile}s`,
-  `${WORLD.patronsAdvantage} — 20% off every canvas`,
 ];
 
 interface ProStatusSheetProps {

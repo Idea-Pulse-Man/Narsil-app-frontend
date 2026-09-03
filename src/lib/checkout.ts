@@ -94,11 +94,11 @@ export interface CheckoutIntent {
   clientSecret: string;
   amount: number;
   currency: string;
-  /** What the customer pays — already discounted for Narsil Pro members. */
+  /** What the customer pays. */
   price: number;
-  /** Undiscounted price, for the struck-through original in the checkout bar. */
+  /** Same as `price`. Older builds used this for a struck-through original. */
   listPrice: number;
-  /** 20 when the Pro discount applied, 0 otherwise. Computed server-side. */
+  /** Always 0 — canvas is full price for everyone. */
   discountPct: number;
 }
 
