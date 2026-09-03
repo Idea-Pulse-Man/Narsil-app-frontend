@@ -9,7 +9,7 @@ import {
   type CategoryId,
 } from "@/data";
 import { useCatalog } from "@/data/catalog";
-import { searchCatalog } from "@/lib/catalog";
+import { CATALOG_BATCH_SIZE, searchCatalog } from "@/lib/catalog";
 import { screenScrollClass, screenContentClass } from "./artwork-layout";
 import {
   SearchIcon,
@@ -109,6 +109,10 @@ export default function SearchView({
     artworks,
     getArtwork,
     rememberSearchHits,
+    loadNextBatch,
+    hasMoreBatches,
+    loadingBatch,
+    loading,
   } = useCatalog();
   const [text, setText] = useState("");
   const deferredText = useDeferredValue(text);
@@ -119,7 +123,12 @@ export default function SearchView({
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const [remoteHits, setRemoteHits] = useState<typeof artworks>([]);
+  const [remoteQuery, setRemoteQuery] = useState("");
   const [remoteSearching, setRemoteSearching] = useState(false);
+  const [remoteHasMore, setRemoteHasMore] = useState(false);
+  const [loadingMoreRemote, setLoadingMoreRemote] = useState(false);
+
+  const browsing = deferredText.trim().length < 2;
 
   // Ask the server for matches when the user types. Do not download the
   // 13k-row archive — only one page of preview rows (no full-size images).
@@ -128,7 +137,9 @@ export default function SearchView({
     const query = deferredText.trim();
     if (query.length < 2) {
       setRemoteHits([]);
+      setRemoteQuery("");
       setRemoteSearching(false);
+      setRemoteHasMore(false);
       return;
     }
     const controller = new AbortController();
@@ -139,6 +150,8 @@ export default function SearchView({
           if (controller.signal.aborted) return;
           rememberSearchHits(hit);
           setRemoteHits(hit.artworks);
+          setRemoteQuery(query);
+          setRemoteHasMore(hit.artworks.length >= CATALOG_BATCH_SIZE);
         })
         .catch((err) => {
           if (!controller.signal.aborted) {
@@ -186,6 +199,113 @@ export default function SearchView({
     rootRef: scrollRef,
     enabled: active,
   });
+
+  const totalSelected =
+    sel.categories.length +
+    sel.periods.length +
+    sel.empires.length +
+    sel.artistIds.length +
+    sel.countries.length +
+    sel.cities.length +
+    sel.museums.length +
+    (sel.portraitsOnly ? 1 : 0);
+  const hasCategoryFilters = totalSelected > 0;
+  const hasCanvasFilter = sel.canvas !== "any";
+  const hasFilters = hasCategoryFilters || hasCanvasFilter;
+
+  // WhatsApp-style browse: when the user has seen about half of the loaded
+  // pool, fetch the next 80 artworks. Typed search uses its own page fetch.
+  const batchRequested = useRef(false);
+  useEffect(() => {
+    batchRequested.current = false;
+  }, [artworks.length]);
+
+  useEffect(() => {
+    if (!active || !browsing || loading || loadingBatch || !hasMoreBatches) {
+      return;
+    }
+    if (results.length === 0) {
+      if (hasFilters) void loadNextBatch();
+      return;
+    }
+    const halfway = Math.max(1, Math.floor(results.length / 2));
+    if (visible.length >= halfway && !batchRequested.current) {
+      batchRequested.current = true;
+      void loadNextBatch();
+    }
+  }, [
+    active,
+    browsing,
+    loading,
+    loadingBatch,
+    hasMoreBatches,
+    results.length,
+    visible.length,
+    loadNextBatch,
+    hasFilters,
+  ]);
+
+  const remotePageRequested = useRef(false);
+  const moreSearchRef = useRef<AbortController | null>(null);
+  useEffect(() => {
+    remotePageRequested.current = false;
+    moreSearchRef.current?.abort();
+    moreSearchRef.current = null;
+  }, [deferredText]);
+
+  useEffect(() => {
+    remotePageRequested.current = false;
+  }, [remoteHits.length]);
+
+  // Next page of typed server matches once the user has seen half of this page.
+  useEffect(() => {
+    if (!active || browsing || remoteSearching) return;
+    if (!remoteHasMore || remotePageRequested.current) return;
+    const query = deferredText.trim();
+    if (query.length < 2 || query !== remoteQuery) return;
+    const halfway = Math.max(1, Math.floor(results.length / 2));
+    if (visible.length < halfway) return;
+
+    const controller = new AbortController();
+    moreSearchRef.current = controller;
+    remotePageRequested.current = true;
+    setLoadingMoreRemote(true);
+    void searchCatalog(
+      query,
+      controller.signal,
+      CATALOG_BATCH_SIZE,
+      remoteHits.length,
+    )
+      .then((hit) => {
+        if (controller.signal.aborted) return;
+        rememberSearchHits(hit);
+        setRemoteHits((prev) => {
+          const seen = new Set(prev.map((art) => art.id));
+          return [...prev, ...hit.artworks.filter((art) => !seen.has(art.id))];
+        });
+        setRemoteHasMore(hit.artworks.length >= CATALOG_BATCH_SIZE);
+      })
+      .catch((err) => {
+        if (!controller.signal.aborted) {
+          console.warn("Search: next page failed.", err);
+          remotePageRequested.current = false;
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoadingMoreRemote(false);
+      });
+  }, [
+    active,
+    browsing,
+    remoteSearching,
+    remoteHasMore,
+    deferredText,
+    results.length,
+    visible.length,
+    remoteHits.length,
+    remoteQuery,
+    rememberSearchHits,
+  ]);
 
   const searchableArtistsRef = useRef<typeof artists>([]);
   const searchableArtists = useMemo(() => {
@@ -253,19 +373,6 @@ export default function SearchView({
       return { ...prev, [kind]: next };
     });
   };
-
-  const totalSelected =
-    sel.categories.length +
-    sel.periods.length +
-    sel.empires.length +
-    sel.artistIds.length +
-    sel.countries.length +
-    sel.cities.length +
-    sel.museums.length +
-    (sel.portraitsOnly ? 1 : 0);
-  const hasCategoryFilters = totalSelected > 0;
-  const hasCanvasFilter = sel.canvas !== "any";
-  const hasFilters = hasCategoryFilters || hasCanvasFilter;
 
   const clearAll = () => setSel(EMPTY_SELECTION);
 
@@ -786,19 +893,16 @@ export default function SearchView({
           </AnimatePresence>
         </div>
 
-        <div className="mt-7 flex items-baseline justify-between">
-          <h2 className="font-serif text-lg text-white">
-            {results.length} {results.length === 1 ? "result" : "results"}
-          </h2>
-          {hasFilters && (
+        {hasFilters && (
+          <div className="mt-5 flex justify-end">
             <button
               onClick={clearAll}
               className="text-xs text-white/45 hover:text-white"
             >
               Clear filters
             </button>
-          )}
-        </div>
+          </div>
+        )}
 
         {remoteSearching && (
           <p className="mt-1.5 flex items-center gap-2 text-[11px] text-white/45">
@@ -813,7 +917,7 @@ export default function SearchView({
           </p>
         ) : (
           <>
-            <div className="mt-4 grid grid-cols-2 gap-3">
+            <div className={`${hasFilters ? "mt-4" : "mt-7"} grid grid-cols-2 gap-3`}>
               {visible.map((art, i) => (
                 <ArtworkTile
                   key={art.id}
@@ -827,7 +931,11 @@ export default function SearchView({
                 />
               ))}
             </div>
-            {hasMore && (
+            {(hasMore ||
+              loadingBatch ||
+              loadingMoreRemote ||
+              (browsing && hasMoreBatches) ||
+              (!browsing && remoteHasMore)) && (
               <div
                 ref={sentinelRef}
                 className="mt-6 flex justify-center py-4 text-xs text-white/40"

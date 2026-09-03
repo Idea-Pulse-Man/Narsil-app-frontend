@@ -479,6 +479,7 @@ export async function searchCatalog(
   text: string,
   signal?: AbortSignal,
   limit: number = CATALOG_BATCH_SIZE,
+  offset: number = 0,
 ): Promise<RemoteCatalog> {
   const empty: RemoteCatalog = { artworks: [], artists: [], fypArtistCards: [] };
   if (!supabase) return empty;
@@ -504,7 +505,7 @@ export async function searchCatalog(
       .not("image_url", "is", null)
       .or("hidden.is.null,hidden.eq.false")
       .order("like_count", { ascending: false, nullsFirst: false })
-      .limit(limit);
+      .range(offset, offset + limit - 1);
     query =
       mode === "title"
         ? query.ilike("title", pattern)
