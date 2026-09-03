@@ -131,7 +131,7 @@ export interface PreferenceScoreOptions {
 
 /**
  * Score one artwork against saved taste.
- * Artist / empire / specific period score highest so Strong visibly reorders.
+ * Artist is always the top signal — higher than any period/empire/type combo.
  */
 export function preferenceScore(
   art: Artwork,
@@ -152,9 +152,10 @@ export function preferenceScore(
 
   let score = 0;
 
-  // Artist — strongest signal.
+  // Artist — always #1. High enough that one artist match beats any stack of
+  // period / empire / type / interest points alone.
   if (selectedArtists.some((label) => artistMatchesLabel(art, label, opts.artistMap))) {
-    score += aggressive ? 12 : 8;
+    score += aggressive ? 120 : 100;
   }
 
   // Empire.

@@ -70,8 +70,44 @@ describe("preferenceScore / prioritizeByTaste", () => {
       interests: [],
     };
 
-    expect(preferenceScore(vg, prefs, "strong", { artistMap: artists })).toBeGreaterThanOrEqual(8);
+    expect(preferenceScore(vg, prefs, "strong", { artistMap: artists })).toBeGreaterThanOrEqual(100);
     expect(preferenceScore(other, prefs, "strong", { artistMap: artists })).toBe(0);
+  });
+
+  it("ranks favorite artists above period/empire-only matches", () => {
+    const pool = [
+      art({
+        id: "japanese-print",
+        artistId: "live-other",
+        period: "Edo Period",
+        empire: "Japanese",
+        category: "japanese-art",
+        tags: ["Ukiyo-e"],
+      }),
+      art({
+        id: "van-gogh-work",
+        artistId: "live-vg",
+        period: "Post-Impressionism",
+        category: "paintings",
+      }),
+      art({ id: "filler", artistId: "live-other", category: "paintings" }),
+    ];
+
+    const ranked = prioritizeByTaste(
+      pool,
+      {
+        artTypes: ["Paintings"],
+        periods: ["Japanese Art"],
+        empires: ["Japanese"],
+        artists: ["Van Gogh"],
+        interests: [],
+      },
+      "strong",
+      { artistMap: artists },
+    );
+
+    expect(ranked[0].id).toBe("van-gogh-work");
+    expect(ranked[1].id).toBe("japanese-print");
   });
 
   it("puts Strong matches ahead of non-matches", () => {
