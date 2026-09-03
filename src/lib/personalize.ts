@@ -246,12 +246,54 @@ export function preferenceScore(
   return score;
 }
 
+type ScoredArt = { art: Artwork; index: number; score: number };
+
+const ARTIST_SCORE_FLOOR = 100;
+
 /**
- * Reorder a popularity-ranked pool so better matches come first.
+ * Pull from buckets in a repeating pattern, skipping empty ones.
+ * Keeps favorite artists visible without stacking only their works.
+ */
+function weaveBuckets(
+  buckets: Record<"artist" | "taste" | "rest", ScoredArt[]>,
+  pattern: Array<"artist" | "taste" | "rest">,
+): Artwork[] {
+  const cursors: Record<keyof typeof buckets, number> = {
+    artist: 0,
+    taste: 0,
+    rest: 0,
+  };
+  const take = (key: keyof typeof buckets): ScoredArt | null => {
+    const i = cursors[key];
+    if (i >= buckets[key].length) return null;
+    cursors[key] = i + 1;
+    return buckets[key][i];
+  };
+
+  const out: Artwork[] = [];
+  const max = Object.values(buckets).reduce((n, list) => n + list.length, 0);
+  let guard = 0;
+  while (out.length < max && guard < max * pattern.length + 4) {
+    guard += 1;
+    let took = false;
+    for (const key of pattern) {
+      const item = take(key);
+      if (item) {
+        out.push(item.art);
+        took = true;
+      }
+    }
+    if (!took) break;
+  }
+  return out;
+}
+
+/**
+ * Reorder a popularity-ranked pool so taste is visible, but mixed.
  *
- * Strong: clear matches (score >= 3) first, then soft matches, then the rest.
- * Aggressive: any match (score >= 1) first, ordered by score.
- * Within each group, original popularity order is kept (stable).
+ * Strong: 1 favorite-artist work, then 1 other taste match, then 2 discoveries.
+ * Aggressive: denser — 1 artist, 1 taste, 1 discovery.
+ * Within each bucket, original popularity order is kept (stable).
  */
 export function prioritizeByTaste(
   list: Artwork[],
@@ -261,32 +303,35 @@ export function prioritizeByTaste(
 ): Artwork[] {
   if (mode === "normal" || !hasTastePreferences(prefs)) return list;
 
-  const scored = list.map((art, index) => ({
+  const scored: ScoredArt[] = list.map((art, index) => ({
     art,
     index,
     score: preferenceScore(art, prefs, mode, opts),
   }));
 
-  const strongThreshold = mode === "aggressive" ? 1 : 3;
-
-  const strong: typeof scored = [];
-  const soft: typeof scored = [];
-  const rest: typeof scored = [];
+  const tasteFloor = mode === "aggressive" ? 1 : 3;
+  const artistHits: ScoredArt[] = [];
+  const tasteHits: ScoredArt[] = [];
+  const rest: ScoredArt[] = [];
 
   for (const item of scored) {
-    if (item.score >= strongThreshold) strong.push(item);
-    else if (item.score > 0) soft.push(item);
+    if (item.score >= ARTIST_SCORE_FLOOR) artistHits.push(item);
+    else if (item.score >= tasteFloor) tasteHits.push(item);
     else rest.push(item);
   }
 
-  const byScoreThenIndex = (a: (typeof scored)[number], b: (typeof scored)[number]) => {
+  const byScoreThenIndex = (a: ScoredArt, b: ScoredArt) => {
     if (b.score !== a.score) return b.score - a.score;
     return a.index - b.index;
   };
 
-  strong.sort(byScoreThenIndex);
-  soft.sort(byScoreThenIndex);
-  // `rest` keeps original popularity order via stable index.
+  artistHits.sort(byScoreThenIndex);
+  tasteHits.sort(byScoreThenIndex);
 
-  return [...strong, ...soft, ...rest].map((item) => item.art);
+  const pattern: Array<"artist" | "taste" | "rest"> =
+    mode === "aggressive"
+      ? ["artist", "taste", "rest"]
+      : ["artist", "taste", "rest", "rest"];
+
+  return weaveBuckets({ artist: artistHits, taste: tasteHits, rest }, pattern);
 }

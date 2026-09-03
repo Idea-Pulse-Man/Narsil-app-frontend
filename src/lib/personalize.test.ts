@@ -108,6 +108,42 @@ describe("preferenceScore / prioritizeByTaste", () => {
 
     expect(ranked[0].id).toBe("van-gogh-work");
     expect(ranked[1].id).toBe("japanese-print");
+    expect(ranked[2].id).toBe("filler");
+  });
+
+  it("mixes favorite-artist works with other art so the feed is not a streak", () => {
+    const pool = [
+      ...Array.from({ length: 6 }, (_, i) =>
+        art({ id: `vg-${i}`, artistId: "live-vg" }),
+      ),
+      ...Array.from({ length: 6 }, (_, i) =>
+        art({ id: `other-${i}`, artistId: `other-${i}` }),
+      ),
+    ];
+
+    const ranked = prioritizeByTaste(
+      pool,
+      {
+        artTypes: [],
+        periods: [],
+        empires: [],
+        artists: ["Van Gogh"],
+        interests: [],
+      },
+      "strong",
+      { artistMap: artists },
+    );
+
+    const firstEight = ranked.slice(0, 8);
+    const vgCount = firstEight.filter((a) => a.artistId === "live-vg").length;
+    expect(vgCount).toBeGreaterThan(0);
+    expect(vgCount).toBeLessThan(8);
+
+    for (let i = 0; i < firstEight.length - 1; i++) {
+      const a = firstEight[i].artistId === "live-vg";
+      const b = firstEight[i + 1].artistId === "live-vg";
+      expect(a && b).toBe(false);
+    }
   });
 
   it("puts Strong matches ahead of non-matches", () => {
