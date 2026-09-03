@@ -59,6 +59,7 @@ export default function ArtFeed({
     hasMoreBatches,
     loadNextBatch,
     fypArtistCardMap,
+    artistMap,
   } = useCatalog();
   const { seen, markSeen, preferences, feedMatchMode } = useAppState();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -96,7 +97,9 @@ export default function ArtFeed({
       return true;
     });
 
-    const prioritized = prioritizeByTaste(filtered, preferences, feedMatchMode);
+    const prioritized = prioritizeByTaste(filtered, preferences, feedMatchMode, {
+      artistMap,
+    });
     const ranked = orderSessionFeed(prioritized, {
       limit: prioritized.length,
       seen: seenSnapshot ?? undefined,
@@ -116,7 +119,7 @@ export default function ArtFeed({
       ...extra,
     ];
     return frozenArtworks.current;
-  }, [feedPool, filter, seenSnapshot, preferences, feedMatchMode, nextFreezeKey]);
+  }, [feedPool, filter, seenSnapshot, preferences, feedMatchMode, nextFreezeKey, artistMap]);
 
   const renderGuard = useMemo(
     () => ({ getArtist, getFypArtistCard }),
