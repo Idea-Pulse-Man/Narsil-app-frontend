@@ -234,7 +234,7 @@ export default function YouView({
               onClick={handlePickAvatar}
               disabled={avatarBusy}
               aria-label={isGuest ? "Sign in to set avatar" : "Edit avatar"}
-              className="absolute -bottom-0.5 -right-0.5 flex h-7 w-7 items-center justify-center rounded-full border border-white/25 bg-white text-ink shadow-sm disabled:opacity-70"
+              className="absolute -bottom-0.5 -right-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-accent text-ink shadow-sm disabled:opacity-70"
             >
               <PencilIcon className="h-3.5 w-3.5" />
             </button>
