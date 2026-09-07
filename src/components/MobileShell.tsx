@@ -132,7 +132,11 @@ export default function MobileShell() {
     authSeen &&
     !onboardingDone &&
     !isAdmin;
-  const onboardingGate = firstLaunchTerms || firstLaunchAuth || firstLaunchOnboarding;
+  // Hide the museum through Terms / Auth / personalization. The tutorial is
+  // learn-by-doing on the live feed, so it must stay visible and interactive
+  // even though onboarding is not marked done until the coach finishes.
+  const onboardingGate =
+    firstLaunchTerms || firstLaunchAuth || (firstLaunchOnboarding && !tutorialActive);
   const showAuthOverlay = authOpen || firstLaunchAuth;
   /**
    * Signed-in members load `profiles.role` async. Until it arrives, avoid
