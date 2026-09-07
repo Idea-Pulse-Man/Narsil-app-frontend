@@ -142,7 +142,7 @@ export default function AdminOverview({ onJumpToOrders }: AdminOverviewProps) {
         <DayChart
           series={stats.signins_by_day ?? []}
           empty="No sign-in activity in this window."
-          barClass="bg-sky-400/80"
+          tone="sky"
         />
       </AdminSection>
 
@@ -153,7 +153,7 @@ export default function AdminOverview({ onJumpToOrders }: AdminOverviewProps) {
         <DayChart
           series={stats.subscriptions_by_day ?? []}
           empty="No new subscriptions in this window."
-          barClass="bg-accent/90"
+          tone="gold"
         />
       </AdminSection>
 
@@ -234,50 +234,193 @@ function DeltaPill({
 function DayChart({
   series,
   empty,
-  barClass,
+  tone,
 }: {
   series: AdminDayCount[];
   empty: string;
-  barClass: string;
+  tone: "sky" | "gold";
 }) {
   if (!series.length) {
     return <p className="text-sm text-white/40">{empty}</p>;
   }
-  const max = Math.max(1, ...series.map((p) => Number(p.count) || 0));
+
+  const values = series.map((p) => Number(p.count) || 0);
+  const max = Math.max(1, ...values);
+  const total = values.reduce((a, b) => a + b, 0);
+  const peak = Math.max(...values);
+  const today = values[values.length - 1] ?? 0;
+
+  // SVG layout (viewBox units)
+  const W = 320;
+  const H = 168;
+  const padL = 28;
+  const padR = 8;
+  const padT = 16;
+  const padB = 28;
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
+  const gap = 3;
+  const barW = Math.max(6, (plotW - gap * (series.length - 1)) / series.length);
+  const gradId = `admin-bar-${tone}`;
+  const fillTop = tone === "sky" ? "#7dd3fc" : "#e8c9a0";
+  const fillBot = tone === "sky" ? "#0ea5e9" : "#c4a574";
+
+  const yTicks = [0, 0.5, 1].map((t) => Math.round(max * t));
+
   return (
-    <AdminCard className="!p-3">
-      <div className="flex h-36 items-end gap-1">
-        {series.map((p) => {
-          const n = Number(p.count) || 0;
-          const pct = Math.max(n > 0 ? 8 : 2, Math.round((n / max) * 100));
-          const label = shortDay(p.day);
-          return (
-            <div
-              key={p.day}
-              className="flex min-w-0 flex-1 flex-col items-center justify-end gap-1"
-              title={`${p.day}: ${n}`}
-            >
-              <span className="text-[10px] tabular-nums text-white/45">
-                {n > 0 ? n : ""}
-              </span>
-              <div
-                className={`w-full max-w-[18px] rounded-t-md ${barClass}`}
-                style={{ height: `${pct}%` }}
-              />
-              <span className="truncate text-[9px] text-white/35">{label}</span>
-            </div>
-          );
-        })}
+    <AdminCard className="!p-0 overflow-hidden">
+      <div className="flex items-baseline justify-between gap-3 border-b border-white/8 px-4 py-3">
+        <div>
+          <p className="font-serif text-2xl text-white tabular-nums">{total}</p>
+          <p className="text-[11px] text-white/40">14-day total</p>
+        </div>
+        <div className="text-right text-[11px] text-white/45">
+          <p>
+            Peak <span className="tabular-nums text-white/80">{peak}</span>
+          </p>
+          <p className="mt-0.5">
+            Today <span className="tabular-nums text-white/80">{today}</span>
+          </p>
+        </div>
+      </div>
+
+      <div className="px-2 pb-2 pt-1">
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          className="h-44 w-full"
+          role="img"
+          aria-label="Daily activity chart"
+        >
+          <defs>
+            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={fillTop} stopOpacity="0.95" />
+              <stop offset="100%" stopColor={fillBot} stopOpacity="0.55" />
+            </linearGradient>
+          </defs>
+
+          {/* Horizontal grid */}
+          {yTicks.map((tick) => {
+            const y = padT + plotH - (tick / max) * plotH;
+            return (
+              <g key={`y-${tick}`}>
+                <line
+                  x1={padL}
+                  x2={W - padR}
+                  y1={y}
+                  y2={y}
+                  stroke="rgba(255,255,255,0.08)"
+                  strokeWidth="1"
+                />
+                <text
+                  x={padL - 6}
+                  y={y + 3}
+                  textAnchor="end"
+                  fill="rgba(255,255,255,0.35)"
+                  fontSize="9"
+                  fontFamily="ui-sans-serif, system-ui, sans-serif"
+                >
+                  {tick}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* Bars */}
+          {series.map((p, i) => {
+            const n = values[i] ?? 0;
+            const h = n === 0 ? 0 : Math.max(3, (n / max) * plotH);
+            const x = padL + i * (barW + gap);
+            const y = padT + plotH - h;
+            const isToday = i === series.length - 1;
+            const labelEvery = series.length > 10 ? 2 : 1;
+            const showLabel = i % labelEvery === 0 || isToday;
+            return (
+              <g key={p.day}>
+                <title>{`${formatChartDay(p.day, true)}: ${n}`}</title>
+                {n > 0 && (
+                  <rect
+                    x={x}
+                    y={y}
+                    width={barW}
+                    height={h}
+                    rx={Math.min(4, barW / 2)}
+                    fill={`url(#${gradId})`}
+                    opacity={isToday ? 1 : 0.85}
+                  />
+                )}
+                {n === 0 && (
+                  <rect
+                    x={x}
+                    y={padT + plotH - 2}
+                    width={barW}
+                    height={2}
+                    rx={1}
+                    fill="rgba(255,255,255,0.12)"
+                  />
+                )}
+                {n > 0 && (
+                  <text
+                    x={x + barW / 2}
+                    y={Math.max(padT + 8, y - 4)}
+                    textAnchor="middle"
+                    fill="rgba(255,255,255,0.7)"
+                    fontSize="8"
+                    fontFamily="ui-sans-serif, system-ui, sans-serif"
+                  >
+                    {n}
+                  </text>
+                )}
+                {showLabel && (
+                  <text
+                    x={x + barW / 2}
+                    y={H - 8}
+                    textAnchor="middle"
+                    fill={
+                      isToday
+                        ? "rgba(255,255,255,0.75)"
+                        : "rgba(255,255,255,0.35)"
+                    }
+                    fontSize="8"
+                    fontFamily="ui-sans-serif, system-ui, sans-serif"
+                  >
+                    {formatChartDay(p.day, false)}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+
+          {/* Baseline */}
+          <line
+            x1={padL}
+            x2={W - padR}
+            y1={padT + plotH}
+            y2={padT + plotH}
+            stroke="rgba(255,255,255,0.18)"
+            strokeWidth="1"
+          />
+        </svg>
       </div>
     </AdminCard>
   );
 }
 
-function shortDay(iso: string): string {
-  // Expect "YYYY-MM-DD" (date cast to text from Postgres).
-  const parts = iso.slice(0, 10).split("-");
-  if (parts.length !== 3) return iso.slice(5, 10);
-  return `${parts[1]}/${parts[2]}`;
+/** Short axis label (e.g. 9/7) or long tooltip (Sep 7). */
+function formatChartDay(iso: string, long: boolean): string {
+  const raw = iso.slice(0, 10);
+  const d = new Date(`${raw}T12:00:00Z`);
+  if (Number.isNaN(d.getTime())) {
+    const parts = raw.split("-");
+    return parts.length === 3 ? `${Number(parts[1])}/${Number(parts[2])}` : raw;
+  }
+  if (long) {
+    return d.toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      timeZone: "UTC",
+    });
+  }
+  return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
 }
 
 function Stat({ label, value }: { label: string; value: number | string }) {
