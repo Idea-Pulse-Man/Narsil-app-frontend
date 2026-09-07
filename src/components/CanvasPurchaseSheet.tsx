@@ -81,7 +81,7 @@ export default function CanvasPurchaseSheet({
 }: CanvasPurchaseSheetProps) {
   const dragControls = useDragControls();
   const { getArtist } = useCatalog();
-  const { isGuest } = useAppState();
+  const { isGuest, requestSignIn } = useAppState();
   const [size, setSize] = useState<CanvasSize>("Medium");
   const [step, setStep] = useState<Step>("details");
   const [intent, setIntent] = useState<CheckoutIntent | null>(null);
@@ -139,7 +139,7 @@ export default function CanvasPurchaseSheet({
   const handleContinue = async () => {
     if (!artwork) return;
     if (isGuest) {
-      showToast(`Sign in from the ${WORLD.member} tab to order`, "error");
+      requestSignIn();
       return;
     }
     if (!PAYMENTS_ENABLED) {
@@ -473,9 +473,13 @@ export default function CanvasPurchaseSheet({
                   : `${WORLD.acquire} · $${priceForSize(priceFrom, size)}`}
               </button>
               {isGuest && (
-                <p className="mt-3 text-center text-[11px] text-white/35">
-                  Sign in from the {WORLD.member} tab to order a canvas.
-                </p>
+                <button
+                  type="button"
+                  onClick={requestSignIn}
+                  className="mt-3 w-full text-center text-[13px] font-medium text-accent underline-offset-2 hover:underline"
+                >
+                  Sign in to order a canvas
+                </button>
               )}
             </div>
               </>

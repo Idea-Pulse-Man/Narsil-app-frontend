@@ -74,7 +74,7 @@ export default function HistoryPlacard({
   onClose,
   passThroughBackdrop = false,
 }: HistoryPlacardProps) {
-  const { isGuest } = useAppState();
+  const { isGuest, requestSignIn } = useAppState();
   const { refresh } = useCatalog();
   const [tagDraft, setTagDraft] = useState("");
   const [tagBusy, setTagBusy] = useState(false);
@@ -298,7 +298,15 @@ export default function HistoryPlacard({
                 ))}
               </div>
 
-              {!isGuest && (
+              {isGuest ? (
+                <button
+                  type="button"
+                  onClick={requestSignIn}
+                  className="mt-4 text-[13px] font-medium text-ink/55 underline-offset-2 hover:text-ink/80 hover:underline"
+                >
+                  Sign in to add a community tag
+                </button>
+              ) : (
                 <div className="mt-4 flex gap-2">
                   <input
                     value={tagDraft}

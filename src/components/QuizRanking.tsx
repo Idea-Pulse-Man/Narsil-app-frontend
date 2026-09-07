@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { BoardRow, LevelBoard } from "@/lib/quizRemote";
 import { levelTitle } from "@/lib/quiz";
 import { scrollPalette, type ScrollInk } from "@/lib/quiz/scrolls";
+import { useAppState } from "./AppState";
 
 function MemberAvatar({
   name,
@@ -101,6 +102,7 @@ export default function QuizRanking({
 }: QuizRankingProps) {
   const title = levelTitle(levelId);
   const { label, body, box } = scrollPalette(ink);
+  const { requestSignIn } = useAppState();
 
   return (
     <section>
@@ -115,9 +117,13 @@ export default function QuizRanking({
       </p>
 
       {boardLocked ? (
-        <p className={`mt-3 rounded-xl border px-4 py-3 text-sm ${box} ${body}`}>
+        <button
+          type="button"
+          onClick={requestSignIn}
+          className={`mt-3 w-full rounded-xl border px-4 py-3 text-left text-sm ${box} ${body}`}
+        >
           Sign in to join the Hall and appear on the rankings.
-        </p>
+        </button>
       ) : board && board.rows.length > 0 ? (
         <BoardRows rows={board.rows} ink={ink} />
       ) : (

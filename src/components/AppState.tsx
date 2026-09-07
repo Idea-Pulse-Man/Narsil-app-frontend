@@ -125,6 +125,12 @@ interface AppStateValue {
   authSeen: boolean;
   /** Mark the sign-in gate as handled so it won't auto-open again. */
   markAuthSeen: () => void;
+  /** True when the sign-in overlay was opened from a gated action (not first launch). */
+  authPrompt: boolean;
+  /** Open the sign-in screen from a guest tap. Does not hide the museum. */
+  requestSignIn: () => void;
+  /** Dismiss a requested sign-in overlay (Continue as guest / close). */
+  dismissSignIn: () => void;
 
   /** True once the user accepted the current Terms of Service version. */
   termsAccepted: boolean;
@@ -197,11 +203,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     useState<SubscriptionState>(NO_SUBSCRIPTION);
   const [proPrompt, setProPrompt] = useState<PaywallReason | null>(null);
   const [downloadRequest, setDownloadRequest] = useState<Artwork | null>(null);
+  const [authPrompt, setAuthPrompt] = useState(false);
 
   // True once a Supabase (anonymous) session exists — gates cloud writes.
   const cloudReady = useRef(false);
   /** Skip duplicate cloud pulls when ensureSession and INITIAL_SESSION race. */
   const hydratedUserIdRef = useRef<string | null>(null);
+  /** Paywall to reopen after a guest signs in from a Pro-gated tap. */
+  const pendingProReason = useRef<PaywallReason | null>(null);
 
   // Union incoming ids into the local seen set (and cache) without dropping any.
   const mergeSeen = useCallback((ids: string[]) => {
@@ -344,6 +353,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         cloudReady.current = false;
         hydratedUserIdRef.current = null;
         setProfile(null);
+        setSaved([]);
+        setLiked([]);
+        setFollowing([]);
+        writeJSON(STORAGE_KEYS.saved, []);
+        writeJSON(STORAGE_KEYS.liked, []);
+        writeJSON(STORAGE_KEYS.following, []);
         return;
       }
       cloudReady.current = true;
@@ -362,8 +377,23 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     };
   }, [hydrateFromCloud]);
 
+  const requestSignIn = useCallback(() => {
+    setAuthPrompt(true);
+  }, []);
+
+  const dismissSignIn = useCallback(() => {
+    pendingProReason.current = null;
+    setAuthPrompt(false);
+  }, []);
+
   const signOut = useCallback(async () => {
+    pendingProReason.current = null;
+    setAuthPrompt(false);
+    // Stay in the museum as a guest — do not re-open the first-launch auth gate.
+    setAuthSeen(true);
+    writeJSON(STORAGE_KEYS.authSeen, true);
     await authSignOut();
+    await ensureSession();
   }, []);
 
   const setAvatar = useCallback(async (file: File) => {
@@ -475,8 +505,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const requestPro = useCallback((reason: PaywallReason) => {
+    if (!user || user.is_anonymous) {
+      pendingProReason.current = reason;
+      setAuthPrompt(true);
+      return;
+    }
     setProPrompt(reason);
-  }, []);
+  }, [user]);
 
   const dismissPro = useCallback(() => setProPrompt(null), []);
 
@@ -485,6 +520,23 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const dismissDownload = useCallback(() => setDownloadRequest(null), []);
+
+  /**
+   * A real account (email/OAuth) counts as having passed the sign-in gate, even
+   * when AuthView never called onClose (OAuth redirects away). Signing out must
+   * not send them back through first-launch auth.
+   */
+  useEffect(() => {
+    if (!user || user.is_anonymous) return;
+    setAuthSeen(true);
+    writeJSON(STORAGE_KEYS.authSeen, true);
+    setAuthPrompt(false);
+    if (pendingProReason.current) {
+      const reason = pendingProReason.current;
+      pendingProReason.current = null;
+      setProPrompt(reason);
+    }
+  }, [user]);
 
   /**
    * Re-read entitlement whenever the signed-in user changes. Signing out must
@@ -607,6 +659,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       restartOnboarding,
       authSeen,
       markAuthSeen,
+      authPrompt,
+      requestSignIn,
+      dismissSignIn,
       termsAccepted,
       acceptTerms,
       isAdmin,
@@ -654,6 +709,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       restartOnboarding,
       authSeen,
       markAuthSeen,
+      authPrompt,
+      requestSignIn,
+      dismissSignIn,
       termsAccepted,
       acceptTerms,
       isAdmin,

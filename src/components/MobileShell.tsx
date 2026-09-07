@@ -60,6 +60,9 @@ export default function MobileShell() {
     completeOnboarding,
     authSeen,
     markAuthSeen,
+    authPrompt,
+    requestSignIn,
+    dismissSignIn,
     termsAccepted,
     acceptTerms,
     isAdmin,
@@ -93,7 +96,6 @@ export default function MobileShell() {
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Sign-in / sign-up screen (full-screen overlay above the shell).
-  const [authOpen, setAuthOpen] = useState(false);
   const [termsReview, setTermsReview] = useState(false);
   const [musicPromptOpen, setMusicPromptOpen] = useState(false);
   // True when the app opened from an auth redirect (`?code=`) that's still being
@@ -137,7 +139,7 @@ export default function MobileShell() {
   // even though onboarding is not marked done until the coach finishes.
   const onboardingGate =
     firstLaunchTerms || firstLaunchAuth || (firstLaunchOnboarding && !tutorialActive);
-  const showAuthOverlay = authOpen || firstLaunchAuth;
+  const showAuthOverlay = authPrompt || firstLaunchAuth;
   /**
    * Signed-in members load `profiles.role` async. Until it arrives, avoid
    * flashing the museum UI for an account that may turn out to be admin.
@@ -581,7 +583,7 @@ export default function MobileShell() {
                     setResetToken((t) => t + 1);
                   }}
                   onNavigate={navigate}
-                  onSignIn={() => setAuthOpen(true)}
+                  onSignIn={requestSignIn}
                   onOpenTerms={() => setTermsReview(true)}
                   onOpenQuiz={() => setQuizOpen(true)}
                   quizRefresh={quizRefresh}
@@ -731,7 +733,7 @@ export default function MobileShell() {
             <Suspense fallback={null}>
               <AuthView
                 onClose={() => {
-                  setAuthOpen(false);
+                  dismissSignIn();
                   markAuthSeen();
                 }}
               />

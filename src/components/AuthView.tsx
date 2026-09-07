@@ -68,7 +68,7 @@ export default function AuthView({ onClose }: AuthViewProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="absolute inset-0 z-[80] flex flex-col overflow-y-auto bg-ink px-6 pb-10 pt-[calc(env(safe-area-inset-top)+2.5rem)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="absolute inset-0 z-[90] flex flex-col overflow-y-auto bg-ink px-6 pb-10 pt-[calc(env(safe-area-inset-top)+2.5rem)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       <button
         onClick={onClose}

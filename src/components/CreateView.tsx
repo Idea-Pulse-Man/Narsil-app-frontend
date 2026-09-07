@@ -35,7 +35,7 @@ const ORIGIN_OPTIONS: { value: ArtworkOrigin; label: string }[] = [
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB
 
 export default function CreateView({ showToast, onPublished }: CreateViewProps) {
-  const { isGuest, isPro, profile, user, requestPro } = useAppState();
+  const { isGuest, isPro, profile, user, requestPro, requestSignIn } = useAppState();
   const { refresh } = useCatalog();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -83,7 +83,7 @@ export default function CreateView({ showToast, onPublished }: CreateViewProps) 
 
   const handlePublish = async () => {
     if (isGuest) {
-      showToast("Sign in from the Profile tab to publish", "error");
+      requestSignIn();
       return;
     }
     if (!isPro) {
@@ -156,7 +156,7 @@ export default function CreateView({ showToast, onPublished }: CreateViewProps) 
               type="button"
               onClick={() => {
                 if (isGuest) {
-                  showToast("Sign in from the Profile tab first", "error");
+                  requestSignIn();
                   return;
                 }
                 requestPro("create-upload");
