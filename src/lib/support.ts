@@ -119,3 +119,64 @@ export async function fetchUnreadSupportCount(): Promise<number> {
   if (error) throw new Error(error.message);
   return typeof data === "number" ? data : Number(data) || 0;
 }
+
+/**
+ * Live INSERT stream for a support thread (member or admin viewing that user).
+ * Returns unsubscribe. No-ops if Supabase is missing.
+ */
+export function subscribeSupportThread(
+  userId: string,
+  onInsert: (message: SupportMessage) => void,
+): () => void {
+  if (!supabase || !userId) return () => {};
+  const sb = supabase;
+  const channel = sb
+    .channel(`support:${userId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "support_messages",
+        filter: `user_id=eq.${userId}`,
+      },
+      (payload) => {
+        const row = payload.new as SupportMessage;
+        if (row?.id) onInsert(row);
+      },
+    )
+    .subscribe();
+
+  return () => {
+    void sb.removeChannel(channel);
+  };
+}
+
+/**
+ * Admin: any new support message (for inbox list / badge refresh).
+ */
+export function subscribeSupportInbox(
+  onInsert: (message: SupportMessage) => void,
+): () => void {
+  if (!supabase) return () => {};
+  const sb = supabase;
+  const channel = sb
+    .channel("support:inbox")
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "support_messages",
+      },
+      (payload) => {
+        const row = payload.new as SupportMessage;
+        if (row?.id) onInsert(row);
+      },
+    )
+    .subscribe();
+
+  return () => {
+    void sb.removeChannel(channel);
+  };
+}

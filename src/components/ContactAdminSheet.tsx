@@ -1,15 +1,18 @@
 /**
  * Contact admin — email first, live chat last.
  * Opened from Profile (and Create when waiting on approval).
+ * Live chat uses Supabase Realtime so admin replies appear immediately.
  */
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useAppState } from "./AppState";
 import {
   SUPPORT_EMAIL,
   fetchMySupportMessages,
   openSupportEmail,
   sendSupportMessage,
+  subscribeSupportThread,
   type SupportMessage,
 } from "@/lib/support";
 import { CloseIcon } from "./Icons";
@@ -31,17 +34,20 @@ export default function ContactAdminSheet({
   showToast,
   emailSubject = "Narsil support",
 }: ContactAdminSheetProps) {
+  const { user } = useAppState();
   const [panel, setPanel] = useState<Panel>("choose");
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [live, setLive] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!open) {
       setPanel("choose");
       setDraft("");
+      setLive(false);
       return;
     }
   }, [open]);
@@ -70,6 +76,25 @@ export default function ContactAdminSheet({
     };
   }, [open, panel, showToast]);
 
+  // Realtime: admin (and multi-device) inserts appear without refresh.
+  useEffect(() => {
+    if (!open || panel !== "chat" || !user?.id) {
+      setLive(false);
+      return;
+    }
+    setLive(true);
+    const stop = subscribeSupportThread(user.id, (row) => {
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === row.id)) return prev;
+        return [...prev, row];
+      });
+    });
+    return () => {
+      setLive(false);
+      stop();
+    };
+  }, [open, panel, user?.id]);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, panel]);
@@ -87,7 +112,10 @@ export default function ContactAdminSheet({
     setBusy(true);
     try {
       const row = await sendSupportMessage(draft);
-      setMessages((prev) => [...prev, row]);
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === row.id)) return prev;
+        return [...prev, row];
+      });
       setDraft("");
     } catch (err) {
       showToast(
@@ -126,6 +154,12 @@ export default function ContactAdminSheet({
                 <h2 className="mt-1 font-serif text-xl text-white">
                   {panel === "chat" ? "Live chat" : "Contact admin"}
                 </h2>
+                {panel === "chat" && live && (
+                  <p className="mt-1 flex items-center gap-1.5 text-[11px] text-emerald-300/90">
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+                    Live — replies appear instantly
+                  </p>
+                )}
               </div>
               <button
                 type="button"
@@ -143,7 +177,6 @@ export default function ContactAdminSheet({
                   Reach the Narsil team about uploads, orders, or your account.
                 </p>
 
-                {/* First option: email */}
                 <button
                   type="button"
                   onClick={sendMail}
@@ -157,7 +190,6 @@ export default function ContactAdminSheet({
                   </span>
                 </button>
 
-                {/* Last option: live chat */}
                 <button
                   type="button"
                   onClick={() => setPanel("chat")}
@@ -167,7 +199,7 @@ export default function ContactAdminSheet({
                     Live chat
                   </span>
                   <span className="mt-1 text-xs text-white/45">
-                    Message in the app — admins reply when available
+                    Real-time chat — admin replies show up here instantly
                   </span>
                 </button>
               </div>

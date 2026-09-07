@@ -1,6 +1,6 @@
 /**
  * Admin dashboard — Inbox tab. Reply to member live-chat threads.
- * Email stays outside the app (mailto); this is the in-app channel only.
+ * Realtime inserts keep the open thread and conversation list in sync.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -8,6 +8,8 @@ import {
   fetchSupportThread,
   fetchSupportThreads,
   replySupportMessage,
+  subscribeSupportInbox,
+  subscribeSupportThread,
   type SupportMessage,
   type SupportThreadSummary,
 } from "@/lib/support";
@@ -51,9 +53,39 @@ export default function AdminInbox({
     }
   }, [onThreadsChanged]);
 
+  const refreshThreadsQuiet = useCallback(async () => {
+    try {
+      const page = await fetchSupportThreads({ limit: 50, offset: 0 });
+      setThreads(page.rows);
+      setTotal(page.total);
+      onThreadsChanged?.();
+    } catch {
+      /* keep current list */
+    }
+  }, [onThreadsChanged]);
+
   useEffect(() => {
     void loadThreads();
   }, [loadThreads]);
+
+  // Inbox list: any new message refreshes threads + badge.
+  useEffect(() => {
+    return subscribeSupportInbox(() => {
+      void refreshThreadsQuiet();
+    });
+  }, [refreshThreadsQuiet]);
+
+  // Open thread: stream new messages live.
+  useEffect(() => {
+    if (!activeId) return;
+    return subscribeSupportThread(activeId, (row) => {
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === row.id)) return prev;
+        return [...prev, row];
+      });
+      void refreshThreadsQuiet();
+    });
+  }, [activeId, refreshThreadsQuiet]);
 
   const openThread = async (userId: string) => {
     setActiveId(userId);
@@ -78,9 +110,12 @@ export default function AdminInbox({
     setBusy(true);
     try {
       const row = await replySupportMessage(activeId, draft);
-      setMessages((prev) => [...prev, row]);
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === row.id)) return prev;
+        return [...prev, row];
+      });
       setDraft("");
-      await loadThreads();
+      await refreshThreadsQuiet();
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Reply failed.", "error");
     } finally {
@@ -103,7 +138,13 @@ export default function AdminInbox({
         <p className="mt-2 truncate text-sm text-white">
           {active?.full_name?.trim() || active?.email || activeId}
         </p>
-        <p className="text-xs text-white/40">{active?.email ?? "no email"}</p>
+        <p className="flex items-center gap-2 text-xs text-white/40">
+          <span>{active?.email ?? "no email"}</span>
+          <span className="inline-flex items-center gap-1 text-emerald-300/90">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+            Live
+          </span>
+        </p>
 
         <div className="mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto rounded-2xl border border-white/10 bg-white/[0.03] p-3">
           {threadLoading && (
@@ -163,7 +204,9 @@ export default function AdminInbox({
 
       {threads.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs text-white/40">{total} conversation{total === 1 ? "" : "s"}</p>
+          <p className="text-xs text-white/40">
+            {total} conversation{total === 1 ? "" : "s"} · live
+          </p>
           {threads.map((t) => (
             <button
               key={t.user_id}
