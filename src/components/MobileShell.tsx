@@ -64,6 +64,7 @@ export default function MobileShell() {
     acceptTerms,
     isAdmin,
     isGuest,
+    profile,
     proPrompt,
     requestPro,
     dismissPro,
@@ -95,7 +96,6 @@ export default function MobileShell() {
   const [authOpen, setAuthOpen] = useState(false);
   const [termsReview, setTermsReview] = useState(false);
   const [musicPromptOpen, setMusicPromptOpen] = useState(false);
-  const [adminOpen, setAdminOpen] = useState(false);
   // True when the app opened from an auth redirect (`?code=`) that's still being
   // completed — suppress the first-launch gate so it doesn't flash open.
   const authRedirectPending = useRef(
@@ -117,21 +117,31 @@ export default function MobileShell() {
   const advancingRef = useRef(false);
 
   // First-launch gates — derived on render so Terms/Auth never flash after the feed.
+  // Admins skip member onboarding and land in the admin-only shell after Terms.
   const firstLaunchTerms = ready && !termsAccepted;
   const firstLaunchAuth =
     ready &&
     termsAccepted &&
     !authSeen &&
     isGuest &&
+    !isAdmin &&
     !authRedirectPending.current;
-  // Show full-screen onboarding (personalization) after auth, before the app.
   const firstLaunchOnboarding =
     ready &&
     termsAccepted &&
     authSeen &&
-    !onboardingDone;
+    !onboardingDone &&
+    !isAdmin;
   const onboardingGate = firstLaunchTerms || firstLaunchAuth || firstLaunchOnboarding;
   const showAuthOverlay = authOpen || firstLaunchAuth;
+  /**
+   * Signed-in members load `profiles.role` async. Until it arrives, avoid
+   * flashing the museum UI for an account that may turn out to be admin.
+   */
+  const rolePending = ready && !isGuest && profile === null;
+  /** Admin accounts never see Narsil / Discover / Profile — only the dashboard. */
+  const adminMode = ready && isAdmin && termsAccepted;
+  const memberApp = ready && !isAdmin && !rolePending;
 
   // Auto-open the onboarding preference flow after auth is done.
   const onboardingPrefsTriggered = useRef(false);
@@ -143,19 +153,20 @@ export default function MobileShell() {
     }
   }, [firstLaunchOnboarding, tutorialActive]);
 
-  // Music prompt after the full onboarding is done.
+  // Music prompt after the full onboarding is done (members only).
   useEffect(() => {
     if (
       ready &&
       termsAccepted &&
       authSeen &&
       onboardingDone &&
+      !isAdmin &&
       !promptSeen &&
       !musicPromptOpen
     ) {
       setMusicPromptOpen(true);
     }
-  }, [ready, termsAccepted, authSeen, onboardingDone, promptSeen, musicPromptOpen]);
+  }, [ready, termsAccepted, authSeen, onboardingDone, isAdmin, promptSeen, musicPromptOpen]);
 
   useEffect(() => {
     const ids = [...saved, ...liked];
@@ -206,7 +217,7 @@ export default function MobileShell() {
     // Wait for the catalog before deciding the id is unknown.
     if (getArtwork(id)) {
       deepLinkConsumed.current = true;
-      openArtwork(id);
+      if (!isAdmin) openArtwork(id);
     } else if (catalogLoading) {
       return;
     } else {
@@ -216,7 +227,7 @@ export default function MobileShell() {
     const query = params.toString();
     const cleaned = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`;
     window.history.replaceState({}, "", cleaned);
-  }, [getArtwork, catalogLoading, openArtwork]);
+  }, [getArtwork, catalogLoading, openArtwork, isAdmin]);
 
   const navigate = useCallback(
     (next: Screen) => {
@@ -386,7 +397,14 @@ export default function MobileShell() {
     ? getArtist(activeArtwork.artistId)
     : undefined;
 
-  const showChrome = !clean && !tutorialActive && termsAccepted && !onboardingGate && onboardingDone;
+  const showChrome =
+    memberApp &&
+    !adminMode &&
+    !clean &&
+    !tutorialActive &&
+    termsAccepted &&
+    !onboardingGate &&
+    onboardingDone;
 
   return (
     <div
@@ -414,14 +432,21 @@ export default function MobileShell() {
           )}
         </AnimatePresence>
 
-        {/* Screens — mount when ready so the catalog can warm behind onboarding,
-            but stay visually hidden until Terms + first-launch auth are done. */}
+        {/* Screens — admins get the dashboard only; members get the museum. */}
         <div
           className={`absolute inset-0 bg-ink ${onboardingGate ? "invisible pointer-events-none" : ""}`}
           aria-hidden={onboardingGate}
           inert={onboardingGate ? true : undefined}
         >
-          {ready && (
+          {ready && adminMode && (
+            <div className="absolute inset-0">
+              <Suspense fallback={null}>
+                <AdminView showToast={showToast} />
+              </Suspense>
+            </div>
+          )}
+
+          {ready && memberApp && !adminMode && (
             <>
           {visitedScreens.has("for-you") && (
             <div
@@ -534,12 +559,10 @@ export default function MobileShell() {
           {visitedScreens.has("you") && (
             <div
               className={
-                screen === "you" && !adminOpen
-                  ? "absolute inset-0"
-                  : "hidden"
+                screen === "you" ? "absolute inset-0" : "hidden"
               }
-              aria-hidden={screen !== "you" || adminOpen}
-              inert={screen !== "you" || adminOpen ? true : undefined}
+              aria-hidden={screen !== "you"}
+              inert={screen !== "you" ? true : undefined}
             >
               <Suspense fallback={null}>
                 <YouView
@@ -556,22 +579,9 @@ export default function MobileShell() {
                   onNavigate={navigate}
                   onSignIn={() => setAuthOpen(true)}
                   onOpenTerms={() => setTermsReview(true)}
-                  onOpenAdmin={() => setAdminOpen(true)}
                   onOpenQuiz={() => setQuizOpen(true)}
                   quizRefresh={quizRefresh}
                   onQuizReset={() => setQuizRefresh((t) => t + 1)}
-                  isAdmin={isAdmin}
-                  showToast={showToast}
-                />
-              </Suspense>
-            </div>
-          )}
-
-          {screen === "you" && adminOpen && (
-            <div className="absolute inset-0">
-              <Suspense fallback={null}>
-                <AdminView
-                  onBack={() => setAdminOpen(false)}
                   showToast={showToast}
                 />
               </Suspense>
@@ -602,7 +612,7 @@ export default function MobileShell() {
 
         {/* One age in full. Sits under the profile/viewer so anything opened
             from an era's list stacks on top of it. */}
-        {activeEraId && (
+        {!adminMode && memberApp && activeEraId && (
           <Suspense fallback={null}>
             <EraScreen
               era={historyEras.find((e) => e.id === activeEraId) ?? null}
@@ -613,7 +623,7 @@ export default function MobileShell() {
           </Suspense>
         )}
 
-        {quizOpen && (
+        {!adminMode && memberApp && quizOpen && (
           <Suspense fallback={null}>
             <QuizOverlay
               open
@@ -626,7 +636,7 @@ export default function MobileShell() {
           </Suspense>
         )}
 
-        {activeArtist && (
+        {!adminMode && memberApp && activeArtist && (
           <Suspense fallback={null}>
             <ArtistProfileModal
               artist={activeArtist}
@@ -636,7 +646,7 @@ export default function MobileShell() {
           </Suspense>
         )}
 
-        {activeArtwork && activeArtworkArtist && (
+        {!adminMode && memberApp && activeArtwork && activeArtworkArtist && (
           <Suspense fallback={null}>
             <ArtworkViewer
               artwork={activeArtwork}
@@ -669,7 +679,7 @@ export default function MobileShell() {
           )}
         </AnimatePresence>
 
-        {downloadRequest && (
+        {!adminMode && memberApp && downloadRequest && (
           <Suspense fallback={null}>
             <DownloadSheet
               artwork={downloadRequest}
@@ -679,7 +689,7 @@ export default function MobileShell() {
           </Suspense>
         )}
 
-        {proPrompt && (
+        {!adminMode && memberApp && proPrompt && (
           <Suspense fallback={null}>
             <ProPaywall
               reason={proPrompt}
@@ -695,7 +705,7 @@ export default function MobileShell() {
         )}
 
         <AnimatePresence>
-          {musicPromptOpen && (
+          {!adminMode && memberApp && musicPromptOpen && (
             <Suspense fallback={null}>
               <MusicPrompt
                 onEnable={() => {
@@ -725,27 +735,31 @@ export default function MobileShell() {
           )}
         </AnimatePresence>
 
-        <Suspense fallback={null}>
-          <PreferenceModal
-            open={prefsOpen}
-            onboarding={!prefsManual && !onboardingDone}
-            initial={preferences}
-            onSave={handleSavePrefs}
-            onSkip={handleSkipPrefs}
-          />
-        </Suspense>
+        {!adminMode && memberApp && (
+          <Suspense fallback={null}>
+            <PreferenceModal
+              open={prefsOpen}
+              onboarding={!prefsManual && !onboardingDone}
+              initial={preferences}
+              onSave={handleSavePrefs}
+              onSkip={handleSkipPrefs}
+            />
+          </Suspense>
+        )}
 
-        <Suspense fallback={null}>
-          <TutorialCoach
-            open={tutorialActive}
-            step={tutorialStep}
-            advancing={advancing}
-            onSkip={endTutorial}
-            onStart={endTutorial}
-            onAdvance={() => reportGesture("actions")}
-            onUnlockPro={handleUnlockPro}
-          />
-        </Suspense>
+        {!adminMode && memberApp && (
+          <Suspense fallback={null}>
+            <TutorialCoach
+              open={tutorialActive}
+              step={tutorialStep}
+              advancing={advancing}
+              onSkip={endTutorial}
+              onStart={endTutorial}
+              onAdvance={() => reportGesture("actions")}
+              onUnlockPro={handleUnlockPro}
+            />
+          </Suspense>
+        )}
       </div>
     </div>
   );

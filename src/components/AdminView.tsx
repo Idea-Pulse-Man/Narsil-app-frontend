@@ -1,10 +1,9 @@
 /**
- * Admin dashboard shell — Overview / Artworks / Orders / Inbox.
+ * Admin-only app shell — Overview / Artworks / Orders / Users / Inbox.
  *
- * The tabs are a convenience only. Every action behind them is authorised
- * server-side by RLS policies and security-definer RPCs (see
- * `supabase/admin-dashboard.sql`), so a user who forces this screen open gets
- * errors rather than access.
+ * Mounted instead of the member museum (Narsil / Discover / …) when
+ * `profile.role === 'admin'`. RLS still gates every write; this UI is only a
+ * convenience. Members never see this screen.
  */
 
 import { useState } from "react";
@@ -13,17 +12,19 @@ import AdminArtworks from "./AdminArtworks";
 import AdminInbox from "./AdminInbox";
 import AdminOrders from "./AdminOrders";
 import AdminOverview from "./AdminOverview";
+import AdminUsers from "./AdminUsers";
 import { screenScrollClass, screenContentClass } from "./artwork-layout";
 import { FilterTabs } from "./admin-ui";
 import type { CanvasOrderStatus } from "@/lib/orders";
 import type { ToastState } from "./Toast";
 
-type AdminTab = "overview" | "artworks" | "orders" | "inbox";
+type AdminTab = "overview" | "artworks" | "orders" | "users" | "inbox";
 
 const TABS: { id: AdminTab; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "artworks", label: "Artworks" },
   { id: "orders", label: "Orders" },
+  { id: "users", label: "Users" },
   { id: "inbox", label: "Inbox" },
 ];
 
@@ -31,21 +32,20 @@ const HINTS: Record<AdminTab, string> = {
   overview: "Narsil users, daily sign-ins and subscriptions.",
   artworks: "Approve member uploads, feature, hide, or take a work down.",
   orders: "Track the canvas pipeline and unstick failed fulfilments.",
+  users: "Promote admins and suspend accounts that break the rules.",
   inbox: "Reply to member live chat. Email stays in your mail app.",
 };
 
 interface AdminViewProps {
-  onBack: () => void;
   showToast: (message: string, variant?: ToastState["variant"]) => void;
 }
 
-export default function AdminView({ onBack, showToast }: AdminViewProps) {
-  const { isAdmin } = useAppState();
+export default function AdminView({ showToast }: AdminViewProps) {
+  const { isAdmin, signOut } = useAppState();
   const [tab, setTab] = useState<AdminTab>("overview");
-  // Set when the Overview deep-links into a specific pipeline stage.
   const [orderStatus, setOrderStatus] = useState<CanvasOrderStatus | "all">("all");
-  // Remounts AdminOrders so a deep link re-applies its initial filter.
   const [orderKey, setOrderKey] = useState(0);
+  const [signingOut, setSigningOut] = useState(false);
 
   const jumpToOrders = (status: CanvasOrderStatus | "all") => {
     setOrderStatus(status);
@@ -53,18 +53,39 @@ export default function AdminView({ onBack, showToast }: AdminViewProps) {
     setTab("orders");
   };
 
+  const handleSignOut = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      await signOut();
+      showToast("Signed out");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Sign out failed", "error");
+    } finally {
+      setSigningOut(false);
+    }
+  };
+
   return (
     <div className={screenScrollClass}>
-      <div className={screenContentClass}>
-        <button
-          type="button"
-          onClick={onBack}
-          className="text-sm text-white/55 hover:text-white"
-        >
-          ← Back
-        </button>
-        <h1 className="mt-3 font-serif text-2xl text-white">Admin</h1>
-        <p className="mt-1 text-sm text-white/50">{HINTS[tab]}</p>
+      <div className={`${screenContentClass} !pb-[calc(env(safe-area-inset-bottom)+2rem)]`}>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
+              Narsil
+            </p>
+            <h1 className="mt-2 font-serif text-2xl text-white">Admin</h1>
+            <p className="mt-1 text-sm text-white/50">{HINTS[tab]}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void handleSignOut()}
+            disabled={signingOut}
+            className="shrink-0 rounded-full border border-white/15 px-3 py-1.5 text-xs text-white/70 disabled:opacity-40"
+          >
+            {signingOut ? "…" : "Sign out"}
+          </button>
+        </div>
 
         {!isAdmin ? (
           <p className="mt-8 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-white/55">
@@ -85,6 +106,7 @@ export default function AdminView({ onBack, showToast }: AdminViewProps) {
                 showToast={showToast}
               />
             )}
+            {tab === "users" && <AdminUsers showToast={showToast} />}
             {tab === "inbox" && <AdminInbox showToast={showToast} />}
           </>
         )}

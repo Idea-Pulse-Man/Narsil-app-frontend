@@ -31,13 +31,11 @@ interface YouViewProps {
   onNavigate: (screen: Screen) => void;
   onSignIn: () => void;
   onOpenTerms: () => void;
-  onOpenAdmin: () => void;
   onOpenQuiz: () => void;
   /** Bumped when the quiz overlay closes so the streak re-reads. */
   quizRefresh: number;
   /** Called after the quiz streak is reset so entry cards re-read it. */
   onQuizReset: () => void;
-  isAdmin: boolean;
   showToast: (message: string, variant?: ToastState["variant"]) => void;
 }
 
@@ -49,11 +47,9 @@ export default function YouView({
   onNavigate,
   onSignIn,
   onOpenTerms,
-  onOpenAdmin,
   onOpenQuiz,
   quizRefresh,
   onQuizReset,
-  isAdmin,
   showToast,
 }: YouViewProps) {
   const {
@@ -456,7 +452,6 @@ export default function YouView({
               destructive
             />
           )}
-          {isAdmin && <Row label="Admin dashboard" onClick={onOpenAdmin} />}
           {!isGuest && (
             <Row label="Sign out" onClick={handleSignOut} destructive />
           )}
