@@ -16,6 +16,7 @@ import {
   mergeSupportMessages,
   type SupportMessage,
 } from "@/lib/support";
+import SupportChatTranscript from "./SupportChatTranscript";
 import { CloseIcon } from "./Icons";
 import type { ToastState } from "./Toast";
 
@@ -228,18 +229,12 @@ export default function ContactAdminSheet({
                       No messages yet. Say hello — an admin will reply here.
                     </p>
                   )}
-                  {messages.map((m) => (
-                    <div
-                      key={m.id}
-                      className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm ${
-                        m.from_admin
-                          ? "mr-auto border border-white/10 bg-white/[0.06] text-white/85"
-                          : "ml-auto bg-accent text-ink"
-                      }`}
-                    >
-                      {m.body}
-                    </div>
-                  ))}
+                  {!loading && messages.length > 0 && (
+                    <SupportChatTranscript
+                      messages={messages}
+                      perspective="member"
+                    />
+                  )}
                   <div ref={bottomRef} />
                 </div>
 

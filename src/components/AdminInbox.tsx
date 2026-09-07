@@ -14,6 +14,7 @@ import {
   type SupportMessage,
   type SupportThreadSummary,
 } from "@/lib/support";
+import SupportChatTranscript from "./SupportChatTranscript";
 import { AdminState, fmtDate } from "./admin-ui";
 import type { ToastState } from "./Toast";
 
@@ -156,19 +157,9 @@ export default function AdminInbox({
           {threadLoading && (
             <p className="py-6 text-center text-sm text-white/40">Loading…</p>
           )}
-          {!threadLoading &&
-            messages.map((m) => (
-              <div
-                key={m.id}
-                className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
-                  m.from_admin
-                    ? "ml-auto bg-white text-ink"
-                    : "mr-auto border border-white/10 bg-white/[0.06] text-white/85"
-                }`}
-              >
-                {m.body}
-              </div>
-            ))}
+          {!threadLoading && messages.length > 0 && (
+            <SupportChatTranscript messages={messages} perspective="admin" />
+          )}
           <div ref={bottomRef} />
         </div>
 
