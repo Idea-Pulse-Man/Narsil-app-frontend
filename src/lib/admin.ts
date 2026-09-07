@@ -51,18 +51,29 @@ async function rpcPage<T>(
 
 export interface AdminDayCount {
   day: string;
-  count: number;
+  /** Legacy single series (subscriptions / signups). */
+  count?: number;
+  /** Registered members who signed in that day (UTC). */
+  members?: number;
+  /** Anonymous / no-email guests who signed in that day (UTC). */
+  guests?: number;
 }
 
 export interface AdminStats {
+  /** Registered members only — guests are not counted here. */
   users: number;
-  /** New profiles created today (UTC). */
+  /** New member profiles created today (UTC). */
   users_today?: number;
-  /** New profiles created yesterday (UTC). */
+  /** New member profiles created yesterday (UTC). */
   users_yesterday?: number;
   /** users_today − users_yesterday. */
   users_delta?: number;
+  /** Guest accounts (anonymous / no email) — informational only. */
+  guests?: number;
+  guests_today?: number;
   signins_today?: number;
+  signins_members_today?: number;
+  signins_guests_today?: number;
   signins_yesterday?: number;
   signins_delta?: number;
   admins: number;

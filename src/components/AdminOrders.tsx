@@ -1,13 +1,7 @@
 /**
  * Admin dashboard — Canvas orders tab. Read every order (RLS normally scopes
- * them to the buyer), filter by pipeline stage, and act on the ones that are
- * stuck:
- *
- *  • Retry fulfilment — re-verifies the PaymentIntent with Stripe and creates
- *    the Printful order. Goes through the backend because it needs server
- *    secrets; use it on `fulfillment_failed` and on orders stranded in `paid`.
- *  • Status / tracking — manual overrides for when Printful's webhook can't
- *    deliver (refund issued, tracking relayed by support).
+ * them to the buyer), filter by pipeline stage, and act with clear chips:
+ * Decline, Mark shipped / completed, Retry fulfilment, plus status + tracking.
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -40,6 +34,18 @@ const FILTERS: { id: StatusFilter; label: string }[] = [
 
 /** Fulfilment can be re-driven only once money is captured. */
 const RETRYABLE: CanvasOrderStatus[] = ["paid", "fulfillment_failed"];
+
+/** Decline / cancel before the print is far along. */
+const DECLINABLE: CanvasOrderStatus[] = [
+  "registered",
+  "pending_payment",
+  "paid",
+  "fulfillment_failed",
+  "submitted",
+];
+
+const SHIPPABLE: CanvasOrderStatus[] = ["paid", "submitted", "fulfillment_failed"];
+const COMPLETABLE: CanvasOrderStatus[] = ["shipped"];
 
 interface AdminOrdersProps {
   initialStatus?: StatusFilter;
@@ -94,7 +100,9 @@ export default function AdminOrders({
         status: next,
         ...(next === "shipped" ? { shipped_at: new Date().toISOString() } : {}),
       });
-      showToast(`Marked ${statusLabel(next)}`);
+      showToast(
+        next === "cancelled" ? "Order declined" : `Marked ${statusLabel(next)}`,
+      );
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Update failed.", "error");
     } finally {
@@ -131,7 +139,6 @@ export default function AdminOrders({
       const next = await retryFulfillment(row.id);
       patchRow(row.id, { status: next });
       showToast(`Fulfilment ${statusLabel(next)}`);
-      // The backend also writes printful_order_id / fulfillment_error.
       await load();
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Retry failed.", "error");
@@ -211,12 +218,18 @@ function OrderCard({
 }) {
   const [number, setNumber] = useState(row.tracking_number ?? "");
   const [url, setUrl] = useState(row.tracking_url ?? "");
+  const [confirmDecline, setConfirmDecline] = useState(false);
 
-  // Re-sync when a reload (e.g. after a retry) brings fresh tracking values.
   useEffect(() => {
     setNumber(row.tracking_number ?? "");
     setUrl(row.tracking_url ?? "");
-  }, [row.tracking_number, row.tracking_url]);
+    setConfirmDecline(false);
+  }, [row.tracking_number, row.tracking_url, row.status]);
+
+  const canDecline = DECLINABLE.includes(row.status);
+  const canShip = SHIPPABLE.includes(row.status);
+  const canComplete = COMPLETABLE.includes(row.status);
+  const canRetry = RETRYABLE.includes(row.status);
 
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.04]">
@@ -245,6 +258,77 @@ function OrderCard({
 
       {open && (
         <div className="border-t border-white/8 p-3.5">
+          {/* Quick actions — primary admin controls */}
+          <div className="mb-4">
+            <p className="mb-2 text-[11px] uppercase tracking-wide text-white/40">
+              Actions
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {canRetry && (
+                <ActionChip
+                  disabled={busy}
+                  onClick={onRetry}
+                  tone="primary"
+                  label={busy ? "Working…" : "Retry fulfilment"}
+                />
+              )}
+              {canShip && (
+                <ActionChip
+                  disabled={busy}
+                  onClick={() => onStatus("shipped")}
+                  tone="sky"
+                  label="Mark shipped"
+                />
+              )}
+              {canComplete && (
+                <ActionChip
+                  disabled={busy}
+                  onClick={() => onStatus("completed")}
+                  tone="good"
+                  label="Mark completed"
+                />
+              )}
+              {row.status === "pending_payment" && (
+                <ActionChip
+                  disabled={busy}
+                  onClick={() => onStatus("paid")}
+                  tone="amber"
+                  label="Mark paid"
+                />
+              )}
+              {canDecline && !confirmDecline && (
+                <ActionChip
+                  disabled={busy}
+                  onClick={() => setConfirmDecline(true)}
+                  tone="danger"
+                  label="Decline"
+                />
+              )}
+              {canDecline && confirmDecline && (
+                <>
+                  <ActionChip
+                    disabled={busy}
+                    onClick={() => onStatus("cancelled")}
+                    tone="danger"
+                    label="Confirm decline"
+                  />
+                  <ActionChip
+                    disabled={busy}
+                    onClick={() => setConfirmDecline(false)}
+                    tone="muted"
+                    label="Keep order"
+                  />
+                </>
+              )}
+            </div>
+            {canDecline && !confirmDecline && (
+              <p className="mt-2 text-[11px] text-white/35">
+                Decline sets status to cancelled. Use for refunds or rejected
+                prints.
+              </p>
+            )}
+          </div>
+
           {row.fulfillment_error && (
             <p className="mb-3 rounded-xl border border-red-400/25 bg-red-500/10 p-2.5 text-[11px] text-red-200">
               {row.fulfillment_error}
@@ -306,20 +390,41 @@ function OrderCard({
             >
               Save tracking
             </button>
-            {RETRYABLE.includes(row.status) && (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={onRetry}
-                className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-ink disabled:opacity-40"
-              >
-                {busy ? "Working…" : "Retry fulfilment"}
-              </button>
-            )}
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+function ActionChip({
+  label,
+  onClick,
+  disabled,
+  tone,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  tone: "primary" | "sky" | "good" | "amber" | "danger" | "muted";
+}) {
+  const styles: Record<typeof tone, string> = {
+    primary: "bg-white text-ink",
+    sky: "border border-sky-400/30 bg-sky-400/15 text-sky-100",
+    good: "border border-emerald-400/30 bg-emerald-400/15 text-emerald-100",
+    amber: "border border-amber-300/30 bg-amber-400/15 text-amber-100",
+    danger: "border border-red-400/35 bg-red-500/15 text-red-100",
+    muted: "border border-white/15 text-white/65",
+  };
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={`rounded-full px-3 py-1.5 text-xs font-medium disabled:opacity-40 ${styles[tone]}`}
+    >
+      {label}
+    </button>
   );
 }
 

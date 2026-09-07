@@ -61,8 +61,17 @@ export default function AdminUsers({ showToast }: AdminUsersProps) {
         offset,
         limit: ADMIN_PAGE_SIZE,
       });
-      setRows(page.rows);
-      setTotal(page.total);
+      // Guests (anonymous / no email) are not real users — hide even if SQL
+      // exclude script has not been applied yet.
+      const members = page.rows.filter(
+        (r) => !!r.email && r.email.trim().length > 0,
+      );
+      setRows(members);
+      setTotal(
+        members.length === page.rows.length
+          ? page.total
+          : Math.max(0, page.total - (page.rows.length - members.length)),
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load users.");
       setRows([]);
