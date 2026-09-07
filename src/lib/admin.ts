@@ -49,11 +49,31 @@ async function rpcPage<T>(
 
 // ── Overview ───────────────────────────────────────────────────────────────
 
+export interface AdminDayCount {
+  day: string;
+  count: number;
+}
+
 export interface AdminStats {
   users: number;
+  /** New profiles created today (UTC). */
+  users_today?: number;
+  /** New profiles created yesterday (UTC). */
+  users_yesterday?: number;
+  /** users_today − users_yesterday. */
+  users_delta?: number;
+  signins_today?: number;
+  signins_yesterday?: number;
+  signins_delta?: number;
   admins: number;
   suspended: number;
   new_users_7d: number;
+  subscribers_active?: number;
+  subscribers_today?: number;
+  subscribers_yesterday?: number;
+  signins_by_day?: AdminDayCount[];
+  subscriptions_by_day?: AdminDayCount[];
+  signups_by_day?: AdminDayCount[];
   artworks: number;
   hidden: number;
   featured: number;

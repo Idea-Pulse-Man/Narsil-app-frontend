@@ -1,5 +1,5 @@
 /**
- * Admin dashboard shell — Overview / Artworks / Orders / Users.
+ * Admin dashboard shell — Overview / Artworks / Orders / Inbox.
  *
  * The tabs are a convenience only. Every action behind them is authorised
  * server-side by RLS policies and security-definer RPCs (see
@@ -13,27 +13,24 @@ import AdminArtworks from "./AdminArtworks";
 import AdminInbox from "./AdminInbox";
 import AdminOrders from "./AdminOrders";
 import AdminOverview from "./AdminOverview";
-import AdminUsers from "./AdminUsers";
 import { screenScrollClass, screenContentClass } from "./artwork-layout";
 import { FilterTabs } from "./admin-ui";
 import type { CanvasOrderStatus } from "@/lib/orders";
 import type { ToastState } from "./Toast";
 
-type AdminTab = "overview" | "artworks" | "orders" | "users" | "inbox";
+type AdminTab = "overview" | "artworks" | "orders" | "inbox";
 
 const TABS: { id: AdminTab; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "artworks", label: "Artworks" },
   { id: "orders", label: "Orders" },
-  { id: "users", label: "Users" },
   { id: "inbox", label: "Inbox" },
 ];
 
 const HINTS: Record<AdminTab, string> = {
-  overview: "Catalog, accounts and canvas revenue at a glance.",
+  overview: "Narsil users, daily sign-ins and subscriptions.",
   artworks: "Approve member uploads, feature, hide, or take a work down.",
   orders: "Track the canvas pipeline and unstick failed fulfilments.",
-  users: "Promote admins and suspend accounts that break the rules.",
   inbox: "Reply to member live chat. Email stays in your mail app.",
 };
 
@@ -88,7 +85,6 @@ export default function AdminView({ onBack, showToast }: AdminViewProps) {
                 showToast={showToast}
               />
             )}
-            {tab === "users" && <AdminUsers showToast={showToast} />}
             {tab === "inbox" && <AdminInbox showToast={showToast} />}
           </>
         )}

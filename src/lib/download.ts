@@ -46,6 +46,34 @@ export function buildArtworkShareUrl(artworkId: string): string {
 }
 
 /**
+ * Chrome/Edge on Windows desktop expose `navigator.share`, but that opens the
+ * OS "Share link" overlay. That sheet often never finishes loading (grey
+ * placeholders) and stays modal, so the app looks frozen. Copy the link
+ * instead; native Capacitor / mobile Web Share still use the system sheet.
+ */
+function windowsShareSheetIsUnreliable(): boolean {
+  if (typeof navigator === "undefined") return false;
+  if (Capacitor.isNativePlatform()) return false;
+  return /Windows/i.test(navigator.userAgent) && !/Mobile/i.test(navigator.userAgent);
+}
+
+function isShareAbort(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "name" in err &&
+    (err as { name: string }).name === "AbortError"
+  );
+}
+
+async function copyShareLink(url: string, showToast: ShowToast): Promise<boolean> {
+  if (typeof navigator === "undefined" || !navigator.clipboard || !url) return false;
+  await navigator.clipboard.writeText(url);
+  showToast("Link copied to clipboard");
+  return true;
+}
+
+/**
  * Share an artwork via the native share sheet when available, otherwise copy a
  * deep link to the clipboard. The shared URL opens straight into this artwork.
  */
@@ -55,35 +83,44 @@ export async function shareArtwork(
   showToast: ShowToast,
 ): Promise<void> {
   const url = buildArtworkShareUrl(artworkId);
+  const payload = {
+    title: artworkTitle,
+    text: `${artworkTitle} — on Narsil`,
+    url,
+  };
+
   try {
     if (Capacitor.isNativePlatform()) {
       const { value } = await Share.canShare();
       if (value) {
         await Share.share({
-          title: artworkTitle,
-          text: `${artworkTitle} — on Narsil`,
-          url,
+          ...payload,
           dialogTitle: "Share artwork",
         });
         return;
       }
     }
-    if (typeof navigator !== "undefined" && navigator.share) {
-      await navigator.share({
-        title: artworkTitle,
-        text: `${artworkTitle} — on Narsil`,
-        url,
-      });
+
+    if (
+      typeof navigator !== "undefined" &&
+      typeof navigator.share === "function" &&
+      !windowsShareSheetIsUnreliable()
+    ) {
+      await navigator.share(payload);
       return;
     }
-    if (typeof navigator !== "undefined" && navigator.clipboard && url) {
-      await navigator.clipboard.writeText(url);
-      showToast("Link copied to clipboard");
-      return;
+
+    if (await copyShareLink(url, showToast)) return;
+    showToast("Sharing isn't available here");
+  } catch (err) {
+    // User dismissed the native share sheet — no toast needed.
+    if (isShareAbort(err)) return;
+    try {
+      if (await copyShareLink(url, showToast)) return;
+    } catch {
+      /* clipboard may also be blocked */
     }
     showToast("Sharing isn't available here");
-  } catch {
-    // User dismissed the native share sheet — no toast needed.
   }
 }
 

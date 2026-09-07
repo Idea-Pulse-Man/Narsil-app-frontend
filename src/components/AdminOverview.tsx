@@ -1,11 +1,15 @@
 /**
- * Admin dashboard — Overview tab. One `admin_stats()` round trip: catalog +
- * user counts, order pipeline and revenue split. The "needs attention" tile is
- * the actionable one; it deep-links into the Orders tab.
+ * Admin dashboard — Overview. First board is Narsil membership (total users +
+ * today vs yesterday), then daily sign-in and subscription charts. Catalog /
+ * order alerts stay below. The Users management tab is not linked from here.
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { fetchAdminStats, type AdminStats } from "@/lib/admin";
+import {
+  fetchAdminStats,
+  type AdminDayCount,
+  type AdminStats,
+} from "@/lib/admin";
 import type { CanvasOrderStatus } from "@/lib/orders";
 import {
   AdminCard,
@@ -51,33 +55,104 @@ export default function AdminOverview({ onJumpToOrders }: AdminOverviewProps) {
   );
   if (gate || !stats) return <div className="mt-6">{gate}</div>;
 
+  const usersToday = stats.users_today ?? 0;
+  const usersYesterday = stats.users_yesterday ?? 0;
+  const usersDelta = stats.users_delta ?? usersToday - usersYesterday;
+  const signinsToday = stats.signins_today ?? 0;
+  const signinsDelta = stats.signins_delta ?? 0;
+  const subsActive = stats.subscribers_active ?? 0;
+  const subsToday = stats.subscribers_today ?? 0;
+  const subsYesterday = stats.subscribers_yesterday ?? 0;
+
   const pipeline = Object.entries(stats.orders_by_status).sort(
     (a, b) => b[1] - a[1],
   );
 
   return (
     <>
-      {stats.needs_attention > 0 && (
-        <button
-          type="button"
-          onClick={() => onJumpToOrders("fulfillment_failed")}
-          className="mt-6 flex w-full items-center justify-between rounded-2xl border border-red-400/25 bg-red-500/10 px-4 py-3.5 text-left"
-        >
-          <span className="text-sm text-red-100">
-            {stats.needs_attention} order
-            {stats.needs_attention === 1 ? "" : "s"} need fulfilment
-          </span>
-          <span className="text-red-200/60">›</span>
-        </button>
-      )}
+      {/* ── First board: Narsil users ─────────────────────────────────────── */}
+      <section className="mt-6">
+        <AdminCard className="bg-gradient-to-br from-white/[0.07] to-white/[0.02]">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
+            Narsil
+          </p>
+          <p className="mt-2 font-serif text-4xl text-white">{stats.users}</p>
+          <p className="mt-1 text-sm text-white/55">Total users</p>
+          <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
+            <DeltaPill
+              label="vs yesterday"
+              delta={usersDelta}
+              hint={`Today ${usersToday} · Yesterday ${usersYesterday}`}
+            />
+            <span className="rounded-full border border-white/12 px-3 py-1 text-xs text-white/60">
+              Today new · {usersToday}
+            </span>
+            <span className="rounded-full border border-white/12 px-3 py-1 text-xs text-white/60">
+              Sign-ins today · {signinsToday}
+              {signinsDelta !== 0 && (
+                <span className={signinsDelta > 0 ? " text-emerald-300" : " text-red-300"}>
+                  {" "}
+                  ({fmtDelta(signinsDelta)})
+                </span>
+              )}
+            </span>
+          </div>
+        </AdminCard>
+      </section>
 
-      {(stats.pending_approvals ?? 0) > 0 && (
-        <div className="mt-3 rounded-2xl border border-amber-300/25 bg-amber-400/10 px-4 py-3.5 text-sm text-amber-100">
-          {stats.pending_approvals} upload
-          {stats.pending_approvals === 1 ? "" : "s"} waiting for approval — open
-          Artworks → Pending.
+      <div className="mt-3 grid grid-cols-2 gap-3">
+        <Stat label="New today" value={usersToday} />
+        <Stat label="New yesterday" value={usersYesterday} />
+        <Stat label="Guild (Pro)" value={subsActive} />
+        <Stat label="New Pro today" value={subsToday} />
+      </div>
+
+      {(stats.needs_attention > 0 || (stats.pending_approvals ?? 0) > 0) && (
+        <div className="mt-4 space-y-2">
+          {stats.needs_attention > 0 && (
+            <button
+              type="button"
+              onClick={() => onJumpToOrders("fulfillment_failed")}
+              className="flex w-full items-center justify-between rounded-2xl border border-red-400/25 bg-red-500/10 px-4 py-3.5 text-left"
+            >
+              <span className="text-sm text-red-100">
+                {stats.needs_attention} order
+                {stats.needs_attention === 1 ? "" : "s"} need fulfilment
+              </span>
+              <span className="text-red-200/60">›</span>
+            </button>
+          )}
+          {(stats.pending_approvals ?? 0) > 0 && (
+            <div className="rounded-2xl border border-amber-300/25 bg-amber-400/10 px-4 py-3.5 text-sm text-amber-100">
+              {stats.pending_approvals} upload
+              {stats.pending_approvals === 1 ? "" : "s"} waiting for approval —
+              open Artworks → Pending.
+            </div>
+          )}
         </div>
       )}
+
+      <AdminSection
+        title="Sign-ins"
+        hint="Users whose last sign-in fell on each day (UTC) · last 14 days."
+      >
+        <DayChart
+          series={stats.signins_by_day ?? []}
+          empty="No sign-in activity in this window."
+          barClass="bg-sky-400/80"
+        />
+      </AdminSection>
+
+      <AdminSection
+        title="Subscriptions"
+        hint={`New Guild rows per day · today ${subsToday} · yesterday ${subsYesterday}.`}
+      >
+        <DayChart
+          series={stats.subscriptions_by_day ?? []}
+          empty="No new subscriptions in this window."
+          barClass="bg-accent/90"
+        />
+      </AdminSection>
 
       <AdminSection title="Catalog">
         <div className="grid grid-cols-2 gap-3">
@@ -85,16 +160,6 @@ export default function AdminOverview({ onJumpToOrders }: AdminOverviewProps) {
           <Stat label="Pending" value={stats.pending_approvals ?? 0} />
           <Stat label="Featured" value={stats.featured} />
           <Stat label="Hidden" value={stats.hidden} />
-          <Stat label="For sale" value={stats.for_sale} />
-        </div>
-      </AdminSection>
-
-      <AdminSection title="Users">
-        <div className="grid grid-cols-2 gap-3">
-          <Stat label="Total" value={stats.users} />
-          <Stat label="New this week" value={stats.new_users_7d} />
-          <Stat label="Admins" value={stats.admins} />
-          <Stat label="Suspended" value={stats.suspended} />
         </div>
       </AdminSection>
 
@@ -131,6 +196,85 @@ export default function AdminOverview({ onJumpToOrders }: AdminOverviewProps) {
       </AdminSection>
     </>
   );
+}
+
+function fmtDelta(n: number): string {
+  if (n > 0) return `+${n}`;
+  return String(n);
+}
+
+function DeltaPill({
+  label,
+  delta,
+  hint,
+}: {
+  label: string;
+  delta: number;
+  hint: string;
+}) {
+  const tone =
+    delta > 0
+      ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200"
+      : delta < 0
+        ? "border-red-400/30 bg-red-400/10 text-red-200"
+        : "border-white/12 bg-white/[0.04] text-white/60";
+  return (
+    <span
+      title={hint}
+      className={`rounded-full border px-3 py-1 text-xs font-medium ${tone}`}
+    >
+      {label} {fmtDelta(delta)}
+    </span>
+  );
+}
+
+function DayChart({
+  series,
+  empty,
+  barClass,
+}: {
+  series: AdminDayCount[];
+  empty: string;
+  barClass: string;
+}) {
+  if (!series.length) {
+    return <p className="text-sm text-white/40">{empty}</p>;
+  }
+  const max = Math.max(1, ...series.map((p) => Number(p.count) || 0));
+  return (
+    <AdminCard className="!p-3">
+      <div className="flex h-36 items-end gap-1">
+        {series.map((p) => {
+          const n = Number(p.count) || 0;
+          const pct = Math.max(n > 0 ? 8 : 2, Math.round((n / max) * 100));
+          const label = shortDay(p.day);
+          return (
+            <div
+              key={p.day}
+              className="flex min-w-0 flex-1 flex-col items-center justify-end gap-1"
+              title={`${p.day}: ${n}`}
+            >
+              <span className="text-[10px] tabular-nums text-white/45">
+                {n > 0 ? n : ""}
+              </span>
+              <div
+                className={`w-full max-w-[18px] rounded-t-md ${barClass}`}
+                style={{ height: `${pct}%` }}
+              />
+              <span className="truncate text-[9px] text-white/35">{label}</span>
+            </div>
+          );
+        })}
+      </div>
+    </AdminCard>
+  );
+}
+
+function shortDay(iso: string): string {
+  // Expect "YYYY-MM-DD" (date cast to text from Postgres).
+  const parts = iso.slice(0, 10).split("-");
+  if (parts.length !== 3) return iso.slice(5, 10);
+  return `${parts[1]}/${parts[2]}`;
 }
 
 function Stat({ label, value }: { label: string; value: number | string }) {
