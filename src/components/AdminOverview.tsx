@@ -1,7 +1,7 @@
 /**
  * Admin dashboard — Overview. First board is Narsil membership (registered
  * members only), then separate Sign-in and Sign-up charts with their own
- * range filters (7 / 14 / 30 / 60 / 90 days), then subscriptions with the same
+ * range filters (7D–1Y compact chips), then subscriptions with the same
  * range controls, then catalog.
  */
 
@@ -24,14 +24,17 @@ interface AdminOverviewProps {
   onJumpToOrders: (status: CanvasOrderStatus | "all") => void;
 }
 
-type ChartRange = 7 | 14 | 30 | 60 | 90;
+type ChartRange = 7 | 14 | 30 | 60 | 90 | 180 | 365;
 
+/** Compact labels: days → D, months → M, year → Y (one scrollable row). */
 const RANGE_OPTIONS: { id: ChartRange; label: string }[] = [
-  { id: 7, label: "7 days" },
-  { id: 14, label: "14 days" },
-  { id: 30, label: "1 month" },
-  { id: 60, label: "2 months" },
-  { id: 90, label: "3 months" },
+  { id: 7, label: "7D" },
+  { id: 14, label: "14D" },
+  { id: 30, label: "1M" },
+  { id: 60, label: "2M" },
+  { id: 90, label: "3M" },
+  { id: 180, label: "6M" },
+  { id: 365, label: "1Y" },
 ];
 
 export default function AdminOverview({ onJumpToOrders }: AdminOverviewProps) {
@@ -304,13 +307,14 @@ function RangeTabs({
   onChange: (next: ChartRange) => void;
 }) {
   return (
-    <div className="-mx-1 flex flex-wrap gap-2">
+    <div className="-mx-1 flex flex-nowrap gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {RANGE_OPTIONS.map((opt) => (
         <button
           key={opt.id}
           type="button"
+          title={rangeTitle(opt.id)}
           onClick={() => onChange(opt.id)}
-          className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+          className={`shrink-0 rounded-full px-2.5 py-1.5 text-xs font-semibold tracking-wide transition-colors ${
             value === opt.id
               ? "bg-white text-ink"
               : "border border-white/12 text-white/60"
@@ -339,10 +343,28 @@ function sliceDays(series: AdminDayCount[], days: number): AdminDayCount[] {
 }
 
 function rangeCaption(days: ChartRange): string {
-  if (days === 30) return "1-month";
-  if (days === 60) return "2-month";
-  if (days === 90) return "3-month";
-  return `${days}-day`;
+  return RANGE_OPTIONS.find((o) => o.id === days)?.label ?? `${days}D`;
+}
+
+function rangeTitle(days: ChartRange): string {
+  switch (days) {
+    case 7:
+      return "Last 7 days";
+    case 14:
+      return "Last 14 days";
+    case 30:
+      return "Last 1 month";
+    case 60:
+      return "Last 2 months";
+    case 90:
+      return "Last 3 months";
+    case 180:
+      return "Last 6 months";
+    case 365:
+      return "Last 1 year";
+    default:
+      return `Last ${days} days`;
+  }
 }
 
 /** Dual-line chart for one metric: members (sky) + optional guests (amber). */
