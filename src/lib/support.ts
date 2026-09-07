@@ -8,7 +8,7 @@ import { supabase } from "./supabase";
 /** Support inbox address — override with VITE_SUPPORT_EMAIL. */
 export const SUPPORT_EMAIL =
   (import.meta.env.VITE_SUPPORT_EMAIL as string | undefined)?.trim() ||
-  "support@narsil.app";
+  "narsil.business@gmail.com";
 
 export interface SupportMessage {
   id: string;
