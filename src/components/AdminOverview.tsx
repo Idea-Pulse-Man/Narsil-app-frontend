@@ -1,8 +1,7 @@
 /**
  * Admin dashboard — Overview. First board is Narsil membership (registered
- * members only), then separate Sign-in and Sign-up charts with their own
- * range filters (7D–1Y compact chips), then subscriptions with the same
- * range controls, then catalog.
+ * members only), then one Sign-in + Sign-up chart (members only, two colors)
+ * with range chips (7D–1Y), then subscriptions with the same range controls.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -41,8 +40,7 @@ export default function AdminOverview({ onJumpToOrders }: AdminOverviewProps) {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [signinRange, setSigninRange] = useState<ChartRange>(14);
-  const [signupRange, setSignupRange] = useState<ChartRange>(14);
+  const [activityRange, setActivityRange] = useState<ChartRange>(14);
   const [subRange, setSubRange] = useState<ChartRange>(14);
 
   const load = useCallback(async () => {
@@ -81,9 +79,6 @@ export default function AdminOverview({ onJumpToOrders }: AdminOverviewProps) {
   const guestsTotal = stats.guests ?? 0;
   const guestsToday = stats.guests_today ?? 0;
   const signinsMembersToday = stats.signins_members_today ?? 0;
-  const signinsGuestsToday = stats.signins_guests_today ?? 0;
-  const signinsToday =
-    stats.signins_today ?? signinsMembersToday + signinsGuestsToday;
   const signinsDelta = stats.signins_delta ?? 0;
   const subsActive = stats.subscribers_active ?? 0;
   const subsToday = stats.subscribers_today ?? 0;
@@ -123,22 +118,13 @@ export default function AdminOverview({ onJumpToOrders }: AdminOverviewProps) {
             <span>
               Sign-ins today ·{" "}
               <span className="text-sky-200">{signinsMembersToday} members</span>
-              {" · "}
-              <span className="text-amber-200/90">{signinsGuestsToday} guests</span>
               {signinsDelta !== 0 && (
                 <span className={signinsDelta > 0 ? " text-emerald-300" : " text-red-300"}>
                   {" "}
-                  ({fmtDelta(signinsDelta)} total)
+                  ({fmtDelta(signinsDelta)} vs yesterday)
                 </span>
               )}
             </span>
-            {signinsToday > 0 &&
-              signinsMembersToday === 0 &&
-              signinsGuestsToday === 0 && (
-                <span className="text-white/40">
-                  · {signinsToday} (run guest SQL for split)
-                </span>
-              )}
           </div>
         </AdminCard>
       </section>
@@ -176,36 +162,16 @@ export default function AdminOverview({ onJumpToOrders }: AdminOverviewProps) {
       )}
 
       <AdminSection
-        title="Sign-in"
-        hint="Last sign-in per day (UTC) · members (blue) vs guests (amber)."
+        title="Sign-in & sign-up"
+        hint="Registered members only · blue = sign-in · amber = sign-up · guests excluded."
       >
-        <RangeTabs value={signinRange} onChange={setSigninRange} />
+        <RangeTabs value={activityRange} onChange={setActivityRange} />
         <div className="mt-3">
-          <MemberGuestLineChart
-            series={stats.signins_by_day ?? []}
-            days={signinRange}
-            empty="No sign-ins in this window."
-            totalLabel="sign-ins"
-            guestNoteLabel="guest sign-ins"
-            ariaLabel="Daily sign-ins"
-          />
-        </div>
-      </AdminSection>
-
-      <AdminSection
-        title="Sign-up"
-        hint="New registered members created each day (UTC) · guests excluded."
-      >
-        <RangeTabs value={signupRange} onChange={setSignupRange} />
-        <div className="mt-3">
-          <MemberGuestLineChart
-            series={stats.signups_by_day ?? []}
-            days={signupRange}
-            empty="No member signups in this window."
-            totalLabel="member signups"
-            guestNoteLabel="guest signups"
-            ariaLabel="Daily member signups"
-            showGuests={false}
+          <SigninSignupLineChart
+            signins={stats.signins_by_day ?? []}
+            signups={stats.signups_by_day ?? []}
+            days={activityRange}
+            empty="No member activity in this window."
           />
         </div>
       </AdminSection>
@@ -332,10 +298,6 @@ function dayMembers(p: AdminDayCount): number {
   return Number(p.count) || 0;
 }
 
-function dayGuests(p: AdminDayCount): number {
-  return typeof p.guests === "number" ? p.guests : 0;
-}
-
 function sliceDays(series: AdminDayCount[], days: number): AdminDayCount[] {
   if (!series.length) return [];
   const sorted = [...series].sort((a, b) => a.day.localeCompare(b.day));
@@ -367,45 +329,54 @@ function rangeTitle(days: ChartRange): string {
   }
 }
 
-/** Dual-line chart for one metric: members (sky) + optional guests (amber). */
-function MemberGuestLineChart({
-  series,
+type ActivityDay = { day: string; signins: number; signups: number };
+
+function mergeMemberActivity(
+  signins: AdminDayCount[],
+  signups: AdminDayCount[],
+  days: ChartRange,
+): ActivityDay[] {
+  const byDay = new Map<string, ActivityDay>();
+  for (const p of sliceDays(signins, days)) {
+    byDay.set(p.day, { day: p.day, signins: dayMembers(p), signups: 0 });
+  }
+  for (const p of sliceDays(signups, days)) {
+    const prev = byDay.get(p.day);
+    const up = dayMembers(p);
+    if (prev) prev.signups = up;
+    else byDay.set(p.day, { day: p.day, signins: 0, signups: up });
+  }
+  return [...byDay.values()].sort((a, b) => a.day.localeCompare(b.day));
+}
+
+/** Members only: blue = sign-in, amber = sign-up. Guests excluded. */
+function SigninSignupLineChart({
+  signins,
+  signups,
   days,
   empty,
-  totalLabel,
-  guestNoteLabel,
-  ariaLabel,
-  showGuests = true,
 }: {
-  series: AdminDayCount[];
+  signins: AdminDayCount[];
+  signups: AdminDayCount[];
   days: ChartRange;
   empty: string;
-  totalLabel: string;
-  guestNoteLabel: string;
-  ariaLabel: string;
-  /** Sign-up charts pass false — only live registered members. */
-  showGuests?: boolean;
 }) {
-  const windowed = useMemo(() => sliceDays(series, days), [series, days]);
+  const series = useMemo(
+    () => mergeMemberActivity(signins, signups, days),
+    [signins, signups, days],
+  );
 
-  if (!windowed.length) {
+  if (!series.length) {
     return <p className="text-sm text-white/40">{empty}</p>;
   }
 
-  const members = windowed.map(dayMembers);
-  const guests = showGuests ? windowed.map(dayGuests) : windowed.map(() => 0);
-  const max = Math.max(1, ...members, ...(showGuests ? guests : []));
-  const membersTotal = members.reduce((a, b) => a + b, 0);
-  const guestsTotal = guests.reduce((a, b) => a + b, 0);
-  const headline = showGuests ? membersTotal + guestsTotal : membersTotal;
-  const peak = Math.max(
-    0,
-    ...(showGuests
-      ? members.map((m, i) => m + (guests[i] ?? 0))
-      : members),
-  );
-  const todayM = members[members.length - 1] ?? 0;
-  const todayG = guests[guests.length - 1] ?? 0;
+  const inVals = series.map((p) => p.signins);
+  const upVals = series.map((p) => p.signups);
+  const max = Math.max(1, ...inVals, ...upVals);
+  const inTotal = inVals.reduce((a, b) => a + b, 0);
+  const upTotal = upVals.reduce((a, b) => a + b, 0);
+  const todayIn = inVals[inVals.length - 1] ?? 0;
+  const todayUp = upVals[upVals.length - 1] ?? 0;
 
   const W = 320;
   const H = 176;
@@ -415,7 +386,7 @@ function MemberGuestLineChart({
   const padB = 30;
   const plotW = W - padL - padR;
   const plotH = H - padT - padB;
-  const n = windowed.length;
+  const n = series.length;
   const step = n <= 1 ? 0 : plotW / (n - 1);
   const yTicks = [0, 0.5, 1].map((t) => Math.round(max * t));
 
@@ -437,50 +408,39 @@ function MemberGuestLineChart({
     <AdminCard className="!p-0 overflow-hidden">
       <div className="flex items-baseline justify-between gap-3 border-b border-white/8 px-4 py-3">
         <div>
-          <p className="font-serif text-2xl text-white tabular-nums">{headline}</p>
+          <p className="font-serif text-2xl text-white tabular-nums">{upTotal}</p>
           <p className="text-[11px] text-white/40">
-            {rangeCaption(days)} {totalLabel}
+            {rangeCaption(days)} signups
           </p>
-          {showGuests && guestsTotal > 0 && (
-            <p className="mt-0.5 text-[11px] text-amber-200/70">
-              {guestsTotal} {guestNoteLabel} · {membersTotal} members
-            </p>
-          )}
+          <p className="mt-0.5 text-[11px] text-sky-200/80">
+            {inTotal} sign-ins · members only
+          </p>
         </div>
         <div className="text-right text-[11px] text-white/45">
           <p>
-            Peak <span className="tabular-nums text-white/80">{peak}</span>
-          </p>
-          <p className="mt-0.5">
             Today{" "}
-            <span className="tabular-nums text-sky-200">{todayM}</span>
-            {showGuests && (
-              <>
-                {" · "}
-                <span className="tabular-nums text-amber-200/90">{todayG}g</span>
-              </>
-            )}
+            <span className="tabular-nums text-sky-200">{todayIn} in</span>
+            {" · "}
+            <span className="tabular-nums text-amber-200">{todayUp} up</span>
           </p>
         </div>
       </div>
 
-      {showGuests && (
-        <div className="flex items-center gap-3 border-b border-white/6 px-4 py-2 text-[10px] uppercase tracking-wide text-white/45">
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-0.5 w-3 rounded-full bg-sky-400" /> Members
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-0.5 w-3 rounded-full bg-amber-400/90" /> Guests
-          </span>
-        </div>
-      )}
+      <div className="flex items-center gap-3 border-b border-white/6 px-4 py-2 text-[10px] uppercase tracking-wide text-white/45">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-0.5 w-3 rounded-full bg-sky-400" /> Sign-in
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-0.5 w-3 rounded-full bg-amber-400/90" /> Sign-up
+        </span>
+      </div>
 
       <div className="px-2 pb-2 pt-1">
         <svg
           viewBox={`0 0 ${W} ${H}`}
           className="h-48 w-full"
           role="img"
-          aria-label={ariaLabel}
+          aria-label="Daily member sign-ins and signups"
         >
           {yTicks.map((tick) => {
             const y = padT + plotH - (tick / max) * plotH;
@@ -517,88 +477,82 @@ function MemberGuestLineChart({
             strokeWidth="1"
           />
 
-          {showGuests && (
-            <path
-              d={pathFor(guests)}
-              fill="none"
-              stroke="#fbbf24"
-              strokeWidth="2"
-              strokeLinejoin="round"
-              strokeLinecap="round"
-              opacity="0.9"
-            />
-          )}
           <path
-            d={pathFor(members)}
+            d={pathFor(inVals)}
             fill="none"
             stroke="#38bdf8"
             strokeWidth="2.25"
             strokeLinejoin="round"
             strokeLinecap="round"
           />
+          <path
+            d={pathFor(upVals)}
+            fill="none"
+            stroke="#fbbf24"
+            strokeWidth="2"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            opacity="0.95"
+          />
 
-          {windowed.map((p, i) => {
-            const m = members[i] ?? 0;
-            const g = guests[i] ?? 0;
-            const pm = pointAt(i, m);
-            const pg = pointAt(i, g);
-            const isToday = i === windowed.length - 1;
+          {series.map((p, i) => {
+            const si = inVals[i] ?? 0;
+            const su = upVals[i] ?? 0;
+            const pin = pointAt(i, si);
+            const pup = pointAt(i, su);
+            const isToday = i === series.length - 1;
             const labelEvery =
-              windowed.length > 12 ? 3 : windowed.length > 8 ? 2 : 1;
+              series.length > 12 ? 3 : series.length > 8 ? 2 : 1;
             const showLabel = i % labelEvery === 0 || isToday;
             const labelsClose =
-              showGuests && Math.abs(m - g) <= max * 0.12 && m > 0 && g > 0;
+              Math.abs(si - su) <= max * 0.12 && si > 0 && su > 0;
             return (
               <g key={p.day}>
                 <title>
-                  {showGuests
-                    ? `${formatChartDay(p.day, true)}: ${m} members, ${g} guests`
-                    : `${formatChartDay(p.day, true)}: ${m} members`}
+                  {`${formatChartDay(p.day, true)}: ${si} sign-in, ${su} sign-up`}
                 </title>
-                {showGuests && (
-                  <circle
-                    cx={pg.x}
-                    cy={pg.y}
-                    r={isToday ? 3.5 : 2.75}
-                    fill="#fbbf24"
-                  />
-                )}
                 <circle
-                  cx={pm.x}
-                  cy={pm.y}
+                  cx={pin.x}
+                  cy={pin.y}
                   r={isToday ? 3.75 : 3}
                   fill="#38bdf8"
                 />
-                {(m > 0 || isToday) && (
+                <circle
+                  cx={pup.x}
+                  cy={pup.y}
+                  r={isToday ? 3.5 : 2.75}
+                  fill="#fbbf24"
+                />
+                {(si > 0 || isToday) && (
                   <text
-                    x={pm.x}
-                    y={Math.max(padT + 8, pm.y - 7)}
+                    x={pin.x}
+                    y={Math.max(padT + 8, pin.y - 7)}
                     textAnchor="middle"
                     fill="rgba(125,211,252,0.95)"
                     fontSize="8"
                     fontFamily="ui-sans-serif, system-ui, sans-serif"
                   >
-                    {m}
+                    {si}
                   </text>
                 )}
-                {showGuests && (g > 0 || isToday) && (
+                {(su > 0 || isToday) && (
                   <text
-                    x={pg.x}
+                    x={pup.x}
                     y={Math.min(
                       padT + plotH - 4,
-                      labelsClose ? pg.y + 12 : Math.max(padT + 8, pg.y - 7),
+                      labelsClose ? pup.y + 12 : Math.max(padT + 8, pup.y - 7),
                     )}
                     textAnchor="middle"
                     fill="rgba(251,191,36,0.95)"
                     fontSize="8"
                     fontFamily="ui-sans-serif, system-ui, sans-serif"
                   >
-                    {g}
+                    {su}
                   </text>
                 )}
                 {showLabel && (
                   <text
-                    x={pm.x}
+                    x={pin.x}
                     y={H - 8}
                     textAnchor="middle"
                     fill={
