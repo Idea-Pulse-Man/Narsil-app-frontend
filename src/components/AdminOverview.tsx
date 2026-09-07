@@ -187,18 +187,18 @@ export default function AdminOverview({ onJumpToOrders }: AdminOverviewProps) {
 
       <AdminSection
         title="Sign-up"
-        hint="New accounts created each day (UTC) · members only in the headline total."
+        hint="New registered members created each day (UTC) · guests excluded."
       >
         <RangeTabs value={signupRange} onChange={setSignupRange} />
         <div className="mt-3">
           <MemberGuestLineChart
             series={stats.signups_by_day ?? []}
             days={signupRange}
-            empty="No signups in this window."
+            empty="No member signups in this window."
             totalLabel="member signups"
             guestNoteLabel="guest signups"
-            ariaLabel="Daily signups"
-            headlineMembersOnly
+            ariaLabel="Daily member signups"
+            showGuests={false}
           />
         </div>
       </AdminSection>
@@ -336,7 +336,7 @@ function rangeCaption(days: ChartRange): string {
   return `${days}-day`;
 }
 
-/** Dual-line chart for one metric: members (sky) + guests (amber). */
+/** Dual-line chart for one metric: members (sky) + optional guests (amber). */
 function MemberGuestLineChart({
   series,
   days,
@@ -344,7 +344,7 @@ function MemberGuestLineChart({
   totalLabel,
   guestNoteLabel,
   ariaLabel,
-  headlineMembersOnly = false,
+  showGuests = true,
 }: {
   series: AdminDayCount[];
   days: ChartRange;
@@ -352,8 +352,8 @@ function MemberGuestLineChart({
   totalLabel: string;
   guestNoteLabel: string;
   ariaLabel: string;
-  /** When true, big number = members only (signups). Sign-in uses combined. */
-  headlineMembersOnly?: boolean;
+  /** Sign-up charts pass false — only live registered members. */
+  showGuests?: boolean;
 }) {
   const windowed = useMemo(() => sliceDays(series, days), [series, days]);
 
@@ -362,17 +362,16 @@ function MemberGuestLineChart({
   }
 
   const members = windowed.map(dayMembers);
-  const guests = windowed.map(dayGuests);
-  const max = Math.max(1, ...members, ...guests);
+  const guests = showGuests ? windowed.map(dayGuests) : windowed.map(() => 0);
+  const max = Math.max(1, ...members, ...(showGuests ? guests : []));
   const membersTotal = members.reduce((a, b) => a + b, 0);
   const guestsTotal = guests.reduce((a, b) => a + b, 0);
-  const combinedTotal = membersTotal + guestsTotal;
-  const headline = headlineMembersOnly ? membersTotal : combinedTotal;
+  const headline = showGuests ? membersTotal + guestsTotal : membersTotal;
   const peak = Math.max(
     0,
-    ...(headlineMembersOnly
-      ? members
-      : members.map((m, i) => m + (guests[i] ?? 0))),
+    ...(showGuests
+      ? members.map((m, i) => m + (guests[i] ?? 0))
+      : members),
   );
   const todayM = members[members.length - 1] ?? 0;
   const todayG = guests[guests.length - 1] ?? 0;
@@ -411,11 +410,9 @@ function MemberGuestLineChart({
           <p className="text-[11px] text-white/40">
             {rangeCaption(days)} {totalLabel}
           </p>
-          {guestsTotal > 0 && (
+          {showGuests && guestsTotal > 0 && (
             <p className="mt-0.5 text-[11px] text-amber-200/70">
-              {headlineMembersOnly
-                ? `+${guestsTotal} ${guestNoteLabel} (not in total)`
-                : `${guestsTotal} ${guestNoteLabel} · ${membersTotal} members`}
+              {guestsTotal} {guestNoteLabel} · {membersTotal} members
             </p>
           )}
         </div>
@@ -426,20 +423,26 @@ function MemberGuestLineChart({
           <p className="mt-0.5">
             Today{" "}
             <span className="tabular-nums text-sky-200">{todayM}</span>
-            {" · "}
-            <span className="tabular-nums text-amber-200/90">{todayG}g</span>
+            {showGuests && (
+              <>
+                {" · "}
+                <span className="tabular-nums text-amber-200/90">{todayG}g</span>
+              </>
+            )}
           </p>
         </div>
       </div>
 
-      <div className="flex items-center gap-3 border-b border-white/6 px-4 py-2 text-[10px] uppercase tracking-wide text-white/45">
-        <span className="inline-flex items-center gap-1.5">
-          <span className="h-0.5 w-3 rounded-full bg-sky-400" /> Members
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="h-0.5 w-3 rounded-full bg-amber-400/90" /> Guests
-        </span>
-      </div>
+      {showGuests && (
+        <div className="flex items-center gap-3 border-b border-white/6 px-4 py-2 text-[10px] uppercase tracking-wide text-white/45">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-0.5 w-3 rounded-full bg-sky-400" /> Members
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-0.5 w-3 rounded-full bg-amber-400/90" /> Guests
+          </span>
+        </div>
+      )}
 
       <div className="px-2 pb-2 pt-1">
         <svg
@@ -483,15 +486,17 @@ function MemberGuestLineChart({
             strokeWidth="1"
           />
 
-          <path
-            d={pathFor(guests)}
-            fill="none"
-            stroke="#fbbf24"
-            strokeWidth="2"
-            strokeLinejoin="round"
-            strokeLinecap="round"
-            opacity="0.9"
-          />
+          {showGuests && (
+            <path
+              d={pathFor(guests)}
+              fill="none"
+              stroke="#fbbf24"
+              strokeWidth="2"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              opacity="0.9"
+            />
+          )}
           <path
             d={pathFor(members)}
             fill="none"
@@ -511,18 +516,22 @@ function MemberGuestLineChart({
               windowed.length > 12 ? 3 : windowed.length > 8 ? 2 : 1;
             const showLabel = i % labelEvery === 0 || isToday;
             const labelsClose =
-              Math.abs(m - g) <= max * 0.12 && m > 0 && g > 0;
+              showGuests && Math.abs(m - g) <= max * 0.12 && m > 0 && g > 0;
             return (
               <g key={p.day}>
                 <title>
-                  {`${formatChartDay(p.day, true)}: ${m} members, ${g} guests`}
+                  {showGuests
+                    ? `${formatChartDay(p.day, true)}: ${m} members, ${g} guests`
+                    : `${formatChartDay(p.day, true)}: ${m} members`}
                 </title>
-                <circle
-                  cx={pg.x}
-                  cy={pg.y}
-                  r={isToday ? 3.5 : 2.75}
-                  fill="#fbbf24"
-                />
+                {showGuests && (
+                  <circle
+                    cx={pg.x}
+                    cy={pg.y}
+                    r={isToday ? 3.5 : 2.75}
+                    fill="#fbbf24"
+                  />
+                )}
                 <circle
                   cx={pm.x}
                   cy={pm.y}
@@ -541,7 +550,7 @@ function MemberGuestLineChart({
                     {m}
                   </text>
                 )}
-                {(g > 0 || isToday) && (
+                {showGuests && (g > 0 || isToday) && (
                   <text
                     x={pg.x}
                     y={Math.min(
