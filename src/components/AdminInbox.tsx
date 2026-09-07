@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   fetchSupportThread,
   fetchSupportThreads,
+  markSupportThreadRead,
   mergeSupportMessages,
   replySupportMessage,
   subscribeSupportInbox,
@@ -22,11 +23,18 @@ interface AdminInboxProps {
   showToast: (message: string, variant?: ToastState["variant"]) => void;
   /** Called after threads load / reply so the Inbox tab badge can refresh. */
   onThreadsChanged?: () => void;
+  /** Optimistic: unread badge −1 when opening an unread thread. */
+  onUnreadCleared?: () => void;
+}
+
+function threadIsUnread(t: SupportThreadSummary): boolean {
+  return t.unread ?? !t.last_from_admin;
 }
 
 export default function AdminInbox({
   showToast,
   onThreadsChanged,
+  onUnreadCleared,
 }: AdminInboxProps) {
   const [threads, setThreads] = useState<SupportThreadSummary[]>([]);
   const [total, setTotal] = useState(0);
@@ -38,6 +46,8 @@ export default function AdminInbox({
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const activeIdRef = useRef<string | null>(null);
+  activeIdRef.current = activeId;
 
   const loadThreads = useCallback(async () => {
     setLoading(true);
@@ -66,6 +76,23 @@ export default function AdminInbox({
     }
   }, [onThreadsChanged]);
 
+  const markRead = useCallback(
+    async (userId: string) => {
+      try {
+        await markSupportThreadRead(userId);
+      } catch {
+        /* SQL not applied yet — ignore */
+      }
+      setThreads((prev) =>
+        prev.map((t) =>
+          t.user_id === userId ? { ...t, unread: false } : t,
+        ),
+      );
+      onThreadsChanged?.();
+    },
+    [onThreadsChanged],
+  );
+
   useEffect(() => {
     void loadThreads();
   }, [loadThreads]);
@@ -87,17 +114,31 @@ export default function AdminInbox({
       activeId,
       (row) => {
         setMessages((prev) => mergeSupportMessages(prev, row));
-        void refreshThreadsQuiet();
+        if (!row.from_admin && activeIdRef.current === activeId) {
+          void markRead(activeId);
+        } else {
+          void refreshThreadsQuiet();
+        }
       },
       { afterCreatedAt: after },
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps -- when thread opens
-  }, [activeId, threadLoading, refreshThreadsQuiet]);
+  }, [activeId, threadLoading, refreshThreadsQuiet, markRead]);
 
   const openThread = async (userId: string) => {
+    const prior = threads.find((t) => t.user_id === userId);
+    const wasUnread = prior ? threadIsUnread(prior) : false;
     setActiveId(userId);
     setThreadLoading(true);
     setDraft("");
+    // Clear New / tab badge immediately while the thread loads.
+    setThreads((prev) =>
+      prev.map((t) =>
+        t.user_id === userId ? { ...t, unread: false } : t,
+      ),
+    );
+    if (wasUnread) onUnreadCleared?.();
+    void markRead(userId);
     try {
       setMessages(await fetchSupportThread(userId));
     } catch (err) {
@@ -204,15 +245,17 @@ export default function AdminInbox({
           <p className="text-xs text-white/40">
             {total} conversation{total === 1 ? "" : "s"} · live
           </p>
-          {threads.map((t) => (
+          {threads.map((t) => {
+            const unread = threadIsUnread(t);
+            return (
             <button
               key={t.user_id}
               type="button"
               onClick={() => void openThread(t.user_id)}
               className={`flex w-full flex-col rounded-2xl border px-4 py-3 text-left ${
-                t.last_from_admin
-                  ? "border-white/10 bg-white/[0.04]"
-                  : "border-red-400/25 bg-red-500/10"
+                unread
+                  ? "border-red-400/25 bg-red-500/10"
+                  : "border-white/10 bg-white/[0.04]"
               }`}
             >
               <div className="flex items-baseline justify-between gap-2">
@@ -220,7 +263,7 @@ export default function AdminInbox({
                   {t.full_name?.trim() || t.email || "Member"}
                 </span>
                 <span className="flex shrink-0 items-center gap-2 text-[11px] text-white/35">
-                  {!t.last_from_admin && (
+                  {unread && (
                     <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
                       New
                     </span>
@@ -233,7 +276,8 @@ export default function AdminInbox({
                 {t.last_body}
               </p>
             </button>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

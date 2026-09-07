@@ -92,6 +92,20 @@ create policy "Admins reply to support"
   on public.support_messages for insert to authenticated
   with check (public.is_admin() and from_admin = true);
 
+-- Admin last-viewed timestamp per member thread (clears unread badge).
+create table if not exists public.support_thread_reads (
+  user_id  uuid primary key references auth.users (id) on delete cascade,
+  read_at  timestamptz not null default now()
+);
+
+alter table public.support_thread_reads enable row level security;
+
+drop policy if exists "Admins manage support reads" on public.support_thread_reads;
+create policy "Admins manage support reads"
+  on public.support_thread_reads for all to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+
 -- Newest message per member for the admin inbox list.
 create or replace function public.admin_list_support_threads(
   page_limit  int default 30,
@@ -125,7 +139,14 @@ begin
             select count(*)::int
             from public.support_messages s
             where s.user_id = latest.user_id
-          ) as message_count
+          ) as message_count,
+          (
+            latest.from_admin = false
+            and (
+              r.read_at is null
+              or latest.created_at > r.read_at
+            )
+          ) as unread
         from (
           select distinct on (user_id)
             user_id, body, from_admin, created_at
@@ -133,6 +154,7 @@ begin
           order by user_id, created_at desc
         ) latest
         left join public.profiles p on p.id = latest.user_id
+        left join public.support_thread_reads r on r.user_id = latest.user_id
         order by latest.created_at desc
         limit greatest(page_limit, 1)
         offset greatest(page_offset, 0)

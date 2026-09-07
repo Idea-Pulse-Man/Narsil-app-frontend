@@ -210,6 +210,13 @@ export default function AdminView({ showToast }: AdminViewProps) {
               <AdminInbox
                 showToast={showToast}
                 onThreadsChanged={() => void refreshUnread()}
+                onUnreadCleared={() =>
+                  setInboxUnread((n) => {
+                    const next = Math.max(0, n - 1);
+                    prevUnread.current = next;
+                    return next;
+                  })
+                }
               />
             )}
           </>

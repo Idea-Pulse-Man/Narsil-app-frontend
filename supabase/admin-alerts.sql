@@ -101,7 +101,7 @@ $$;
 
 grant execute on function public.admin_set_user_notifications(uuid, boolean) to authenticated;
 
--- Threads waiting on admin (last message from member).
+-- Threads waiting on admin (last message from member, not yet viewed).
 create or replace function public.admin_unread_support_count()
 returns int
 language plpgsql
@@ -114,11 +114,16 @@ begin
   perform public.require_admin();
   select count(*)::int into n
   from (
-    select distinct on (m.user_id) m.from_admin
+    select distinct on (m.user_id)
+      m.user_id,
+      m.from_admin,
+      m.created_at
     from public.support_messages m
     order by m.user_id, m.created_at desc
   ) last
-  where last.from_admin = false;
+  left join public.support_thread_reads r on r.user_id = last.user_id
+  where last.from_admin = false
+    and (r.read_at is null or last.created_at > r.read_at);
   return coalesce(n, 0);
 end;
 $$;

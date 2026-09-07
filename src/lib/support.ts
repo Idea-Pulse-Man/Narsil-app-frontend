@@ -26,6 +26,8 @@ export interface SupportThreadSummary {
   last_from_admin: boolean;
   last_at: string;
   message_count: number;
+  /** True when last member message is newer than admin's last view. */
+  unread?: boolean;
 }
 
 function client() {
@@ -113,11 +115,19 @@ export async function replySupportMessage(
   return data as SupportMessage;
 }
 
-/** Admin: threads waiting on a reply (last message from member). */
+/** Admin: threads waiting on a reply (last message from member, not yet read). */
 export async function fetchUnreadSupportCount(): Promise<number> {
   const { data, error } = await client().rpc("admin_unread_support_count");
   if (error) throw new Error(error.message);
   return typeof data === "number" ? data : Number(data) || 0;
+}
+
+/** Admin: mark a member thread as read (clears badge for that conversation). */
+export async function markSupportThreadRead(userId: string): Promise<void> {
+  const { error } = await client().rpc("admin_mark_support_thread_read", {
+    target_id: userId,
+  });
+  if (error) throw new Error(error.message);
 }
 
 /**
