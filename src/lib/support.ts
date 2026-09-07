@@ -112,3 +112,10 @@ export async function replySupportMessage(
   if (error) throw new Error(error.message);
   return data as SupportMessage;
 }
+
+/** Admin: threads waiting on a reply (last message from member). */
+export async function fetchUnreadSupportCount(): Promise<number> {
+  const { data, error } = await client().rpc("admin_unread_support_count");
+  if (error) throw new Error(error.message);
+  return typeof data === "number" ? data : Number(data) || 0;
+}

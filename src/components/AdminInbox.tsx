@@ -16,9 +16,14 @@ import type { ToastState } from "./Toast";
 
 interface AdminInboxProps {
   showToast: (message: string, variant?: ToastState["variant"]) => void;
+  /** Called after threads load / reply so the Inbox tab badge can refresh. */
+  onThreadsChanged?: () => void;
 }
 
-export default function AdminInbox({ showToast }: AdminInboxProps) {
+export default function AdminInbox({
+  showToast,
+  onThreadsChanged,
+}: AdminInboxProps) {
   const [threads, setThreads] = useState<SupportThreadSummary[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -37,13 +42,14 @@ export default function AdminInbox({ showToast }: AdminInboxProps) {
       const page = await fetchSupportThreads({ limit: 50, offset: 0 });
       setThreads(page.rows);
       setTotal(page.total);
+      onThreadsChanged?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load inbox.");
       setThreads([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onThreadsChanged]);
 
   useEffect(() => {
     void loadThreads();
@@ -163,13 +169,22 @@ export default function AdminInbox({ showToast }: AdminInboxProps) {
               key={t.user_id}
               type="button"
               onClick={() => void openThread(t.user_id)}
-              className="flex w-full flex-col rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left"
+              className={`flex w-full flex-col rounded-2xl border px-4 py-3 text-left ${
+                t.last_from_admin
+                  ? "border-white/10 bg-white/[0.04]"
+                  : "border-red-400/25 bg-red-500/10"
+              }`}
             >
               <div className="flex items-baseline justify-between gap-2">
                 <span className="truncate text-sm text-white">
                   {t.full_name?.trim() || t.email || "Member"}
                 </span>
-                <span className="shrink-0 text-[11px] text-white/35">
+                <span className="flex shrink-0 items-center gap-2 text-[11px] text-white/35">
+                  {!t.last_from_admin && (
+                    <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                      New
+                    </span>
+                  )}
                   {fmtDate(t.last_at)}
                 </span>
               </div>

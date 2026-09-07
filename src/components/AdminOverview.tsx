@@ -163,7 +163,7 @@ export default function AdminOverview({ onJumpToOrders }: AdminOverviewProps) {
 
       <AdminSection
         title="Sign-in & sign-up"
-        hint="Members only · blue = sign-in (sessions started that day) · amber = sign-up · guests excluded."
+        hint="Members only · blue = sign-in · amber = sign-up · teal = same count both · guests excluded."
       >
         <RangeTabs value={activityRange} onChange={setActivityRange} />
         <div className="mt-3">
@@ -431,12 +431,15 @@ function SigninSignupLineChart({
         </div>
       </div>
 
-      <div className="flex items-center gap-3 border-b border-white/6 px-4 py-2 text-[10px] uppercase tracking-wide text-white/45">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-white/6 px-4 py-2 text-[10px] uppercase tracking-wide text-white/45">
         <span className="inline-flex items-center gap-1.5">
           <span className="h-0.5 w-3 rounded-full bg-sky-400" /> Sign-in
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span className="h-0.5 w-3 rounded-full bg-amber-400/90" /> Sign-up
+        </span>
+        <span className="inline-flex items-center gap-1.5 normal-case tracking-normal text-white/50">
+          <span className="h-2 w-2 rounded-full bg-teal-300" /> Same = in &amp; up match
         </span>
       </div>
 
@@ -503,56 +506,75 @@ function SigninSignupLineChart({
           {series.map((p, i) => {
             const si = inVals[i] ?? 0;
             const su = upVals[i] ?? 0;
+            const same = si === su && si > 0;
             const pin = pointAt(i, si);
             const pup = pointAt(i, su);
             const isToday = i === series.length - 1;
             const showAxis = axisLabelIndices.has(i);
-            const labelsClose =
-              Math.abs(si - su) <= max * 0.12 && si > 0 && su > 0;
-            const showValueLabels = series.length <= 31 || si > 0 || su > 0 || isToday;
+            const r = isToday ? 3.75 : series.length > 60 ? 1.75 : 3;
+            const showValueLabels =
+              series.length <= 45 && (si > 0 || su > 0 || isToday);
             return (
               <g key={p.day}>
                 <title>
-                  {`${formatChartDay(p.day, true)}: ${si} sign-in, ${su} sign-up`}
+                  {same
+                    ? `${formatChartDay(p.day, true)}: ${si} (sign-in = sign-up)`
+                    : `${formatChartDay(p.day, true)}: ${si} sign-in, ${su} sign-up`}
                 </title>
-                <circle
-                  cx={pin.x}
-                  cy={pin.y}
-                  r={isToday ? 3.75 : series.length > 60 ? 1.75 : 3}
-                  fill="#38bdf8"
-                />
-                <circle
-                  cx={pup.x}
-                  cy={pup.y}
-                  r={isToday ? 3.5 : series.length > 60 ? 1.5 : 2.75}
-                  fill="#fbbf24"
-                />
-                {showValueLabels && (si > 0 || isToday) && series.length <= 45 && (
-                  <text
-                    x={pin.x}
-                    y={Math.max(padT + 8, pin.y - 7)}
-                    textAnchor="middle"
-                    fill="rgba(125,211,252,0.95)"
-                    fontSize="8"
-                    fontFamily="ui-sans-serif, system-ui, sans-serif"
-                  >
-                    {si}
-                  </text>
-                )}
-                {showValueLabels && (su > 0 || isToday) && series.length <= 45 && (
-                  <text
-                    x={pup.x}
-                    y={Math.min(
-                      padT + plotH - 4,
-                      labelsClose ? pup.y + 12 : Math.max(padT + 8, pup.y - 7),
+                {same ? (
+                  <>
+                    <circle cx={pin.x} cy={pin.y} r={r + 0.5} fill="#5eead4" />
+                    {showValueLabels && (
+                      <text
+                        x={pin.x}
+                        y={Math.max(padT + 8, pin.y - 7)}
+                        textAnchor="middle"
+                        fill="rgba(94,234,212,0.95)"
+                        fontSize="8"
+                        fontFamily="ui-sans-serif, system-ui, sans-serif"
+                      >
+                        {si}
+                      </text>
                     )}
-                    textAnchor="middle"
-                    fill="rgba(251,191,36,0.95)"
-                    fontSize="8"
-                    fontFamily="ui-sans-serif, system-ui, sans-serif"
-                  >
-                    {su}
-                  </text>
+                  </>
+                ) : (
+                  <>
+                    {(si > 0 || isToday) && (
+                      <circle cx={pin.x} cy={pin.y} r={r} fill="#38bdf8" />
+                    )}
+                    {(su > 0 || isToday) && (
+                      <circle
+                        cx={pup.x}
+                        cy={pup.y}
+                        r={isToday ? 3.5 : series.length > 60 ? 1.5 : 2.75}
+                        fill="#fbbf24"
+                      />
+                    )}
+                    {showValueLabels && si > 0 && (
+                      <text
+                        x={pin.x}
+                        y={Math.max(padT + 8, pin.y - 7)}
+                        textAnchor="middle"
+                        fill="rgba(125,211,252,0.95)"
+                        fontSize="8"
+                        fontFamily="ui-sans-serif, system-ui, sans-serif"
+                      >
+                        {si}
+                      </text>
+                    )}
+                    {showValueLabels && su > 0 && (
+                      <text
+                        x={pup.x}
+                        y={Math.max(padT + 8, pup.y - 7)}
+                        textAnchor="middle"
+                        fill="rgba(251,191,36,0.95)"
+                        fontSize="8"
+                        fontFamily="ui-sans-serif, system-ui, sans-serif"
+                      >
+                        {su}
+                      </text>
+                    )}
+                  </>
                 )}
                 {showAxis && (
                   <text
@@ -773,8 +795,8 @@ function formatChartDay(iso: string, long: boolean): string {
   return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
 }
 
-/** Sparse x-axis ticks so 2M/6M/1Y labels stay readable. */
-function pickAxisLabelIndices(days: string[], range: ChartRange): Set<number> {
+/** ~1 label per 7 days (n/7), evenly spaced, always include first + last. */
+function pickAxisLabelIndices(days: string[], _range: ChartRange): Set<number> {
   const n = days.length;
   const out = new Set<number>();
   if (n <= 0) return out;
@@ -783,37 +805,17 @@ function pickAxisLabelIndices(days: string[], range: ChartRange): Set<number> {
     return out;
   }
 
-  out.add(0);
-  out.add(n - 1);
-
-  if (n <= 10) {
+  // Short windows: label every day (or every other if slightly long).
+  if (n <= 7) {
     for (let i = 0; i < n; i++) out.add(i);
     return out;
   }
 
-  // Prefer month starts on longer ranges.
-  if (range >= 60) {
-    for (let i = 1; i < n - 1; i++) {
-      const raw = days[i]?.slice(0, 10) ?? "";
-      const d = new Date(`${raw}T12:00:00Z`);
-      if (!Number.isNaN(d.getTime()) && d.getUTCDate() === 1) out.add(i);
-    }
-  }
-
-  const target =
-    range <= 14 ? 7 : range <= 30 ? 6 : range <= 90 ? 6 : range <= 180 ? 6 : 7;
-
-  if (out.size >= target) {
-    // Too many month ticks (e.g. 1Y) — keep first/last + evenly thinned months.
-    if (out.size > target + 1) {
-      const mids = [...out].filter((i) => i !== 0 && i !== n - 1).sort((a, b) => a - b);
-      const keep = new Set([0, n - 1]);
-      const step = Math.max(1, Math.ceil(mids.length / Math.max(1, target - 2)));
-      for (let i = 0; i < mids.length; i += step) keep.add(mids[i]!);
-      return keep;
-    }
-    return out;
-  }
+  // Show about 1/7 of the days (e.g. 30→~4–5, 90→~13), capped for width.
+  const target = Math.min(12, Math.max(3, Math.round(n / 7)));
+  out.add(0);
+  out.add(n - 1);
+  if (target <= 2) return out;
 
   const step = (n - 1) / (target - 1);
   for (let t = 1; t < target - 1; t++) {
@@ -822,20 +824,9 @@ function pickAxisLabelIndices(days: string[], range: ChartRange): Set<number> {
   return out;
 }
 
-/** Short ranges → M/D; long ranges → month abbr (or M/D on mid ticks). */
-function formatAxisDay(iso: string, range: ChartRange): string {
-  const raw = iso.slice(0, 10);
-  const d = new Date(`${raw}T12:00:00Z`);
-  if (Number.isNaN(d.getTime())) return formatChartDay(iso, false);
-  if (range >= 60) {
-    if (d.getUTCDate() === 1 || range >= 180) {
-      return d.toLocaleDateString(undefined, {
-        month: "short",
-        timeZone: "UTC",
-      });
-    }
-  }
-  return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
+/** Always M/D — never mix month names with dates (avoids "Aug"/"8/3" collisions). */
+function formatAxisDay(iso: string, _range?: ChartRange): string {
+  return formatChartDay(iso, false);
 }
 
 function Stat({ label, value }: { label: string; value: number | string }) {

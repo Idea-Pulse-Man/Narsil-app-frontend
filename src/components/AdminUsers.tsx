@@ -17,6 +17,7 @@ import {
   fetchAdminUsers,
   sendPasswordResetEmail,
   setAccountStatus,
+  setUserNotificationsDisabled,
   setUserRole,
   type AccountStatus,
   type AdminUserFilter,
@@ -141,6 +142,24 @@ export default function AdminUsers({ showToast }: AdminUsersProps) {
     }
   };
 
+  const toggleNotifications = async (row: AdminUserRow) => {
+    const next = !Boolean(row.notifications_disabled);
+    setBusy(row.id);
+    try {
+      await setUserNotificationsDisabled(row.id, next);
+      patchRow(row.id, { notifications_disabled: next });
+      showToast(
+        next
+          ? "Notifications disabled for this user"
+          : "Notifications enabled for this user",
+      );
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Update failed.", "error");
+    } finally {
+      setBusy(null);
+    }
+  };
+
   return (
     <div className="mt-5">
       <AdminSearch
@@ -226,6 +245,11 @@ export default function AdminUsers({ showToast }: AdminUsersProps) {
                           Free
                         </span>
                       )}
+                      {row.notifications_disabled && (
+                        <span className="rounded-full border border-white/12 px-2 py-0.5 text-[11px] text-white/45">
+                          Alerts off
+                        </span>
+                      )}
                       <span className="text-xs text-white/25">
                         {open ? "▲" : "▼"}
                       </span>
@@ -285,6 +309,37 @@ export default function AdminUsers({ showToast }: AdminUsersProps) {
                             onClick={() => void changeStatus(row, "suspended")}
                           />
                         </div>
+                      </div>
+
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">
+                          Notifications
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <Chip
+                            label="Alerts on"
+                            on={!row.notifications_disabled}
+                            disabled={busy === row.id || self}
+                            onClick={() => {
+                              if (row.notifications_disabled)
+                                void toggleNotifications(row);
+                            }}
+                          />
+                          <Chip
+                            label="Alerts off"
+                            on={Boolean(row.notifications_disabled)}
+                            tone="danger"
+                            disabled={busy === row.id || self}
+                            onClick={() => {
+                              if (!row.notifications_disabled)
+                                void toggleNotifications(row);
+                            }}
+                          />
+                        </div>
+                        <p className="mt-2 text-[11px] text-white/35">
+                          Mute this member from notification alerts (inbox /
+                          future push). Does not block live chat.
+                        </p>
                       </div>
 
                       <div>

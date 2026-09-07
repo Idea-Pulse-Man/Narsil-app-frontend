@@ -98,8 +98,8 @@ export function AdminState({
         <p className="mt-1 text-xs text-red-200/60">
           If this mentions a missing column or function, run
           supabase/admin-dashboard.sql, supabase/artwork-approval.sql,
-          supabase/support-inbox.sql, supabase/admin-overview-charts.sql, or
-          supabase/admin-users-enrich.sql.
+          supabase/support-inbox.sql, supabase/admin-overview-charts.sql,
+          supabase/admin-users-enrich.sql, or supabase/admin-alerts.sql.
         </p>
         {onRetry && (
           <button
@@ -145,7 +145,7 @@ export function FilterTabs<T extends string>({
   onChange,
 }: {
   value: T;
-  options: { id: T; label: string }[];
+  options: { id: T; label: string; badge?: number }[];
   onChange: (next: T) => void;
 }) {
   return (
@@ -155,13 +155,21 @@ export function FilterTabs<T extends string>({
           key={opt.id}
           type="button"
           onClick={() => onChange(opt.id)}
-          className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+          className={`relative shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
             value === opt.id
               ? "bg-white text-ink"
               : "border border-white/12 text-white/60"
           }`}
         >
           {opt.label}
+          {typeof opt.badge === "number" && opt.badge > 0 && (
+            <span
+              className="absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white shadow-sm"
+              aria-label={`${opt.badge} unread`}
+            >
+              {opt.badge > 99 ? "99+" : opt.badge}
+            </span>
+          )}
         </button>
       ))}
     </div>

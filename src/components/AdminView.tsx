@@ -6,7 +6,7 @@
  * convenience. Members never see this screen.
  */
 
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAppState } from "./AppState";
 import AdminArtworks from "./AdminArtworks";
 import AdminInbox from "./AdminInbox";
@@ -15,18 +15,12 @@ import AdminOverview from "./AdminOverview";
 import AdminUsers from "./AdminUsers";
 import { screenScrollClass, screenContentClass } from "./artwork-layout";
 import { FilterTabs } from "./admin-ui";
+import { fetchAlertsEnabled, setAlertsEnabled } from "@/lib/admin";
+import { fetchUnreadSupportCount } from "@/lib/support";
 import type { CanvasOrderStatus } from "@/lib/orders";
 import type { ToastState } from "./Toast";
 
 type AdminTab = "overview" | "artworks" | "orders" | "users" | "inbox";
-
-const TABS: { id: AdminTab; label: string }[] = [
-  { id: "overview", label: "Overview" },
-  { id: "artworks", label: "Artworks" },
-  { id: "orders", label: "Orders" },
-  { id: "users", label: "Users" },
-  { id: "inbox", label: "Inbox" },
-];
 
 const HINTS: Record<AdminTab, string> = {
   overview: "Narsil users, daily sign-ins and subscriptions.",
@@ -46,12 +40,80 @@ export default function AdminView({ showToast }: AdminViewProps) {
   const [orderStatus, setOrderStatus] = useState<CanvasOrderStatus | "all">("all");
   const [orderKey, setOrderKey] = useState(0);
   const [signingOut, setSigningOut] = useState(false);
+  const [inboxUnread, setInboxUnread] = useState(0);
+  const [alertsOn, setAlertsOn] = useState(true);
+  const [alertsBusy, setAlertsBusy] = useState(false);
+  const prevUnread = useRef<number | null>(null);
 
   const jumpToOrders = (status: CanvasOrderStatus | "all") => {
     setOrderStatus(status);
     setOrderKey((k) => k + 1);
     setTab("orders");
   };
+
+  const refreshUnread = useCallback(async () => {
+    try {
+      const n = await fetchUnreadSupportCount();
+      setInboxUnread(n);
+      return n;
+    } catch {
+      // SQL not applied yet — keep badge at 0.
+      return 0;
+    }
+  }, []);
+
+  const refreshAlerts = useCallback(async () => {
+    try {
+      setAlertsOn(await fetchAlertsEnabled());
+    } catch {
+      setAlertsOn(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    void refreshAlerts();
+    void refreshUnread();
+    const id = window.setInterval(() => {
+      void refreshUnread().then((n) => {
+        // Toast only when alerts are on and unread grows while not on Inbox.
+        if (
+          alertsOn &&
+          prevUnread.current !== null &&
+          n > prevUnread.current &&
+          tab !== "inbox"
+        ) {
+          showToast(
+            n === 1
+              ? "New inbox message waiting"
+              : `${n} inbox threads need a reply`,
+          );
+        }
+        prevUnread.current = n;
+      });
+    }, 20_000);
+    return () => window.clearInterval(id);
+  }, [isAdmin, refreshUnread, refreshAlerts, alertsOn, tab, showToast]);
+
+  useEffect(() => {
+    if (tab === "inbox") void refreshUnread();
+  }, [tab, refreshUnread]);
+
+  const tabs = useMemo(
+    () =>
+      [
+        { id: "overview" as const, label: "Overview" },
+        { id: "artworks" as const, label: "Artworks" },
+        { id: "orders" as const, label: "Orders" },
+        { id: "users" as const, label: "Users" },
+        {
+          id: "inbox" as const,
+          label: "Inbox",
+          badge: inboxUnread > 0 ? inboxUnread : undefined,
+        },
+      ] satisfies { id: AdminTab; label: string; badge?: number }[],
+    [inboxUnread],
+  );
 
   const handleSignOut = async () => {
     if (signingOut) return;
@@ -66,6 +128,24 @@ export default function AdminView({ showToast }: AdminViewProps) {
     }
   };
 
+  const toggleAlerts = async () => {
+    if (alertsBusy) return;
+    setAlertsBusy(true);
+    const next = !alertsOn;
+    try {
+      await setAlertsEnabled(next);
+      setAlertsOn(next);
+      showToast(next ? "Alerts enabled" : "Alerts disabled");
+    } catch (err) {
+      showToast(
+        err instanceof Error ? err.message : "Could not update alerts.",
+        "error",
+      );
+    } finally {
+      setAlertsBusy(false);
+    }
+  };
+
   return (
     <div className={screenScrollClass}>
       <div className={`${screenContentClass} !pb-[calc(env(safe-area-inset-bottom)+2rem)]`}>
@@ -77,14 +157,33 @@ export default function AdminView({ showToast }: AdminViewProps) {
             <h1 className="mt-2 font-serif text-2xl text-white">Admin</h1>
             <p className="mt-1 text-sm text-white/50">{HINTS[tab]}</p>
           </div>
-          <button
-            type="button"
-            onClick={() => void handleSignOut()}
-            disabled={signingOut}
-            className="shrink-0 rounded-full border border-white/15 px-3 py-1.5 text-xs text-white/70 disabled:opacity-40"
-          >
-            {signingOut ? "…" : "Sign out"}
-          </button>
+          <div className="flex shrink-0 flex-col items-end gap-2">
+            <button
+              type="button"
+              onClick={() => void handleSignOut()}
+              disabled={signingOut}
+              className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-white/70 disabled:opacity-40"
+            >
+              {signingOut ? "…" : "Sign out"}
+            </button>
+            <button
+              type="button"
+              onClick={() => void toggleAlerts()}
+              disabled={alertsBusy}
+              title={
+                alertsOn
+                  ? "Alerts on — toast when new inbox messages arrive"
+                  : "Alerts off — no toast notifications"
+              }
+              className={`rounded-full px-3 py-1.5 text-xs font-medium disabled:opacity-40 ${
+                alertsOn
+                  ? "border border-emerald-400/35 bg-emerald-400/15 text-emerald-100"
+                  : "border border-white/12 text-white/45"
+              }`}
+            >
+              {alertsOn ? "Alerts on" : "Alerts off"}
+            </button>
+          </div>
         </div>
 
         {!isAdmin ? (
@@ -94,7 +193,7 @@ export default function AdminView({ showToast }: AdminViewProps) {
         ) : (
           <>
             <div className="mt-5">
-              <FilterTabs value={tab} options={TABS} onChange={setTab} />
+              <FilterTabs value={tab} options={tabs} onChange={setTab} />
             </div>
 
             {tab === "overview" && <AdminOverview onJumpToOrders={jumpToOrders} />}
@@ -107,7 +206,12 @@ export default function AdminView({ showToast }: AdminViewProps) {
               />
             )}
             {tab === "users" && <AdminUsers showToast={showToast} />}
-            {tab === "inbox" && <AdminInbox showToast={showToast} />}
+            {tab === "inbox" && (
+              <AdminInbox
+                showToast={showToast}
+                onThreadsChanged={() => void refreshUnread()}
+              />
+            )}
           </>
         )}
       </div>

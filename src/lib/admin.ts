@@ -397,6 +397,8 @@ export interface AdminUserRow {
   subscription_status?: string | null;
   subscription_product?: string | null;
   subscription_expires_at?: string | null;
+  /** Admin muted in-app / future push notifications for this member. */
+  notifications_disabled?: boolean;
 }
 
 export function fetchAdminUsers(opts: {
@@ -454,6 +456,32 @@ export async function sendPasswordResetEmail(email: string): Promise<void> {
     typeof window !== "undefined" ? window.location.origin : undefined;
   const { error } = await client().auth.resetPasswordForEmail(address, {
     redirectTo,
+  });
+  if (error) throw new Error(error.message);
+}
+
+/** Global admin alert toasts on/off. */
+export async function fetchAlertsEnabled(): Promise<boolean> {
+  const { data, error } = await client().rpc("admin_get_alerts_enabled");
+  if (error) throw new Error(error.message);
+  return data !== false;
+}
+
+export async function setAlertsEnabled(enabled: boolean): Promise<void> {
+  const { error } = await client().rpc("admin_set_alerts_enabled", {
+    enabled,
+  });
+  if (error) throw new Error(error.message);
+}
+
+/** Mute / unmute notifications for a selected member. */
+export async function setUserNotificationsDisabled(
+  id: string,
+  disabled: boolean,
+): Promise<void> {
+  const { error } = await client().rpc("admin_set_user_notifications", {
+    target_id: id,
+    disabled,
   });
   if (error) throw new Error(error.message);
 }
