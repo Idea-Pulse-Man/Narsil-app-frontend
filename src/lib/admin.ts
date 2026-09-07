@@ -350,21 +350,47 @@ export async function retryFulfillment(id: string): Promise<CanvasOrderStatus> {
 
 // ── User management ────────────────────────────────────────────────────────
 
+export type AccountStatus = "active" | "paused" | "suspended";
+
+export type AdminUserFilter =
+  | "all"
+  | "active"
+  | "paused"
+  | "suspended"
+  | "admin"
+  | "guild";
+
+export const USER_FILTERS: { id: AdminUserFilter; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "active", label: "Good" },
+  { id: "paused", label: "Paused" },
+  { id: "suspended", label: "Suspended" },
+  { id: "admin", label: "Admins" },
+  { id: "guild", label: "Guild" },
+];
+
 export interface AdminUserRow {
   id: string;
   full_name: string | null;
   email: string | null;
   avatar_url: string | null;
   role: UserRole;
+  account_status?: AccountStatus;
   suspended_at: string | null;
   terms_accepted_at: string | null;
   created_at: string;
+  last_sign_in_at?: string | null;
   order_count: number;
   artwork_count: number;
+  is_subscriber?: boolean;
+  subscription_status?: string | null;
+  subscription_product?: string | null;
+  subscription_expires_at?: string | null;
 }
 
 export function fetchAdminUsers(opts: {
   search?: string;
+  filter?: AdminUserFilter;
   limit?: number;
   offset?: number;
 } = {}): Promise<Page<AdminUserRow>> {
@@ -372,6 +398,8 @@ export function fetchAdminUsers(opts: {
     search: opts.search?.trim() || null,
     page_limit: opts.limit ?? ADMIN_PAGE_SIZE,
     page_offset: opts.offset ?? 0,
+    status_filter:
+      !opts.filter || opts.filter === "all" ? null : opts.filter,
   });
 }
 
@@ -384,14 +412,37 @@ export async function setUserRole(id: string, role: UserRole): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+/** Set Good / Paused / Suspended. Self-changes other than active are blocked. */
+export async function setAccountStatus(
+  id: string,
+  status: AccountStatus,
+): Promise<void> {
+  const { error } = await client().rpc("admin_set_account_status", {
+    target_id: id,
+    new_status: status,
+  });
+  if (error) throw new Error(error.message);
+}
+
 /** Suspended users keep read access but can't post comments, tags or uploads. */
 export async function setUserSuspended(
   id: string,
   suspended: boolean,
 ): Promise<void> {
-  const { error } = await client().rpc("admin_set_user_suspended", {
-    target_id: id,
-    suspended,
+  await setAccountStatus(id, suspended ? "suspended" : "active");
+}
+
+/**
+ * Email the member a password-reset link (Supabase Auth recovery).
+ * Guests / OAuth-only accounts without email cannot use this.
+ */
+export async function sendPasswordResetEmail(email: string): Promise<void> {
+  const address = email.trim();
+  if (!address) throw new Error("This account has no email for a reset link.");
+  const redirectTo =
+    typeof window !== "undefined" ? window.location.origin : undefined;
+  const { error } = await client().auth.resetPasswordForEmail(address, {
+    redirectTo,
   });
   if (error) throw new Error(error.message);
 }

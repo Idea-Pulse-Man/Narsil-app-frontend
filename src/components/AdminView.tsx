@@ -32,7 +32,7 @@ const HINTS: Record<AdminTab, string> = {
   overview: "Narsil users, daily sign-ins and subscriptions.",
   artworks: "Approve member uploads, feature, hide, or take a work down.",
   orders: "Track the canvas pipeline and unstick failed fulfilments.",
-  users: "Promote admins and suspend accounts that break the rules.",
+  users: "Status, role, Guild subscription, and password reset.",
   inbox: "Reply to member live chat. Email stays in your mail app.",
 };
 
