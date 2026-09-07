@@ -170,7 +170,7 @@ begin
               and (au.last_sign_in_at at time zone 'utc')::date = gs.d
               and not public.is_registered_member(au.id)
           ) as guests
-        from generate_series(today - 13, today, interval '1 day') as g(ts)
+        from generate_series(today - 30, today, interval '1 day') as g(ts)
         cross join lateral (select g.ts::date as d) gs
       ) d
     ),
@@ -184,11 +184,11 @@ begin
             from public.subscriptions s
             where (s.created_at at time zone 'utc')::date = gs.d
           ) as n
-        from generate_series(today - 13, today, interval '1 day') as g(ts)
+        from generate_series(today - 30, today, interval '1 day') as g(ts)
         cross join lateral (select g.ts::date as d) gs
       ) d
     ),
-    -- New accounts created each day: members + guests (two series for the line chart)
+    -- New accounts created each day: members + guests
     'signups_by_day', (
       select coalesce(json_agg(json_build_object(
         'day', d.day,
@@ -211,7 +211,7 @@ begin
             where not public.is_registered_member(au.id)
               and (au.created_at at time zone 'utc')::date = gs.d
           ) as guests
-        from generate_series(today - 13, today, interval '1 day') as g(ts)
+        from generate_series(today - 30, today, interval '1 day') as g(ts)
         cross join lateral (select g.ts::date as d) gs
       ) d
     ),

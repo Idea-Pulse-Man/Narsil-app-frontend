@@ -1,10 +1,10 @@
 /**
  * Admin dashboard — Overview. First board is Narsil membership (registered
- * members only — guests are separate and do not inflate totals), then a
- * dual-line chart (daily sign-ins vs signups) and subscription charts.
+ * members only), then separate Sign-in and Sign-up charts with their own
+ * range filters (7 / 15 / 30 days), then subscriptions and catalog.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   fetchAdminStats,
   type AdminDayCount,
@@ -23,10 +23,20 @@ interface AdminOverviewProps {
   onJumpToOrders: (status: CanvasOrderStatus | "all") => void;
 }
 
+type ChartRange = 7 | 15 | 30;
+
+const RANGE_OPTIONS: { id: ChartRange; label: string }[] = [
+  { id: 7, label: "7 days" },
+  { id: 15, label: "15 days" },
+  { id: 30, label: "1 month" },
+];
+
 export default function AdminOverview({ onJumpToOrders }: AdminOverviewProps) {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [signinRange, setSigninRange] = useState<ChartRange>(15);
+  const [signupRange, setSignupRange] = useState<ChartRange>(15);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -115,9 +125,13 @@ export default function AdminOverview({ onJumpToOrders }: AdminOverviewProps) {
                 </span>
               )}
             </span>
-            {signinsToday > 0 && signinsMembersToday === 0 && signinsGuestsToday === 0 && (
-              <span className="text-white/40">· {signinsToday} (run guest SQL for split)</span>
-            )}
+            {signinsToday > 0 &&
+              signinsMembersToday === 0 &&
+              signinsGuestsToday === 0 && (
+                <span className="text-white/40">
+                  · {signinsToday} (run guest SQL for split)
+                </span>
+              )}
           </div>
         </AdminCard>
       </section>
@@ -155,14 +169,38 @@ export default function AdminOverview({ onJumpToOrders }: AdminOverviewProps) {
       )}
 
       <AdminSection
-        title="Sign-in & sign-up"
-        hint="Two lines per day (UTC) · Sign-in = guests + members · Sign-up = new member accounts · last 14 days."
+        title="Sign-in"
+        hint="Last sign-in per day (UTC) · members (blue) vs guests (amber)."
       >
-        <DualLineActivityChart
-          signins={stats.signins_by_day ?? []}
-          signups={stats.signups_by_day ?? []}
-          empty="No activity in this window."
-        />
+        <RangeTabs value={signinRange} onChange={setSigninRange} />
+        <div className="mt-3">
+          <MemberGuestLineChart
+            series={stats.signins_by_day ?? []}
+            days={signinRange}
+            empty="No sign-ins in this window."
+            totalLabel="sign-ins"
+            guestNoteLabel="guest sign-ins"
+            ariaLabel="Daily sign-ins"
+          />
+        </div>
+      </AdminSection>
+
+      <AdminSection
+        title="Sign-up"
+        hint="New accounts created each day (UTC) · members only in the headline total."
+      >
+        <RangeTabs value={signupRange} onChange={setSignupRange} />
+        <div className="mt-3">
+          <MemberGuestLineChart
+            series={stats.signups_by_day ?? []}
+            days={signupRange}
+            empty="No signups in this window."
+            totalLabel="member signups"
+            guestNoteLabel="guest signups"
+            ariaLabel="Daily signups"
+            headlineMembersOnly
+          />
+        </div>
       </AdminSection>
 
       <AdminSection
@@ -170,9 +208,10 @@ export default function AdminOverview({ onJumpToOrders }: AdminOverviewProps) {
         hint={`New Guild rows per day · today ${subsToday} · yesterday ${subsYesterday}.`}
       >
         <DayChart
-          series={stats.subscriptions_by_day ?? []}
+          series={sliceDays(stats.subscriptions_by_day ?? [], 15)}
           empty="No new subscriptions in this window."
           tone="gold"
+          totalLabel="15-day total"
         />
       </AdminSection>
 
@@ -250,6 +289,33 @@ function DeltaPill({
   );
 }
 
+function RangeTabs({
+  value,
+  onChange,
+}: {
+  value: ChartRange;
+  onChange: (next: ChartRange) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {RANGE_OPTIONS.map((opt) => (
+        <button
+          key={opt.id}
+          type="button"
+          onClick={() => onChange(opt.id)}
+          className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+            value === opt.id
+              ? "bg-white text-ink"
+              : "border border-white/12 text-white/60"
+          }`}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function dayMembers(p: AdminDayCount): number {
   if (typeof p.members === "number") return p.members;
   return Number(p.count) || 0;
@@ -259,67 +325,57 @@ function dayGuests(p: AdminDayCount): number {
   return typeof p.guests === "number" ? p.guests : 0;
 }
 
-/** Combined sign-ins for a day: members + guests. */
-function daySignins(p: AdminDayCount): number {
-  if (typeof p.members === "number" || typeof p.guests === "number") {
-    return dayMembers(p) + dayGuests(p);
-  }
-  return Number(p.count) || 0;
+function sliceDays(series: AdminDayCount[], days: number): AdminDayCount[] {
+  if (!series.length) return [];
+  const sorted = [...series].sort((a, b) => a.day.localeCompare(b.day));
+  return sorted.slice(Math.max(0, sorted.length - days));
 }
 
-type DayPair = { day: string; signins: number; signups: number };
-
-function mergeActivityDays(
-  signins: AdminDayCount[],
-  signups: AdminDayCount[],
-): DayPair[] {
-  const byDay = new Map<string, DayPair>();
-  for (const p of signins) {
-    byDay.set(p.day, {
-      day: p.day,
-      signins: daySignins(p),
-      signups: 0,
-    });
-  }
-  for (const p of signups) {
-    const prev = byDay.get(p.day);
-    // Sign-up line = new registered members only (not guests).
-    const signupN = dayMembers(p);
-    if (prev) {
-      prev.signups = signupN;
-    } else {
-      byDay.set(p.day, { day: p.day, signins: 0, signups: signupN });
-    }
-  }
-  return [...byDay.values()].sort((a, b) => a.day.localeCompare(b.day));
+function rangeCaption(days: ChartRange): string {
+  if (days === 30) return "1-month";
+  return `${days}-day`;
 }
 
-/**
- * Same dual-line style: Sign-in (guests + members) + Sign-up (new members).
- * Headline total is signups only — guests do not inflate it.
- */
-function DualLineActivityChart({
-  signins,
-  signups,
+/** Dual-line chart for one metric: members (sky) + guests (amber). */
+function MemberGuestLineChart({
+  series,
+  days,
   empty,
+  totalLabel,
+  guestNoteLabel,
+  ariaLabel,
+  headlineMembersOnly = false,
 }: {
-  signins: AdminDayCount[];
-  signups: AdminDayCount[];
+  series: AdminDayCount[];
+  days: ChartRange;
   empty: string;
+  totalLabel: string;
+  guestNoteLabel: string;
+  ariaLabel: string;
+  /** When true, big number = members only (signups). Sign-in uses combined. */
+  headlineMembersOnly?: boolean;
 }) {
-  const series = mergeActivityDays(signins, signups);
-  if (!series.length) {
+  const windowed = useMemo(() => sliceDays(series, days), [series, days]);
+
+  if (!windowed.length) {
     return <p className="text-sm text-white/40">{empty}</p>;
   }
 
-  const signinVals = series.map((p) => p.signins);
-  const signupVals = series.map((p) => p.signups);
-  const max = Math.max(1, ...signinVals, ...signupVals);
-  const signupsTotal = signupVals.reduce((a, b) => a + b, 0);
-  const signinsTotal = signinVals.reduce((a, b) => a + b, 0);
-  const peakSignups = Math.max(0, ...signupVals);
-  const todayIn = signinVals[signinVals.length - 1] ?? 0;
-  const todayUp = signupVals[signupVals.length - 1] ?? 0;
+  const members = windowed.map(dayMembers);
+  const guests = windowed.map(dayGuests);
+  const max = Math.max(1, ...members, ...guests);
+  const membersTotal = members.reduce((a, b) => a + b, 0);
+  const guestsTotal = guests.reduce((a, b) => a + b, 0);
+  const combinedTotal = membersTotal + guestsTotal;
+  const headline = headlineMembersOnly ? membersTotal : combinedTotal;
+  const peak = Math.max(
+    0,
+    ...(headlineMembersOnly
+      ? members
+      : members.map((m, i) => m + (guests[i] ?? 0))),
+  );
+  const todayM = members[members.length - 1] ?? 0;
+  const todayG = guests[guests.length - 1] ?? 0;
 
   const W = 320;
   const H = 176;
@@ -329,7 +385,7 @@ function DualLineActivityChart({
   const padB = 30;
   const plotW = W - padL - padR;
   const plotH = H - padT - padB;
-  const n = series.length;
+  const n = windowed.length;
   const step = n <= 1 ? 0 : plotW / (n - 1);
   const yTicks = [0, 0.5, 1].map((t) => Math.round(max * t));
 
@@ -351,32 +407,37 @@ function DualLineActivityChart({
     <AdminCard className="!p-0 overflow-hidden">
       <div className="flex items-baseline justify-between gap-3 border-b border-white/8 px-4 py-3">
         <div>
-          <p className="font-serif text-2xl text-white tabular-nums">{signupsTotal}</p>
-          <p className="text-[11px] text-white/40">14-day signups</p>
-          <p className="mt-0.5 text-[11px] text-sky-200/75">
-            {signinsTotal} sign-ins (guest + user)
+          <p className="font-serif text-2xl text-white tabular-nums">{headline}</p>
+          <p className="text-[11px] text-white/40">
+            {rangeCaption(days)} {totalLabel}
           </p>
+          {guestsTotal > 0 && (
+            <p className="mt-0.5 text-[11px] text-amber-200/70">
+              {headlineMembersOnly
+                ? `+${guestsTotal} ${guestNoteLabel} (not in total)`
+                : `${guestsTotal} ${guestNoteLabel} · ${membersTotal} members`}
+            </p>
+          )}
         </div>
         <div className="text-right text-[11px] text-white/45">
           <p>
-            Peak signups{" "}
-            <span className="tabular-nums text-amber-200">{peakSignups}</span>
+            Peak <span className="tabular-nums text-white/80">{peak}</span>
           </p>
           <p className="mt-0.5">
             Today{" "}
-            <span className="tabular-nums text-sky-200">{todayIn} in</span>
+            <span className="tabular-nums text-sky-200">{todayM}</span>
             {" · "}
-            <span className="tabular-nums text-amber-200">{todayUp} up</span>
+            <span className="tabular-nums text-amber-200/90">{todayG}g</span>
           </p>
         </div>
       </div>
 
       <div className="flex items-center gap-3 border-b border-white/6 px-4 py-2 text-[10px] uppercase tracking-wide text-white/45">
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-0.5 w-3 rounded-full bg-sky-400" /> Sign-in
+          <span className="h-0.5 w-3 rounded-full bg-sky-400" /> Members
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-0.5 w-3 rounded-full bg-amber-400/90" /> Sign-up
+          <span className="h-0.5 w-3 rounded-full bg-amber-400/90" /> Guests
         </span>
       </div>
 
@@ -385,7 +446,7 @@ function DualLineActivityChart({
           viewBox={`0 0 ${W} ${H}`}
           className="h-48 w-full"
           role="img"
-          aria-label="Daily sign-ins and signups"
+          aria-label={ariaLabel}
         >
           {yTicks.map((tick) => {
             const y = padT + plotH - (tick / max) * plotH;
@@ -423,80 +484,81 @@ function DualLineActivityChart({
           />
 
           <path
-            d={pathFor(signinVals)}
+            d={pathFor(guests)}
+            fill="none"
+            stroke="#fbbf24"
+            strokeWidth="2"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            opacity="0.9"
+          />
+          <path
+            d={pathFor(members)}
             fill="none"
             stroke="#38bdf8"
             strokeWidth="2.25"
             strokeLinejoin="round"
             strokeLinecap="round"
           />
-          <path
-            d={pathFor(signupVals)}
-            fill="none"
-            stroke="#fbbf24"
-            strokeWidth="2"
-            strokeLinejoin="round"
-            strokeLinecap="round"
-            opacity="0.95"
-          />
 
-          {series.map((p, i) => {
-            const si = signinVals[i] ?? 0;
-            const su = signupVals[i] ?? 0;
-            const pin = pointAt(i, si);
-            const pup = pointAt(i, su);
-            const isToday = i === series.length - 1;
-            const labelEvery = series.length > 10 ? 2 : 1;
+          {windowed.map((p, i) => {
+            const m = members[i] ?? 0;
+            const g = guests[i] ?? 0;
+            const pm = pointAt(i, m);
+            const pg = pointAt(i, g);
+            const isToday = i === windowed.length - 1;
+            const labelEvery =
+              windowed.length > 12 ? 3 : windowed.length > 8 ? 2 : 1;
             const showLabel = i % labelEvery === 0 || isToday;
             const labelsClose =
-              Math.abs(si - su) <= max * 0.12 && si > 0 && su > 0;
+              Math.abs(m - g) <= max * 0.12 && m > 0 && g > 0;
             return (
               <g key={p.day}>
                 <title>
-                  {`${formatChartDay(p.day, true)}: ${si} sign-in, ${su} sign-up`}
+                  {`${formatChartDay(p.day, true)}: ${m} members, ${g} guests`}
                 </title>
                 <circle
-                  cx={pin.x}
-                  cy={pin.y}
-                  r={isToday ? 3.75 : 3}
-                  fill="#38bdf8"
-                />
-                <circle
-                  cx={pup.x}
-                  cy={pup.y}
+                  cx={pg.x}
+                  cy={pg.y}
                   r={isToday ? 3.5 : 2.75}
                   fill="#fbbf24"
                 />
-                {(si > 0 || isToday) && (
+                <circle
+                  cx={pm.x}
+                  cy={pm.y}
+                  r={isToday ? 3.75 : 3}
+                  fill="#38bdf8"
+                />
+                {(m > 0 || isToday) && (
                   <text
-                    x={pin.x}
-                    y={Math.max(padT + 8, pin.y - 7)}
+                    x={pm.x}
+                    y={Math.max(padT + 8, pm.y - 7)}
                     textAnchor="middle"
                     fill="rgba(125,211,252,0.95)"
                     fontSize="8"
                     fontFamily="ui-sans-serif, system-ui, sans-serif"
                   >
-                    {si}
+                    {m}
                   </text>
                 )}
-                {(su > 0 || isToday) && (
+                {(g > 0 || isToday) && (
                   <text
-                    x={pup.x}
+                    x={pg.x}
                     y={Math.min(
                       padT + plotH - 4,
-                      labelsClose ? pup.y + 12 : Math.max(padT + 8, pup.y - 7),
+                      labelsClose ? pg.y + 12 : Math.max(padT + 8, pg.y - 7),
                     )}
                     textAnchor="middle"
                     fill="rgba(251,191,36,0.95)"
                     fontSize="8"
                     fontFamily="ui-sans-serif, system-ui, sans-serif"
                   >
-                    {su}
+                    {g}
                   </text>
                 )}
                 {showLabel && (
                   <text
-                    x={pin.x}
+                    x={pm.x}
                     y={H - 8}
                     textAnchor="middle"
                     fill={
@@ -523,10 +585,12 @@ function DayChart({
   series,
   empty,
   tone,
+  totalLabel = "14-day total",
 }: {
   series: AdminDayCount[];
   empty: string;
   tone: "sky" | "gold";
+  totalLabel?: string;
 }) {
   if (!series.length) {
     return <p className="text-sm text-white/40">{empty}</p>;
@@ -559,7 +623,7 @@ function DayChart({
       <div className="flex items-baseline justify-between gap-3 border-b border-white/8 px-4 py-3">
         <div>
           <p className="font-serif text-2xl text-white tabular-nums">{total}</p>
-          <p className="text-[11px] text-white/40">14-day total</p>
+          <p className="text-[11px] text-white/40">{totalLabel}</p>
         </div>
         <div className="text-right text-[11px] text-white/45">
           <p>
