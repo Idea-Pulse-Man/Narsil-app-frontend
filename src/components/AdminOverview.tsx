@@ -163,7 +163,7 @@ export default function AdminOverview({ onJumpToOrders }: AdminOverviewProps) {
 
       <AdminSection
         title="Sign-in & sign-up"
-        hint="Registered members only · blue = sign-in · amber = sign-up · guests excluded."
+        hint="Members only · blue = sign-in (sessions started that day) · amber = sign-up · guests excluded."
       >
         <RangeTabs value={activityRange} onChange={setActivityRange} />
         <div className="mt-3">
@@ -184,6 +184,7 @@ export default function AdminOverview({ onJumpToOrders }: AdminOverviewProps) {
         <div className="mt-3">
           <DayChart
             series={sliceDays(stats.subscriptions_by_day ?? [], subRange)}
+            days={subRange}
             empty="No new subscriptions in this window."
             tone="gold"
             totalLabel={`${rangeCaption(subRange)} total`}
@@ -389,6 +390,10 @@ function SigninSignupLineChart({
   const n = series.length;
   const step = n <= 1 ? 0 : plotW / (n - 1);
   const yTicks = [0, 0.5, 1].map((t) => Math.round(max * t));
+  const axisLabelIndices = pickAxisLabelIndices(
+    series.map((p) => p.day),
+    days,
+  );
 
   const pointAt = (i: number, value: number) => {
     const x = padL + i * step;
@@ -501,11 +506,10 @@ function SigninSignupLineChart({
             const pin = pointAt(i, si);
             const pup = pointAt(i, su);
             const isToday = i === series.length - 1;
-            const labelEvery =
-              series.length > 12 ? 3 : series.length > 8 ? 2 : 1;
-            const showLabel = i % labelEvery === 0 || isToday;
+            const showAxis = axisLabelIndices.has(i);
             const labelsClose =
               Math.abs(si - su) <= max * 0.12 && si > 0 && su > 0;
+            const showValueLabels = series.length <= 31 || si > 0 || su > 0 || isToday;
             return (
               <g key={p.day}>
                 <title>
@@ -514,16 +518,16 @@ function SigninSignupLineChart({
                 <circle
                   cx={pin.x}
                   cy={pin.y}
-                  r={isToday ? 3.75 : 3}
+                  r={isToday ? 3.75 : series.length > 60 ? 1.75 : 3}
                   fill="#38bdf8"
                 />
                 <circle
                   cx={pup.x}
                   cy={pup.y}
-                  r={isToday ? 3.5 : 2.75}
+                  r={isToday ? 3.5 : series.length > 60 ? 1.5 : 2.75}
                   fill="#fbbf24"
                 />
-                {(si > 0 || isToday) && (
+                {showValueLabels && (si > 0 || isToday) && series.length <= 45 && (
                   <text
                     x={pin.x}
                     y={Math.max(padT + 8, pin.y - 7)}
@@ -535,7 +539,7 @@ function SigninSignupLineChart({
                     {si}
                   </text>
                 )}
-                {(su > 0 || isToday) && (
+                {showValueLabels && (su > 0 || isToday) && series.length <= 45 && (
                   <text
                     x={pup.x}
                     y={Math.min(
@@ -550,7 +554,7 @@ function SigninSignupLineChart({
                     {su}
                   </text>
                 )}
-                {showLabel && (
+                {showAxis && (
                   <text
                     x={pin.x}
                     y={H - 8}
@@ -558,12 +562,12 @@ function SigninSignupLineChart({
                     fill={
                       isToday
                         ? "rgba(255,255,255,0.75)"
-                        : "rgba(255,255,255,0.35)"
+                        : "rgba(255,255,255,0.4)"
                     }
                     fontSize="8"
                     fontFamily="ui-sans-serif, system-ui, sans-serif"
                   >
-                    {formatChartDay(p.day, false)}
+                    {formatAxisDay(p.day, days)}
                   </text>
                 )}
               </g>
@@ -577,11 +581,13 @@ function SigninSignupLineChart({
 
 function DayChart({
   series,
+  days = 14,
   empty,
   tone,
   totalLabel = "14-day total",
 }: {
   series: AdminDayCount[];
+  days?: ChartRange;
   empty: string;
   tone: "sky" | "gold";
   totalLabel?: string;
@@ -595,6 +601,10 @@ function DayChart({
   const total = values.reduce((a, b) => a + b, 0);
   const peak = Math.max(...values);
   const today = values[values.length - 1] ?? 0;
+  const axisLabelIndices = pickAxisLabelIndices(
+    series.map((p) => p.day),
+    days,
+  );
 
   const W = 320;
   const H = 168;
@@ -675,8 +685,7 @@ function DayChart({
             const x = padL + i * (barW + gap);
             const y = padT + plotH - h;
             const isToday = i === series.length - 1;
-            const labelEvery = series.length > 10 ? 2 : 1;
-            const showLabel = i % labelEvery === 0 || isToday;
+            const showAxis = axisLabelIndices.has(i);
             return (
               <g key={p.day}>
                 <title>{`${formatChartDay(p.day, true)}: ${n}`}</title>
@@ -701,7 +710,7 @@ function DayChart({
                     fill="rgba(255,255,255,0.12)"
                   />
                 )}
-                {n > 0 && (
+                {n > 0 && series.length <= 45 && (
                   <text
                     x={x + barW / 2}
                     y={Math.max(padT + 8, y - 4)}
@@ -713,7 +722,7 @@ function DayChart({
                     {n}
                   </text>
                 )}
-                {showLabel && (
+                {showAxis && (
                   <text
                     x={x + barW / 2}
                     y={H - 8}
@@ -721,12 +730,12 @@ function DayChart({
                     fill={
                       isToday
                         ? "rgba(255,255,255,0.75)"
-                        : "rgba(255,255,255,0.35)"
+                        : "rgba(255,255,255,0.4)"
                     }
                     fontSize="8"
                     fontFamily="ui-sans-serif, system-ui, sans-serif"
                   >
-                    {formatChartDay(p.day, false)}
+                    {formatAxisDay(p.day, days)}
                   </text>
                 )}
               </g>
@@ -760,6 +769,71 @@ function formatChartDay(iso: string, long: boolean): string {
       day: "numeric",
       timeZone: "UTC",
     });
+  }
+  return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
+}
+
+/** Sparse x-axis ticks so 2M/6M/1Y labels stay readable. */
+function pickAxisLabelIndices(days: string[], range: ChartRange): Set<number> {
+  const n = days.length;
+  const out = new Set<number>();
+  if (n <= 0) return out;
+  if (n === 1) {
+    out.add(0);
+    return out;
+  }
+
+  out.add(0);
+  out.add(n - 1);
+
+  if (n <= 10) {
+    for (let i = 0; i < n; i++) out.add(i);
+    return out;
+  }
+
+  // Prefer month starts on longer ranges.
+  if (range >= 60) {
+    for (let i = 1; i < n - 1; i++) {
+      const raw = days[i]?.slice(0, 10) ?? "";
+      const d = new Date(`${raw}T12:00:00Z`);
+      if (!Number.isNaN(d.getTime()) && d.getUTCDate() === 1) out.add(i);
+    }
+  }
+
+  const target =
+    range <= 14 ? 7 : range <= 30 ? 6 : range <= 90 ? 6 : range <= 180 ? 6 : 7;
+
+  if (out.size >= target) {
+    // Too many month ticks (e.g. 1Y) — keep first/last + evenly thinned months.
+    if (out.size > target + 1) {
+      const mids = [...out].filter((i) => i !== 0 && i !== n - 1).sort((a, b) => a - b);
+      const keep = new Set([0, n - 1]);
+      const step = Math.max(1, Math.ceil(mids.length / Math.max(1, target - 2)));
+      for (let i = 0; i < mids.length; i += step) keep.add(mids[i]!);
+      return keep;
+    }
+    return out;
+  }
+
+  const step = (n - 1) / (target - 1);
+  for (let t = 1; t < target - 1; t++) {
+    out.add(Math.round(t * step));
+  }
+  return out;
+}
+
+/** Short ranges → M/D; long ranges → month abbr (or M/D on mid ticks). */
+function formatAxisDay(iso: string, range: ChartRange): string {
+  const raw = iso.slice(0, 10);
+  const d = new Date(`${raw}T12:00:00Z`);
+  if (Number.isNaN(d.getTime())) return formatChartDay(iso, false);
+  if (range >= 60) {
+    if (d.getUTCDate() === 1 || range >= 180) {
+      return d.toLocaleDateString(undefined, {
+        month: "short",
+        timeZone: "UTC",
+      });
+    }
   }
   return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
 }

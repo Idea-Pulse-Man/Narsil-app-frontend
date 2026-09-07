@@ -3,8 +3,9 @@
 -- ---------------------------------------------------------------------------
 -- • "Total users" / new-user deltas count REGISTERED members only (email set,
 --   not anonymous). Guests are tracked separately and do not inflate totals.
--- • Sign-in chart returns stacked members + guests per day (different colors
---   in the app).
+-- • Sign-in series counts DISTINCT members who STARTED a session that day
+--   (auth.sessions.created_at). Do NOT use last_sign_in_at for history — that
+--   field only stores each user's latest login, so past days look empty.
 -- • admin_list_users excludes guests so the Users tab only shows real accounts.
 --
 -- HOW TO RUN: Supabase → SQL Editor → paste → Run. Safe to re-run.
@@ -76,22 +77,21 @@ begin
          or nullif(trim(coalesce(au.email, '')), '') is null)
     and (au.created_at at time zone 'utc')::date = today;
 
-  select count(*)::int into signins_members_today
-  from auth.users au
-  where au.last_sign_in_at is not null
-    and (au.last_sign_in_at at time zone 'utc')::date = today
-    and public.is_registered_member(au.id);
+  -- Unique members who opened a session today / yesterday (real daily sign-ins).
+  select count(distinct s.user_id)::int into signins_members_today
+  from auth.sessions s
+  where (s.created_at at time zone 'utc')::date = today
+    and public.is_registered_member(s.user_id);
 
-  select count(*)::int into signins_guests_today
-  from auth.users au
-  where au.last_sign_in_at is not null
-    and (au.last_sign_in_at at time zone 'utc')::date = today
-    and not public.is_registered_member(au.id);
+  select count(distinct s.user_id)::int into signins_guests_today
+  from auth.sessions s
+  where (s.created_at at time zone 'utc')::date = today
+    and not public.is_registered_member(s.user_id);
 
-  select count(*)::int into signins_yesterday
-  from auth.users au
-  where au.last_sign_in_at is not null
-    and (au.last_sign_in_at at time zone 'utc')::date = yesterday;
+  select count(distinct s.user_id)::int into signins_yesterday
+  from auth.sessions s
+  where (s.created_at at time zone 'utc')::date = yesterday
+    and public.is_registered_member(s.user_id);
 
   begin
     select count(*)::int into pending_count
@@ -111,11 +111,11 @@ begin
     'guests', guests_total,
     'guests_today', guests_today,
 
-    'signins_today', signins_members_today + signins_guests_today,
+    'signins_today', signins_members_today,
     'signins_members_today', signins_members_today,
     'signins_guests_today', signins_guests_today,
     'signins_yesterday', signins_yesterday,
-    'signins_delta', (signins_members_today + signins_guests_today) - signins_yesterday,
+    'signins_delta', signins_members_today - signins_yesterday,
 
     'admins', (
       select count(*) from public.profiles p
@@ -147,28 +147,28 @@ begin
       where (s.created_at at time zone 'utc')::date = yesterday
     ),
 
-    -- Stacked sign-ins: members + guests
+    -- Daily sign-ins from session starts (keeps history). Members + guests.
     'signins_by_day', (
       select coalesce(json_agg(json_build_object(
         'day', d.day,
         'members', d.members,
         'guests', d.guests,
-        'count', d.members  -- legacy: members only
+        'count', d.members
       ) order by d.day), '[]'::json)
       from (
         select
           to_char(gs.d, 'YYYY-MM-DD') as day,
           (
-            select count(*)::int from auth.users au
-            where au.last_sign_in_at is not null
-              and (au.last_sign_in_at at time zone 'utc')::date = gs.d
-              and public.is_registered_member(au.id)
+            select count(distinct s.user_id)::int
+            from auth.sessions s
+            where (s.created_at at time zone 'utc')::date = gs.d
+              and public.is_registered_member(s.user_id)
           ) as members,
           (
-            select count(*)::int from auth.users au
-            where au.last_sign_in_at is not null
-              and (au.last_sign_in_at at time zone 'utc')::date = gs.d
-              and not public.is_registered_member(au.id)
+            select count(distinct s.user_id)::int
+            from auth.sessions s
+            where (s.created_at at time zone 'utc')::date = gs.d
+              and not public.is_registered_member(s.user_id)
           ) as guests
         from generate_series(today - 364, today, interval '1 day') as g(ts)
         cross join lateral (select g.ts::date as d) gs
