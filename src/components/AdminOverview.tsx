@@ -1,7 +1,8 @@
 /**
  * Admin dashboard — Overview. First board is Narsil membership (registered
  * members only), then separate Sign-in and Sign-up charts with their own
- * range filters (7 / 15 / 30 days), then subscriptions and catalog.
+ * range filters (7 / 14 / 30 / 60 / 90 days), then subscriptions with the same
+ * range controls, then catalog.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -23,20 +24,23 @@ interface AdminOverviewProps {
   onJumpToOrders: (status: CanvasOrderStatus | "all") => void;
 }
 
-type ChartRange = 7 | 15 | 30;
+type ChartRange = 7 | 14 | 30 | 60 | 90;
 
 const RANGE_OPTIONS: { id: ChartRange; label: string }[] = [
   { id: 7, label: "7 days" },
-  { id: 15, label: "15 days" },
+  { id: 14, label: "14 days" },
   { id: 30, label: "1 month" },
+  { id: 60, label: "2 months" },
+  { id: 90, label: "3 months" },
 ];
 
 export default function AdminOverview({ onJumpToOrders }: AdminOverviewProps) {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [signinRange, setSigninRange] = useState<ChartRange>(15);
-  const [signupRange, setSignupRange] = useState<ChartRange>(15);
+  const [signinRange, setSigninRange] = useState<ChartRange>(14);
+  const [signupRange, setSignupRange] = useState<ChartRange>(14);
+  const [subRange, setSubRange] = useState<ChartRange>(14);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -207,12 +211,15 @@ export default function AdminOverview({ onJumpToOrders }: AdminOverviewProps) {
         title="Subscriptions"
         hint={`New Guild rows per day · today ${subsToday} · yesterday ${subsYesterday}.`}
       >
-        <DayChart
-          series={sliceDays(stats.subscriptions_by_day ?? [], 15)}
-          empty="No new subscriptions in this window."
-          tone="gold"
-          totalLabel="15-day total"
-        />
+        <RangeTabs value={subRange} onChange={setSubRange} />
+        <div className="mt-3">
+          <DayChart
+            series={sliceDays(stats.subscriptions_by_day ?? [], subRange)}
+            empty="No new subscriptions in this window."
+            tone="gold"
+            totalLabel={`${rangeCaption(subRange)} total`}
+          />
+        </div>
       </AdminSection>
 
       <AdminSection title="Catalog">
@@ -297,7 +304,7 @@ function RangeTabs({
   onChange: (next: ChartRange) => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="-mx-1 flex flex-wrap gap-2">
       {RANGE_OPTIONS.map((opt) => (
         <button
           key={opt.id}
@@ -333,6 +340,8 @@ function sliceDays(series: AdminDayCount[], days: number): AdminDayCount[] {
 
 function rangeCaption(days: ChartRange): string {
   if (days === 30) return "1-month";
+  if (days === 60) return "2-month";
+  if (days === 90) return "3-month";
   return `${days}-day`;
 }
 
