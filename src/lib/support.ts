@@ -122,16 +122,52 @@ export async function fetchUnreadSupportCount(): Promise<number> {
 
 /**
  * Live INSERT stream for a support thread (member or admin viewing that user).
- * Returns unsubscribe. No-ops if Supabase is missing.
+ * Realtime when the table is in `supabase_realtime`; otherwise a 1.5s poll
+ * keeps both sides in sync (covers missing publication / flaky websockets).
  */
 export function subscribeSupportThread(
   userId: string,
   onInsert: (message: SupportMessage) => void,
+  opts?: { afterCreatedAt?: string | null },
 ): () => void {
   if (!supabase || !userId) return () => {};
   const sb = supabase;
+  const seen = new Set<string>();
+  let lastAt = opts?.afterCreatedAt ?? null;
+  let alive = true;
+  let pollId = 0;
+
+  const emit = (row: SupportMessage) => {
+    if (!alive || !row?.id || !row.body || seen.has(row.id)) return;
+    seen.add(row.id);
+    if (!lastAt || row.created_at > lastAt) lastAt = row.created_at;
+    onInsert(row);
+  };
+
+  const tick = async () => {
+    if (!alive) return;
+    let q = sb
+      .from("support_messages")
+      .select("id, user_id, body, from_admin, created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true });
+    if (lastAt) q = q.gt("created_at", lastAt);
+    const { data, error } = await q;
+    if (error || !alive || !data?.length) return;
+    for (const row of data as SupportMessage[]) emit(row);
+  };
+
+  const onVisible = () => {
+    if (document.visibilityState === "visible") void tick();
+  };
+
+  void sb.auth.getSession().then(({ data }) => {
+    const token = data.session?.access_token;
+    if (token) sb.realtime.setAuth(token);
+  });
+
   const channel = sb
-    .channel(`support:${userId}`)
+    .channel(`support-thread-${userId}-${Math.random().toString(36).slice(2, 8)}`)
     .on(
       "postgres_changes",
       {
@@ -140,28 +176,30 @@ export function subscribeSupportThread(
         table: "support_messages",
         filter: `user_id=eq.${userId}`,
       },
-      (payload) => {
-        const row = payload.new as SupportMessage;
-        if (row?.id) onInsert(row);
-      },
+      (payload) => emit(payload.new as SupportMessage),
     )
     .subscribe();
 
+  pollId = window.setInterval(() => {
+    void tick();
+  }, 1500);
+  void tick();
+  document.addEventListener("visibilitychange", onVisible);
+
   return () => {
+    alive = false;
+    window.clearInterval(pollId);
+    document.removeEventListener("visibilitychange", onVisible);
     void sb.removeChannel(channel);
   };
 }
 
-/**
- * Admin: any new support message (for inbox list / badge refresh).
- */
-export function subscribeSupportInbox(
-  onInsert: (message: SupportMessage) => void,
-): () => void {
+/** Admin inbox list: Realtime + poll to refresh thread summaries. */
+export function subscribeSupportInbox(onChange: () => void): () => void {
   if (!supabase) return () => {};
   const sb = supabase;
   const channel = sb
-    .channel("support:inbox")
+    .channel(`support-inbox-${Math.random().toString(36).slice(2, 8)}`)
     .on(
       "postgres_changes",
       {
@@ -169,14 +207,30 @@ export function subscribeSupportInbox(
         schema: "public",
         table: "support_messages",
       },
-      (payload) => {
-        const row = payload.new as SupportMessage;
-        if (row?.id) onInsert(row);
-      },
+      () => onChange(),
     )
     .subscribe();
 
+  const pollId = window.setInterval(() => onChange(), 4000);
+
   return () => {
+    window.clearInterval(pollId);
     void sb.removeChannel(channel);
   };
+}
+
+/** Merge helper — ascending by time, skip duplicates. */
+export function mergeSupportMessages(
+  prev: SupportMessage[],
+  incoming: SupportMessage | SupportMessage[],
+): SupportMessage[] {
+  const rows = Array.isArray(incoming) ? incoming : [incoming];
+  const map = new Map(prev.map((m) => [m.id, m]));
+  for (const row of rows) {
+    if (!row?.id) continue;
+    map.set(row.id, row);
+  }
+  return [...map.values()].sort((a, b) =>
+    a.created_at.localeCompare(b.created_at),
+  );
 }

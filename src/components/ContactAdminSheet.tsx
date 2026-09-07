@@ -13,6 +13,7 @@ import {
   openSupportEmail,
   sendSupportMessage,
   subscribeSupportThread,
+  mergeSupportMessages,
   type SupportMessage,
 } from "@/lib/support";
 import { CloseIcon } from "./Icons";
@@ -42,6 +43,8 @@ export default function ContactAdminSheet({
   const [busy, setBusy] = useState(false);
   const [live, setLive] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
 
   useEffect(() => {
     if (!open) {
@@ -76,24 +79,28 @@ export default function ContactAdminSheet({
     };
   }, [open, panel, showToast]);
 
-  // Realtime: admin (and multi-device) inserts appear without refresh.
+  // Realtime + poll: admin replies appear without refresh.
   useEffect(() => {
-    if (!open || panel !== "chat" || !user?.id) {
+    if (!open || panel !== "chat" || !user?.id || loading) {
       setLive(false);
       return;
     }
     setLive(true);
-    const stop = subscribeSupportThread(user.id, (row) => {
-      setMessages((prev) => {
-        if (prev.some((m) => m.id === row.id)) return prev;
-        return [...prev, row];
-      });
-    });
+    const rows = messagesRef.current;
+    const after =
+      rows.length > 0 ? rows[rows.length - 1]?.created_at ?? null : null;
+    const stop = subscribeSupportThread(
+      user.id,
+      (row) => {
+        setMessages((prev) => mergeSupportMessages(prev, row));
+      },
+      { afterCreatedAt: after },
+    );
     return () => {
       setLive(false);
       stop();
     };
-  }, [open, panel, user?.id]);
+  }, [open, panel, user?.id, loading]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -112,10 +119,7 @@ export default function ContactAdminSheet({
     setBusy(true);
     try {
       const row = await sendSupportMessage(draft);
-      setMessages((prev) => {
-        if (prev.some((m) => m.id === row.id)) return prev;
-        return [...prev, row];
-      });
+      setMessages((prev) => mergeSupportMessages(prev, row));
       setDraft("");
     } catch (err) {
       showToast(

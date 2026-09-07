@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   fetchSupportThread,
   fetchSupportThreads,
+  mergeSupportMessages,
   replySupportMessage,
   subscribeSupportInbox,
   subscribeSupportThread,
@@ -75,17 +76,22 @@ export default function AdminInbox({
     });
   }, [refreshThreadsQuiet]);
 
-  // Open thread: stream new messages live.
+  // Open thread: stream + poll new messages live.
   useEffect(() => {
-    if (!activeId) return;
-    return subscribeSupportThread(activeId, (row) => {
-      setMessages((prev) => {
-        if (prev.some((m) => m.id === row.id)) return prev;
-        return [...prev, row];
-      });
-      void refreshThreadsQuiet();
-    });
-  }, [activeId, refreshThreadsQuiet]);
+    if (!activeId || threadLoading) return;
+    const rows = messages;
+    const after =
+      rows.length > 0 ? rows[rows.length - 1]?.created_at ?? null : null;
+    return subscribeSupportThread(
+      activeId,
+      (row) => {
+        setMessages((prev) => mergeSupportMessages(prev, row));
+        void refreshThreadsQuiet();
+      },
+      { afterCreatedAt: after },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- when thread opens
+  }, [activeId, threadLoading, refreshThreadsQuiet]);
 
   const openThread = async (userId: string) => {
     setActiveId(userId);

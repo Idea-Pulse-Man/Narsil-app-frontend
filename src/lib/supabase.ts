@@ -36,5 +36,8 @@ export const supabase: SupabaseClient | null = SUPABASE_ENABLED
         flowType: "pkce",
         detectSessionInUrl: false,
       },
+      realtime: {
+        params: { eventsPerSecond: 20 },
+      },
     })
   : null;
