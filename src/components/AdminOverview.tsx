@@ -1,7 +1,7 @@
 /**
  * Admin dashboard — Overview. First board is Narsil membership (registered
  * members only — guests are separate and do not inflate totals), then a
- * stacked sign-in chart (members vs guests) and subscription charts.
+ * dual-line daily signup chart (members vs guests) and subscription charts.
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -155,12 +155,16 @@ export default function AdminOverview({ onJumpToOrders }: AdminOverviewProps) {
       )}
 
       <AdminSection
-        title="Sign-ins"
-        hint="Last sign-in per day (UTC) · members (blue) vs guests (amber) · last 14 days."
+        title="Daily signups"
+        hint="New accounts created each day (UTC) · two lines: members (blue) vs guests (amber) · last 14 days."
       >
-        <StackedSigninChart
-          series={stats.signins_by_day ?? []}
-          empty="No sign-in activity in this window."
+        <DualLineSignupChart
+          series={
+            (stats.signups_by_day?.length
+              ? stats.signups_by_day
+              : stats.signins_by_day) ?? []
+          }
+          empty="No signups in this window."
         />
       </AdminSection>
 
@@ -258,8 +262,8 @@ function dayGuests(p: AdminDayCount): number {
   return typeof p.guests === "number" ? p.guests : 0;
 }
 
-/** Stacked bars: members (sky) + guests (amber). Summary totals use members only. */
-function StackedSigninChart({
+/** Two lines: daily member signups (sky) + guest signups (amber). Totals are members only. */
+function DualLineSignupChart({
   series,
   empty,
 }: {
@@ -272,79 +276,81 @@ function StackedSigninChart({
 
   const members = series.map(dayMembers);
   const guests = series.map(dayGuests);
-  const totals = series.map((_, i) => (members[i] ?? 0) + (guests[i] ?? 0));
-  const max = Math.max(1, ...totals);
+  const max = Math.max(1, ...members, ...guests);
   const membersTotal = members.reduce((a, b) => a + b, 0);
   const guestsTotal = guests.reduce((a, b) => a + b, 0);
-  const peak = Math.max(...totals);
+  const peakMembers = Math.max(0, ...members);
   const todayM = members[members.length - 1] ?? 0;
   const todayG = guests[guests.length - 1] ?? 0;
 
   const W = 320;
-  const H = 168;
+  const H = 176;
   const padL = 28;
-  const padR = 8;
-  const padT = 16;
-  const padB = 28;
+  const padR = 10;
+  const padT = 20;
+  const padB = 30;
   const plotW = W - padL - padR;
   const plotH = H - padT - padB;
-  const gap = 3;
-  const barW = Math.max(6, (plotW - gap * (series.length - 1)) / series.length);
+  const n = series.length;
+  const step = n <= 1 ? 0 : plotW / (n - 1);
   const yTicks = [0, 0.5, 1].map((t) => Math.round(max * t));
+
+  const pointAt = (i: number, value: number) => {
+    const x = padL + i * step;
+    const y = padT + plotH - (value / max) * plotH;
+    return { x, y };
+  };
+
+  const pathFor = (values: number[]) =>
+    values
+      .map((v, i) => {
+        const { x, y } = pointAt(i, v);
+        return `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`;
+      })
+      .join(" ");
 
   return (
     <AdminCard className="!p-0 overflow-hidden">
       <div className="flex items-baseline justify-between gap-3 border-b border-white/8 px-4 py-3">
         <div>
           <p className="font-serif text-2xl text-white tabular-nums">{membersTotal}</p>
-          <p className="text-[11px] text-white/40">14-day members</p>
+          <p className="text-[11px] text-white/40">14-day member signups</p>
           {guestsTotal > 0 && (
             <p className="mt-0.5 text-[11px] text-amber-200/70">
-              +{guestsTotal} guest sign-ins (not in total)
+              +{guestsTotal} guest signups (not in total)
             </p>
           )}
         </div>
         <div className="text-right text-[11px] text-white/45">
           <p>
-            Peak <span className="tabular-nums text-white/80">{peak}</span>
+            Peak members{" "}
+            <span className="tabular-nums text-sky-200">{peakMembers}</span>
           </p>
           <p className="mt-0.5">
             Today{" "}
             <span className="tabular-nums text-sky-200">{todayM}</span>
-            {todayG > 0 && (
-              <span className="tabular-nums text-amber-200/90"> +{todayG}g</span>
-            )}
+            {" · "}
+            <span className="tabular-nums text-amber-200/90">{todayG} guests</span>
           </p>
         </div>
       </div>
 
       <div className="flex items-center gap-3 border-b border-white/6 px-4 py-2 text-[10px] uppercase tracking-wide text-white/45">
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-sm bg-sky-400" /> Members
+          <span className="h-0.5 w-3 rounded-full bg-sky-400" /> Members
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-sm bg-amber-400/90" /> Guests
+          <span className="h-0.5 w-3 rounded-full bg-amber-400/90" /> Guests
         </span>
       </div>
 
       <div className="px-2 pb-2 pt-1">
         <svg
           viewBox={`0 0 ${W} ${H}`}
-          className="h-44 w-full"
+          className="h-48 w-full"
           role="img"
-          aria-label="Daily sign-ins by members and guests"
+          aria-label="Daily member and guest signups"
         >
-          <defs>
-            <linearGradient id="admin-bar-members" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#7dd3fc" stopOpacity="0.95" />
-              <stop offset="100%" stopColor="#0ea5e9" stopOpacity="0.55" />
-            </linearGradient>
-            <linearGradient id="admin-bar-guests" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#fbbf24" stopOpacity="0.95" />
-              <stop offset="100%" stopColor="#d97706" stopOpacity="0.55" />
-            </linearGradient>
-          </defs>
-
           {yTicks.map((tick) => {
             const y = padT + plotH - (tick / max) * plotH;
             return (
@@ -371,70 +377,92 @@ function StackedSigninChart({
             );
           })}
 
+          <line
+            x1={padL}
+            x2={W - padR}
+            y1={padT + plotH}
+            y2={padT + plotH}
+            stroke="rgba(255,255,255,0.18)"
+            strokeWidth="1"
+          />
+
+          {/* Guest line (behind) */}
+          <path
+            d={pathFor(guests)}
+            fill="none"
+            stroke="#fbbf24"
+            strokeWidth="2"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            opacity="0.9"
+          />
+          {/* Member line */}
+          <path
+            d={pathFor(members)}
+            fill="none"
+            stroke="#38bdf8"
+            strokeWidth="2.25"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
+
           {series.map((p, i) => {
             const m = members[i] ?? 0;
             const g = guests[i] ?? 0;
-            const n = m + g;
-            const hM = m === 0 ? 0 : Math.max(3, (m / max) * plotH);
-            const hG = g === 0 ? 0 : Math.max(3, (g / max) * plotH);
-            const x = padL + i * (barW + gap);
-            const yG = padT + plotH - hG;
-            const yM = yG - hM;
+            const pm = pointAt(i, m);
+            const pg = pointAt(i, g);
             const isToday = i === series.length - 1;
             const labelEvery = series.length > 10 ? 2 : 1;
             const showLabel = i % labelEvery === 0 || isToday;
+            // Offset labels when both values are close so they don't collide
+            const labelsClose = Math.abs(m - g) <= max * 0.12 && m > 0 && g > 0;
             return (
               <g key={p.day}>
                 <title>
                   {`${formatChartDay(p.day, true)}: ${m} members, ${g} guests`}
                 </title>
-                {g > 0 && (
-                  <rect
-                    x={x}
-                    y={yG}
-                    width={barW}
-                    height={hG}
-                    rx={m > 0 ? 0 : Math.min(4, barW / 2)}
-                    fill="url(#admin-bar-guests)"
-                    opacity={isToday ? 1 : 0.85}
-                  />
-                )}
-                {m > 0 && (
-                  <rect
-                    x={x}
-                    y={yM}
-                    width={barW}
-                    height={hM}
-                    rx={Math.min(4, barW / 2)}
-                    fill="url(#admin-bar-members)"
-                    opacity={isToday ? 1 : 0.85}
-                  />
-                )}
-                {n === 0 && (
-                  <rect
-                    x={x}
-                    y={padT + plotH - 2}
-                    width={barW}
-                    height={2}
-                    rx={1}
-                    fill="rgba(255,255,255,0.12)"
-                  />
-                )}
-                {n > 0 && (
+                <circle
+                  cx={pg.x}
+                  cy={pg.y}
+                  r={isToday ? 3.5 : 2.75}
+                  fill="#fbbf24"
+                />
+                <circle
+                  cx={pm.x}
+                  cy={pm.y}
+                  r={isToday ? 3.75 : 3}
+                  fill="#38bdf8"
+                />
+                {(m > 0 || isToday) && (
                   <text
-                    x={x + barW / 2}
-                    y={Math.max(padT + 8, (m > 0 ? yM : yG) - 4)}
+                    x={pm.x}
+                    y={Math.max(padT + 8, pm.y - 7)}
                     textAnchor="middle"
-                    fill="rgba(255,255,255,0.7)"
+                    fill="rgba(125,211,252,0.95)"
                     fontSize="8"
                     fontFamily="ui-sans-serif, system-ui, sans-serif"
                   >
-                    {n}
+                    {m}
+                  </text>
+                )}
+                {(g > 0 || isToday) && (
+                  <text
+                    x={pg.x}
+                    y={Math.min(
+                      padT + plotH - 4,
+                      labelsClose ? pg.y + 12 : Math.max(padT + 8, pg.y - 7),
+                    )}
+                    textAnchor="middle"
+                    fill="rgba(251,191,36,0.95)"
+                    fontSize="8"
+                    fontFamily="ui-sans-serif, system-ui, sans-serif"
+                  >
+                    {g}
                   </text>
                 )}
                 {showLabel && (
                   <text
-                    x={x + barW / 2}
+                    x={pm.x}
                     y={H - 8}
                     textAnchor="middle"
                     fill={
@@ -451,15 +479,6 @@ function StackedSigninChart({
               </g>
             );
           })}
-
-          <line
-            x1={padL}
-            x2={W - padR}
-            y1={padT + plotH}
-            y2={padT + plotH}
-            stroke="rgba(255,255,255,0.18)"
-            strokeWidth="1"
-          />
         </svg>
       </div>
     </AdminCard>

@@ -188,8 +188,14 @@ begin
         cross join lateral (select g.ts::date as d) gs
       ) d
     ),
+    -- New accounts created each day: members + guests (two series for the line chart)
     'signups_by_day', (
-      select coalesce(json_agg(json_build_object('day', d.day, 'count', d.n) order by d.day), '[]'::json)
+      select coalesce(json_agg(json_build_object(
+        'day', d.day,
+        'members', d.members,
+        'guests', d.guests,
+        'count', d.members
+      ) order by d.day), '[]'::json)
       from (
         select
           to_char(gs.d, 'YYYY-MM-DD') as day,
@@ -198,7 +204,13 @@ begin
             from public.profiles p
             where public.is_registered_member(p.id)
               and (p.created_at at time zone 'utc')::date = gs.d
-          ) as n
+          ) as members,
+          (
+            select count(*)::int
+            from auth.users au
+            where not public.is_registered_member(au.id)
+              and (au.created_at at time zone 'utc')::date = gs.d
+          ) as guests
         from generate_series(today - 13, today, interval '1 day') as g(ts)
         cross join lateral (select g.ts::date as d) gs
       ) d
