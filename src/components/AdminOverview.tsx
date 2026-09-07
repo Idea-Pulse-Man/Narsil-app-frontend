@@ -44,16 +44,19 @@ export default function AdminOverview({ onJumpToOrders }: AdminOverviewProps) {
     void load();
   }, [load]);
 
-  const gate = (
-    <AdminState
-      loading={loading}
-      error={error}
-      empty={!stats}
-      emptyLabel="No stats available."
-      onRetry={() => void load()}
-    />
-  );
-  if (gate || !stats) return <div className="mt-6">{gate}</div>;
+  if (loading || error || !stats) {
+    return (
+      <div className="mt-6">
+        <AdminState
+          loading={loading}
+          error={error}
+          empty={!stats}
+          emptyLabel="No stats available."
+          onRetry={() => void load()}
+        />
+      </div>
+    );
+  }
 
   const usersToday = stats.users_today ?? 0;
   const usersYesterday = stats.users_yesterday ?? 0;
