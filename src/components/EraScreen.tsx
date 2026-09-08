@@ -8,12 +8,17 @@ import ArtistRail from "./ArtistRail";
 import { ArrowLeftIcon } from "./Icons";
 import { useEraWorks, useArtistsForWorks } from "./era-works";
 import { useInfiniteScroll } from "./useInfiniteScroll";
+import TopicQuizBar from "./TopicQuizBar";
+import { useAppState } from "./AppState";
+import { useQuizBadges, useQuizPool, type TopicQuizLaunch } from "@/lib/quiz";
 
 interface EraScreenProps {
   era: HistoryEra | null;
   onClose: () => void;
   onOpenArtwork: (artworkId: string) => void;
   onOpenArtist: (artistId: string) => void;
+  onOpenTopicQuiz: (launch: TopicQuizLaunch) => void;
+  quizRefresh: number;
 }
 
 /** First paint only mounts this many rows; the rest page in on scroll. */
@@ -30,10 +35,16 @@ export default function EraScreen({
   onClose,
   onOpenArtwork,
   onOpenArtist,
+  onOpenTopicQuiz,
+  quizRefresh,
 }: EraScreenProps) {
   const eraWorks = useEraWorks();
   const artistsForWorks = useArtistsForWorks();
   const { getArtist } = useCatalog();
+  const { pool, artists: artistIndex } = useQuizPool();
+  const { user } = useAppState();
+  const { badges } = useQuizBadges(user?.id ?? null, quizRefresh);
+  const unlockedIds = new Set(Object.keys(badges));
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const works = era ? (eraWorks.get(era.id) ?? []) : [];
@@ -98,6 +109,15 @@ export default function EraScreen({
             <p className="mt-2 text-sm leading-relaxed text-white/55">
               {era.description}
             </p>
+
+            <TopicQuizBar
+              topic={{ kind: "age", id: era.id, title: era.title }}
+              targets={works}
+              pool={pool}
+              artists={artistIndex}
+              unlockedIds={unlockedIds}
+              onPlay={onOpenTopicQuiz}
+            />
 
             <ArtistRail artists={artists.slice(0, 8)} onOpen={onOpenArtist} />
 

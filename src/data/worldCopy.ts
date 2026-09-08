@@ -29,6 +29,14 @@ export const WORLD = {
 
   /** Daily quiz */
   royalAssessment: "The Royal Assessment",
+  /** Age / empire quizzes on Discover */
+  ageTrial: "Trial of the Age",
+  empireTrial: "Trial of the Empire",
+  trialHint: "A perfect score claims the seal",
+  trialNeedPerfect: "Only a flawless appraisal claims this seal.",
+  trialEarned: "The seal is yours.",
+  trialRetry: "Try again",
+  seals: "Seals of the Archive",
   /** Bottom-nav label — short enough for the pill */
   assessmentNav: "Study",
   appraisal: "Appraisal",

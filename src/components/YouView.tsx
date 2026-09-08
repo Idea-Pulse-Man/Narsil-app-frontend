@@ -12,6 +12,7 @@ import {
   resetQuizData,
   EMPTY_PROGRESS,
   levelTitle,
+  useQuizBadges,
   type QuizProgress,
 } from "@/lib/quiz";
 import { useAudio } from "@/lib/audio/AudioProvider";
@@ -20,6 +21,7 @@ import AddressManager from "./AddressManager";
 import ContactAdminSheet from "./ContactAdminSheet";
 import OrdersSheet from "./OrdersSheet";
 import ProStatusSheet from "./ProStatusSheet";
+import BadgeCase from "./BadgeCase";
 import type { ToastState } from "./Toast";
 import type { Screen } from "./navigation";
 
@@ -74,13 +76,14 @@ export default function YouView({
     attributionLabel,
     unavailable,
   } = useAudio();
-  const { getArtist, getArtwork } = useCatalog();
+  const { getArtist, getArtwork, searchFacets } = useCatalog();
   const [addressOpen, setAddressOpen] = useState(false);
   const [ordersOpen, setOrdersOpen] = useState(false);
   const [proOpen, setProOpen] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
   const [quizProgress, setQuizProgress] =
     useState<QuizProgress>(EMPTY_PROGRESS);
+  const { badges } = useQuizBadges(user?.id ?? null, quizRefresh);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -310,6 +313,8 @@ export default function YouView({
             {quizDoneToday ? "Done today" : "Play ›"}
           </span>
         </button>
+
+        <BadgeCase badges={badges} extraEmpires={searchFacets.empires} />
 
         {/* Preferences */}
         <section className="mt-8 rounded-2xl border border-white/10 bg-white/[0.03] p-4">

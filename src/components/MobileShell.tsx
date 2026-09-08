@@ -14,6 +14,7 @@ import TermsView from "./TermsView";
 import { useAppState } from "./AppState";
 import { SHARE_ART_PARAM } from "@/lib/download";
 import type { TutorialAction } from "./tutorial";
+import type { TopicQuizLaunch } from "@/lib/quiz";
 
 const DiscoverView = lazy(() => import("./DiscoverView"));
 const BuyView = lazy(() => import("./BuyView"));
@@ -24,6 +25,7 @@ const YouView = lazy(() => import("./YouView"));
 const AdminView = lazy(() => import("./AdminView"));
 const EraScreen = lazy(() => import("./EraScreen"));
 const QuizOverlay = lazy(() => import("./QuizOverlay"));
+const TopicQuizOverlay = lazy(() => import("./TopicQuizOverlay"));
 const ArtistProfileModal = lazy(() => import("./ArtistProfileModal"));
 const ArtworkViewer = lazy(() => import("./ArtworkViewer"));
 const AuthView = lazy(() => import("./AuthView"));
@@ -90,6 +92,8 @@ export default function MobileShell() {
   const [activeEraId, setActiveEraId] = useState<string | null>(null);
   /** Daily quiz overlay (stacked above Discover, like EraScreen). */
   const [quizOpen, setQuizOpen] = useState(false);
+  /** Age / empire trial launched from Discover. */
+  const [topicQuiz, setTopicQuiz] = useState<TopicQuizLaunch | null>(null);
   /** Bumped when the quiz closes so entry cards re-read their streak. */
   const [quizRefresh, setQuizRefresh] = useState(0);
   const [clean, setClean] = useState(false);
@@ -489,6 +493,7 @@ export default function MobileShell() {
                   onOpenArtwork={openArtwork}
                   onOpenEra={setActiveEraId}
                   onOpenQuiz={() => setQuizOpen(true)}
+                  onOpenTopicQuiz={setTopicQuiz}
                   quizRefresh={quizRefresh}
                 />
               </Suspense>
@@ -625,6 +630,8 @@ export default function MobileShell() {
               onClose={() => setActiveEraId(null)}
               onOpenArtwork={openArtwork}
               onOpenArtist={openArtist}
+              onOpenTopicQuiz={setTopicQuiz}
+              quizRefresh={quizRefresh}
             />
           </Suspense>
         )}
@@ -638,6 +645,18 @@ export default function MobileShell() {
                 setQuizRefresh((t) => t + 1);
               }}
               onOpenArtwork={openArtwork}
+            />
+          </Suspense>
+        )}
+
+        {!adminMode && memberApp && topicQuiz && (
+          <Suspense fallback={null}>
+            <TopicQuizOverlay
+              launch={topicQuiz}
+              onClose={() => {
+                setTopicQuiz(null);
+                setQuizRefresh((t) => t + 1);
+              }}
             />
           </Suspense>
         )}

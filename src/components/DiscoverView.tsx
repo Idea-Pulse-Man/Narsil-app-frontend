@@ -19,12 +19,16 @@ import { ArrowRightIcon } from "./Icons";
 import { screenScrollClass, screenContentClass } from "./artwork-layout";
 import { useEraWorks, useArtistsForWorks } from "./era-works";
 import { useInfiniteScroll } from "./useInfiniteScroll";
+import TopicQuizBar from "./TopicQuizBar";
+import { useAppState } from "./AppState";
+import { useQuizBadges, type TopicQuizLaunch } from "@/lib/quiz";
 
 interface DiscoverViewProps {
   onOpenArtist: (artistId: string) => void;
   onOpenArtwork: (artworkId: string) => void;
   onOpenEra: (eraId: string) => void;
   onOpenQuiz: () => void;
+  onOpenTopicQuiz: (launch: TopicQuizLaunch) => void;
   /** Bumped when the quiz overlay closes so the card re-reads its streak. */
   quizRefresh: number;
 }
@@ -59,14 +63,19 @@ export default function DiscoverView({
   onOpenArtwork,
   onOpenEra,
   onOpenQuiz,
+  onOpenTopicQuiz,
   quizRefresh,
 }: DiscoverViewProps) {
   const {
     artworks: liveArtworks,
     artists: liveArtists,
+    artistMap,
     getArtist,
     getArtistAvatar,
   } = useCatalog();
+  const { user } = useAppState();
+  const { badges } = useQuizBadges(user?.id ?? null, quizRefresh);
+  const unlockedIds = useMemo(() => new Set(Object.keys(badges)), [badges]);
   const [lens, setLens] = useState<Lens>("age");
   const [activeEmpire, setActiveEmpire] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -290,6 +299,15 @@ export default function DiscoverView({
                       {era.description}
                     </p>
 
+                    <TopicQuizBar
+                      topic={{ kind: "age", id: era.id, title: era.title }}
+                      targets={works}
+                      pool={artworkPool}
+                      artists={artistMap}
+                      unlockedIds={unlockedIds}
+                      onPlay={onOpenTopicQuiz}
+                    />
+
                     {/* Who was working in this age */}
                     <ArtistRail artists={eraArtists.slice(0, 6)} onOpen={onOpenArtist} />
 
@@ -381,6 +399,19 @@ export default function DiscoverView({
                         · {empireArtists.length}{" "}
                         {empireArtists.length === 1 ? "artist" : "artists"}
                       </p>
+
+                      <TopicQuizBar
+                        topic={{
+                          kind: "empire",
+                          id: selectedEmpire.empire,
+                          title: selectedEmpire.empire,
+                        }}
+                        targets={selectedEmpire.artworks}
+                        pool={artworkPool}
+                        artists={artistMap}
+                        unlockedIds={unlockedIds}
+                        onPlay={onOpenTopicQuiz}
+                      />
 
                       <ArtistRail artists={empireArtists.slice(0, 8)} onOpen={onOpenArtist} />
 

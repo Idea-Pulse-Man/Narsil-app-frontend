@@ -72,6 +72,37 @@ export type {
 } from "./levels";
 export { useQuizPool } from "./usePool";
 export { getQuizInstallId, quizSalt } from "./install";
+export {
+  QUIZ_DIFFICULTIES,
+  CANONICAL_EMPIRES,
+  MIN_TOPIC_QUESTIONS,
+  badgeId,
+  parseBadgeId,
+  earnsBadge,
+  difficultySpec,
+  filterTopicTargets,
+  buildTopicQuiz,
+  topicQuizCapacity,
+  canPlayTopicQuiz,
+  listBadgeCatalog,
+  groupBadgesByTopic,
+} from "./topic";
+export type {
+  QuizDifficulty,
+  TopicKind,
+  TopicRef,
+  TopicQuizLaunch,
+  DifficultySpec,
+  BadgeDef,
+} from "./topic";
+export {
+  loadBadges,
+  isBadgeUnlocked,
+  mergeBadges,
+  applyTopicResult,
+  useQuizBadges,
+} from "./badges";
+export type { UnlockedBadge, BadgeMap } from "./badges";
 export type { DailySession } from "./session";
 export {
   loadDailySession,

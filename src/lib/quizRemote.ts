@@ -3,6 +3,7 @@
  * ---------------------------------------------------------------------------
  * LocalStorage stays the offline source of truth. Signed-in users also hit
  * RPCs in quiz-levels.sql for points, absence penalties, and same-level boards.
+ * Topic-quiz seals live in quiz_badges (see quiz-badges.sql).
  */
 
 import { supabase } from "./supabase";
@@ -208,5 +209,52 @@ export async function fetchLevelBoard(
   } catch (err) {
     console.warn("Supabase: quiz_level_board error.", err);
     return null;
+  }
+}
+
+/** Load every seal the current user has earned. */
+export async function fetchQuizBadges(): Promise<Record<
+  string,
+  { id: string; unlockedAt: string }
+> | null> {
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from("quiz_badges")
+      .select("badge_id, unlocked_at");
+    if (error) {
+      console.warn("Supabase: quiz badges load failed.", error.message);
+      return null;
+    }
+    const map: Record<string, { id: string; unlockedAt: string }> = {};
+    for (const row of data ?? []) {
+      const id = (row as { badge_id?: string }).badge_id;
+      const unlockedAt = (row as { unlocked_at?: string }).unlocked_at;
+      if (!id) continue;
+      map[id] = { id, unlockedAt: unlockedAt ?? new Date().toISOString() };
+    }
+    return map;
+  } catch (err) {
+    console.warn("Supabase: quiz badges load error.", err);
+    return null;
+  }
+}
+
+/** Grant a seal (idempotent upsert). */
+export async function upsertQuizBadge(
+  badgeId: string,
+  unlockedAt: string,
+): Promise<void> {
+  if (!supabase) return;
+  try {
+    await supabase.from("quiz_badges").upsert(
+      {
+        badge_id: badgeId,
+        unlocked_at: unlockedAt,
+      },
+      { onConflict: "user_id,badge_id" },
+    );
+  } catch (err) {
+    console.warn("Supabase: quiz badge write failed.", err);
   }
 }
