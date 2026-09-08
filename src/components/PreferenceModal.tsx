@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { artworks } from "@/data";
 import { SparkleIcon } from "./Icons";
 import type { Preferences } from "./AppState";
+
+/** Curated masterpiece behind the first-run welcome — same mood as the tutorial finale. */
+const WELCOME_ARTWORK = artworks.find((a) => a.id === "starry-night")!;
 
 interface PreferenceOption {
   label: string;
@@ -92,6 +96,77 @@ const GROUPS: PreferenceGroup[] = [
 
 const ALL_OPTIONS = GROUPS.flatMap((g) => g.options);
 
+const WELCOME_EASE = [0.22, 1, 0.36, 1] as const;
+
+function OnboardingWelcome({ onContinue }: { onContinue: () => void }) {
+  return (
+    <div className="absolute inset-0 overflow-hidden bg-ink">
+      <motion.div
+        initial={{ scale: 1.08, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 1.4, ease: WELCOME_EASE }}
+        className="absolute inset-0"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={WELCOME_ARTWORK.image}
+          alt=""
+          aria-hidden
+          className="h-full w-full object-cover"
+        />
+      </motion.div>
+
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[48%] bg-gradient-to-b from-black/70 via-black/25 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[52%] bg-gradient-to-t from-black/85 via-black/40 to-transparent" />
+
+      <motion.div
+        initial={{ opacity: 0, y: -12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, delay: 0.45, ease: WELCOME_EASE }}
+        className="absolute inset-x-0 top-[calc(env(safe-area-inset-top)+2.75rem)] px-8 text-center"
+      >
+        <div className="mb-8 flex items-center justify-center gap-2">
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-[13px] font-bold text-ink shadow-lg">
+            N
+          </span>
+          <span className="text-[12px] font-semibold uppercase tracking-[0.28em] text-white drop-shadow-md">
+            Narsil
+          </span>
+        </div>
+        <h1 className="font-serif text-[34px] leading-[1.08] tracking-tight text-white drop-shadow-[0_2px_24px_rgba(0,0,0,0.45)]">
+          The museum is open
+        </h1>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, delay: 1.05, ease: WELCOME_EASE }}
+        className="absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+1.75rem)] px-8"
+      >
+        <p className="mx-auto max-w-[19rem] text-center text-[15px] leading-relaxed text-white/75 drop-shadow-md">
+          Public-domain masterpieces and living artists, side by side — with the
+          stories behind them.
+        </p>
+        <p className="mx-auto mt-3 max-w-[19rem] text-center text-[14px] leading-relaxed text-white/50">
+          First we&apos;ll ask what you love. Then a short tour of how to move
+          through the rooms.
+        </p>
+        <motion.button
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 1.65, ease: WELCOME_EASE }}
+          whileTap={{ scale: 0.97 }}
+          onClick={onContinue}
+          className="mt-8 w-full rounded-full bg-accent py-4 text-[15px] font-semibold text-ink shadow-[0_8px_32px_rgba(0,0,0,0.35)]"
+        >
+          Enter the museum
+        </motion.button>
+      </motion.div>
+    </div>
+  );
+}
+
 interface PreferenceModalProps {
   open: boolean;
   /** When true, renders as a full-screen onboarding flow instead of a bottom sheet. */
@@ -110,11 +185,14 @@ export default function PreferenceModal({
 }: PreferenceModalProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [step, setStep] = useState(0);
+  /** Onboarding starts on a brand welcome, then the taste questions. */
+  const [showWelcome, setShowWelcome] = useState(true);
 
   // Seed selections from existing preferences when (re)opened.
   useEffect(() => {
     if (!open) return;
     setStep(0);
+    setShowWelcome(onboarding);
     const seed = new Set<string>([
       ...(initial?.artTypes ?? []),
       ...(initial?.periods ?? []),
@@ -123,7 +201,7 @@ export default function PreferenceModal({
       ...(initial?.interests ?? []),
     ]);
     setSelected(seed);
-  }, [open, initial]);
+  }, [open, initial, onboarding]);
 
   const toggle = (label: string) =>
     setSelected((prev) => {
@@ -159,6 +237,7 @@ export default function PreferenceModal({
 
   const handleBack = () => {
     if (step > 0) setStep((s) => s - 1);
+    else if (onboarding) setShowWelcome(true);
   };
 
   const totalSteps = GROUPS.length;
@@ -177,6 +256,10 @@ export default function PreferenceModal({
             transition={{ duration: 0.3 }}
             className="absolute inset-0 z-[70] flex flex-col bg-ink text-white"
           >
+            {showWelcome ? (
+              <OnboardingWelcome onContinue={() => setShowWelcome(false)} />
+            ) : (
+              <>
             {/* Progress bar */}
             <div className="relative h-1 w-full bg-white/10">
               <motion.div
@@ -188,22 +271,18 @@ export default function PreferenceModal({
 
             {/* Header */}
             <div className="flex items-center justify-between px-5 pt-[calc(env(safe-area-inset-top)+1rem)] pb-2">
-              {step > 0 ? (
-                <button
-                  onClick={handleBack}
-                  className="text-sm font-medium text-white/60 transition-colors hover:text-white"
-                >
-                  Back
-                </button>
-              ) : (
-                <div />
-              )}
+              <button
+                onClick={handleBack}
+                className="text-sm font-medium text-white/60 transition-colors hover:text-white"
+              >
+                Back
+              </button>
               <span className="text-xs font-medium text-white/40">
                 {step + 1} of {totalSteps}
               </span>
               <button
                 onClick={onSkip}
-                className="text-sm font-medium text-white/60 transition-colors hover:text-white"
+                className="text-sm font-medium text-white/35 transition-colors hover:text-white/55"
               >
                 Skip
               </button>
@@ -265,6 +344,8 @@ export default function PreferenceModal({
                 {step < GROUPS.length - 1 ? "Next" : "Save preferences"}
               </motion.button>
             </div>
+              </>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

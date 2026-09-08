@@ -570,7 +570,7 @@ export default function TutorialCoach({
           {!isFinal && (
             <button
               onClick={onSkip}
-              className="pointer-events-auto absolute right-5 top-[calc(env(safe-area-inset-top)+1.25rem)] z-[3] rounded-full border border-white/10 bg-black/30 px-3.5 py-1.5 text-xs font-medium text-emerald-400 backdrop-blur-md transition-colors hover:text-emerald-300"
+              className="pointer-events-auto absolute right-5 top-[calc(env(safe-area-inset-top)+1.25rem)] z-[3] px-3 py-1.5 text-xs font-medium text-white/35 transition-colors hover:text-white/55"
             >
               Skip
             </button>
