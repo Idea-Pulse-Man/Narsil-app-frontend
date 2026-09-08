@@ -166,7 +166,6 @@ export default function ArtFeed({
       if (!art?.image || preloaded.current.has(art.id)) return;
       if (!active) return;
       preloaded.current.add(art.id);
-      markImageWarmed(art.image);
       const img = new Image();
       img.decoding = "async";
       img.onload = () => markImageWarmed(art.image);

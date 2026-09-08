@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type Ref } from "react";
-import { motion } from "framer-motion";
-import { sizedImageUrl, previewImageUrl } from "@/lib/imageUrl";
+import { sizedImageUrl, previewImageUrl, corsFetchImageUrl, isS3Url } from "@/lib/imageUrl";
 import { resolveCachedImage, isImageWarmed, markImageWarmed } from "@/lib/imageCache";
 import { isNgrokUrl, resolveNgrokImageSrc } from "@/lib/ngrok";
 import { useInView } from "@/hooks/useInView";
@@ -17,7 +16,7 @@ interface BlurImageProps {
    */
   fit?: "cover" | "contain";
   /**
-   * Enables the animated Fill ↔ Fit zoom transition (used by the main feed).
+   * Enables the animated Fill / Fit zoom transition (used by the main feed).
    * Grids and thumbnails leave this off for a single lightweight image.
    */
   zoomable?: boolean;
@@ -32,19 +31,16 @@ interface BlurImageProps {
   load?: boolean;
 }
 
-const ZOOM_TRANSITION = {
-  duration: 0.32,
-  ease: [0.22, 1, 0.36, 1] as const,
-};
+const ZOOM_MS = 320;
 
-/** How many times a thumbnail retries (with a direct-URL fallback) before giving up. */
+/** How many times an image retries before giving up. */
 const MAX_IMAGE_ATTEMPTS = 3;
 
 function Shimmer() {
   return (
     <div className="absolute inset-0 overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-black/20" />
-      <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-black/20" />
+      <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/15 to-transparent" />
     </div>
   );
 }
@@ -52,11 +48,11 @@ function Shimmer() {
 /**
  * Blur-up image with an optional animated Fill / Fit transition.
  *
- * `object-fit` can't be tweened, so in `zoomable` mode we layer two crisp copies
- * of the artwork — a `cover` layer and a `contain` layer — and cross-fade
- * between them while the `contain` layer zooms from the cover framing down to
- * its full size. The net effect reads as the artwork smoothly zooming out
- * (Fill → Fit) or in (Fit → Fill), while both resting states stay sharp.
+ * `object-fit` can't be tweened, so in `zoomable` mode we layer two copies of
+ * the artwork — a `cover` layer and a `contain` layer — and cross-fade between
+ * them. Native `<img>` tags (not motion.img) stay at full opacity on the active
+ * layer from first paint so WebView actually decodes the file instead of
+ * leaving a black feed card.
  */
 export default function BlurImage({
   src,
@@ -90,24 +86,35 @@ export default function BlurImage({
     isThumb && !displaySrc.startsWith("blob:")
       ? sizedImageUrl(displaySrc, thumbWidth)
       : displaySrc;
-  // Tiny blur-up is for full-bleed cards. Thumbnails skip it so the first
-  // screen does not fire a second wsrv.nl request per row.
   const previewSrc = isThumb ? null : previewImageUrl(src);
 
-  // A single S3/CDN request can transiently time out (net::ERR_TIMED_OUT). Retry
-  // the tile a few times instead of leaving it stuck on the accent placeholder:
-  //  • attempt 0 — the (possibly CDN-resized) thumbnail
-  //  • attempt ≥1 — retry the same thumbnail URL (never the full S3 file).
+  // Retry a timed-out S3/CDN request instead of leaving the card black:
+  //  • attempt 0 — display URL (staged S3, blob cache, or resized thumb)
+  //  • attempt ≥1 — wsrv.nl proxy for S3 (cache-busted)
   const [attempt, setAttempt] = useState(0);
+  const errorAttempt = useRef(-1);
   useEffect(() => {
     setAttempt(0);
+    errorAttempt.current = -1;
   }, [renderSrc]);
-  const attemptSrc =
-    attempt === 0
-      ? renderSrc
-      : `${renderSrc}${renderSrc.includes("?") ? "&" : "?"}retry=${attempt}`;
+  const attemptSrc = (() => {
+    if (attempt === 0) return renderSrc;
+    const base =
+      renderSrc.startsWith("blob:") || isS3Url(src)
+        ? isS3Url(src)
+          ? corsFetchImageUrl(src, isThumb ? Math.max(48, thumbWidth ?? 160) : 843)
+          : src
+        : renderSrc;
+    return `${base}${base.includes("?") ? "&" : "?"}retry=${attempt}`;
+  })();
   const handleError = useCallback(() => {
-    setAttempt((a) => (a < MAX_IMAGE_ATTEMPTS ? a + 1 : a));
+    setLoaded(false);
+    setAttempt((a) => {
+      if (a >= MAX_IMAGE_ATTEMPTS) return a;
+      if (errorAttempt.current === a) return a;
+      errorAttempt.current = a;
+      return a + 1;
+    });
   }, []);
 
   useEffect(() => {
@@ -150,8 +157,6 @@ export default function BlurImage({
     };
   }, [src, shouldLoad, isThumb]);
 
-  // Ratio between the cover and contain renderings of this image. The contain
-  // layer starts at this scale (matching the cover framing) and animates to 1.
   const measure = useCallback(() => {
     const el = containerRef.current;
     const img = coverRef.current;
@@ -183,14 +188,8 @@ export default function BlurImage({
     return () => window.removeEventListener("resize", measure);
   }, [measure, zoomable]);
 
-  // Cached images may finish before onLoad is attached — especially after the
-  // tutorial resets state while the same URL is already in memory.
   useEffect(() => {
-    if (isImageWarmed(src)) {
-      syncLoadedFromCache();
-      return;
-    }
-    setLoaded(false);
+    if (!isImageWarmed(src)) setLoaded(false);
     let inner = 0;
     const outer = requestAnimationFrame(() => {
       syncLoadedFromCache();
@@ -221,7 +220,10 @@ export default function BlurImage({
     };
   }, [syncToken, syncLoadedFromCache]);
 
-  // Lightweight path for grids / thumbnails — a single image, no extra layers.
+  const imgLoading = priority ? "eager" : "lazy";
+  const imgPriority = priority ? "high" : "auto";
+  const imgDecoding = priority ? "sync" : "async";
+
   if (!zoomable) {
     return (
       <div
@@ -229,6 +231,7 @@ export default function BlurImage({
         className={`relative h-full w-full overflow-hidden ${className}`}
         style={{ backgroundColor: accent }}
       >
+        {!loaded && <Shimmer />}
         {previewSrc ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
@@ -236,13 +239,11 @@ export default function BlurImage({
             alt=""
             aria-hidden
             decoding="async"
-            className={`absolute inset-0 h-full w-full scale-105 blur-xl transition-opacity duration-500 ${
+            className={`absolute inset-0 h-full w-full scale-105 blur-xl ${
               isContain ? "object-contain" : "object-cover"
             } ${loaded ? "opacity-0" : "opacity-100"}`}
           />
-        ) : (
-          !loaded && <Shimmer />
-        )}
+        ) : null}
         {shouldLoad ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
@@ -250,17 +251,13 @@ export default function BlurImage({
             src={attemptSrc}
             alt={alt}
             draggable={false}
-            loading={priority ? "eager" : "lazy"}
-            fetchPriority={priority ? "high" : "auto"}
-            decoding="async"
+            loading={imgLoading}
+            fetchPriority={imgPriority}
+            decoding={imgDecoding}
             onLoad={markLoaded}
             onError={handleError}
-            className={`relative h-full w-full transition-all duration-500 ease-out ${
+            className={`relative h-full w-full ${
               isContain ? "object-contain" : "object-cover"
-            } ${
-              loaded
-                ? "scale-100 opacity-100 blur-0"
-                : "scale-105 opacity-0 blur-xl"
             }`}
           />
         ) : null}
@@ -274,26 +271,8 @@ export default function BlurImage({
       className={`relative h-full w-full overflow-hidden ${className}`}
       style={{ backgroundColor: accent }}
     >
-      {/* Soft blurred backdrop, revealed in Fit Art mode. Uses the tiny preview
-          (blur hides the low resolution) so it appears instantly. */}
-      <motion.img
-        src={previewSrc ?? displaySrc}
-        alt=""
-        aria-hidden
-        draggable={false}
-        className="absolute inset-0 h-full w-full scale-110 object-cover blur-2xl will-change-[opacity]"
-        initial={false}
-        animate={{ opacity: isContain ? 0.45 : 0 }}
-        transition={ZOOM_TRANSITION}
-      />
-      <motion.div
-        className="absolute inset-0 bg-ink/40"
-        initial={false}
-        animate={{ opacity: isContain ? 1 : 0 }}
-        transition={ZOOM_TRANSITION}
-      />
+      {!loaded && <Shimmer />}
 
-      {/* Instant low-res placeholder while the crisp layers stream in. */}
       {previewSrc ? (
         /* eslint-disable-next-line @next/next/no-img-element */
         <img
@@ -301,53 +280,48 @@ export default function BlurImage({
           alt=""
           aria-hidden
           decoding="async"
-          className={`absolute inset-0 h-full w-full blur-xl transition-opacity duration-500 ${
-            isContain ? "object-contain" : "object-cover"
-          } ${loaded ? "opacity-0" : "opacity-100"}`}
+          className={`absolute inset-0 h-full w-full scale-110 object-cover blur-2xl transition-opacity ${
+            isContain && !loaded ? "opacity-60" : "opacity-0"
+          }`}
+          style={{ transitionDuration: `${ZOOM_MS}ms` }}
         />
-      ) : (
-        !loaded && <Shimmer />
-      )}
+      ) : null}
 
-      {/* Contain layer — full artwork. Zooms from the cover framing to 1. */}
-      <motion.img
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
         ref={containRef}
-        src={displaySrc}
+        src={attemptSrc}
         alt=""
         aria-hidden
         draggable={false}
-        loading={priority ? "eager" : "lazy"}
-        fetchPriority={priority ? "high" : "auto"}
-        decoding="async"
+        loading={imgLoading}
+        fetchPriority={imgPriority}
+        decoding={imgDecoding}
         onLoad={markLoaded}
-        className="absolute inset-0 h-full w-full object-contain will-change-transform"
-        initial={false}
-        animate={{
-          opacity: loaded && isContain ? 1 : 0,
-          scale: isContain ? 1 : coverRatio,
+        onError={handleError}
+        className="absolute inset-0 z-[1] h-full w-full object-contain"
+        style={{
+          opacity: isContain ? 1 : 0,
+          transform: `scale(${isContain ? 1 : coverRatio})`,
+          transition: `opacity ${ZOOM_MS}ms cubic-bezier(0.22, 1, 0.36, 1), transform ${ZOOM_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`,
         }}
-        transition={ZOOM_TRANSITION}
       />
 
-      {/* Cover layer — crisp default framing. */}
-      <motion.img
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
         ref={coverRef}
-        src={displaySrc}
+        src={attemptSrc}
         alt={alt}
         draggable={false}
-        loading={priority ? "eager" : "lazy"}
-        fetchPriority={priority ? "high" : "auto"}
-        decoding="async"
+        loading={imgLoading}
+        fetchPriority={imgPriority}
+        decoding={imgDecoding}
         onLoad={markLoaded}
-        className="relative h-full w-full object-cover will-change-transform"
-        initial={false}
-        animate={{
-          opacity: loaded && !isContain ? 1 : 0,
-          filter: loaded ? "blur(0px)" : "blur(12px)",
-        }}
-        transition={{
-          opacity: ZOOM_TRANSITION,
-          filter: { duration: 0.5, ease: [0.22, 1, 0.36, 1] },
+        onError={handleError}
+        className="absolute inset-0 z-[1] h-full w-full object-cover"
+        style={{
+          opacity: isContain ? 0 : 1,
+          transition: `opacity ${ZOOM_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`,
         }}
       />
     </div>

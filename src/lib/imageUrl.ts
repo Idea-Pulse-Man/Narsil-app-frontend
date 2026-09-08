@@ -6,7 +6,10 @@
  */
 
 export function isS3Url(src: string): boolean {
-  return /^https?:\/\/[^/]*\.amazonaws\.com\//.test(src);
+  return (
+    /^https?:\/\/[^/]*\.amazonaws\.com\//.test(src) ||
+    /^https?:\/\/[^/]*\.cloudfront\.net\//.test(src)
+  );
 }
 
 function wsrvUrl(src: string, width: number, quality: number): string {

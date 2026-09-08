@@ -50,7 +50,6 @@ async function persist(url: string): Promise<void> {
 }
 
 function warmHttpCache(url: string): void {
-  markImageWarmed(url);
   const img = new Image();
   img.decoding = "async";
   img.onload = () => markImageWarmed(url);

@@ -340,11 +340,11 @@ const ZoomableImage = forwardRef<ZoomableImageHandle, ZoomableImageProps>(
             alt=""
             aria-hidden
             decoding="async"
-            className="absolute inset-0 h-full w-full scale-105 object-contain blur-2xl"
+            className="pointer-events-none absolute inset-0 z-0 h-full w-full scale-105 object-contain blur-2xl"
           />
         ) : null}
         {!loaded && !previewSrc ? (
-          <div className="absolute inset-0 flex items-center justify-center">
+          <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center">
             <span className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-white/80" />
           </div>
         ) : null}
@@ -356,12 +356,19 @@ const ZoomableImage = forwardRef<ZoomableImageHandle, ZoomableImageProps>(
           decoding="async"
           fetchPriority="high"
           onLoad={() => setLoaded(true)}
-          className="absolute inset-0 h-full w-full object-contain will-change-transform"
+          onError={() => {
+            const fallback = src;
+            if (displaySrc !== fallback) {
+              setLoaded(false);
+              setDisplaySrc(fallback);
+            }
+          }}
+          className="absolute inset-0 z-[1] h-full w-full object-contain will-change-transform"
           style={{
             transform: `translate3d(${tx}px, ${ty}px, 0) scale(${scale})`,
             transition: pinch.current || pan.current ? "none" : "transform 0.22s ease-out",
             cursor: zoomed ? "grab" : "zoom-in",
-            opacity: loaded ? 1 : 0,
+            opacity: 1,
           }}
         />
       </div>
