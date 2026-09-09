@@ -5,7 +5,8 @@
 -- Stores one daily row in quiz_daily_scores for same-level leaderboards.
 --
 -- Economy (client + RPCs must agree):
---   Level thresholds: 0, 1000, 3000, 9000, 27000
+--   Level thresholds: 0, 1000, 3000, 9000, 27000, 81000, 243000
+--   (seven person levels; display as 1–7)
 --   Missed calendar day: −100 points (floor 0), then recompute level
 --   Rankings: same level_id, ordered by today's points (display only)
 --
@@ -61,10 +62,12 @@ language sql
 immutable
 as $$
   select case
-    when pts >= 27000 then 4
-    when pts >= 9000  then 3
-    when pts >= 3000  then 2
-    when pts >= 1000  then 1
+    when pts >= 243000 then 6
+    when pts >= 81000  then 5
+    when pts >= 27000  then 4
+    when pts >= 9000   then 3
+    when pts >= 3000   then 2
+    when pts >= 1000   then 1
     else 0
   end;
 $$;

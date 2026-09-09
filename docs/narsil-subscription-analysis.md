@@ -3,6 +3,9 @@
 > Analysis of the client (Daniel) chat from 27 Jul 2026, checked against the
 > actual `museum-app` / `narsil-museum-backend` code. Written for a
 > non-technical read.
+>
+> Historical note: the client later removed the 20% canvas discount from the
+> subscription. Discount discussion below is background, not a current feature.
 
 ---
 

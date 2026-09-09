@@ -60,6 +60,8 @@ export {
   levelTitle,
   nextThreshold,
   thresholdFor,
+  personLevelNumber,
+  MAX_LEVEL_ID,
   LEVEL_THRESHOLDS,
   LEVEL_TITLES,
   BASE_POINTS,
@@ -70,6 +72,7 @@ export type {
   AnswerPoints,
   LevelId,
 } from "./levels";
+export { personLevelFrameSrc, clampLevelId } from "./personLevels";
 export { useQuizPool } from "./usePool";
 export { getQuizInstallId, quizSalt } from "./install";
 export {

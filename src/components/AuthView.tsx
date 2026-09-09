@@ -7,6 +7,7 @@ import {
   type OAuthProvider,
 } from "@/lib/auth";
 import { GoogleGlyph, AppleGlyph, CloseIcon } from "./Icons";
+import BrandMark from "./BrandMark";
 
 type Mode = "signin" | "signup";
 
@@ -79,14 +80,11 @@ export default function AuthView({ onClose }: AuthViewProps) {
       </button>
 
       {/* Brand */}
-      <div className="flex items-center gap-1.5">
-        <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-white text-[11px] font-bold text-ink">
-          N
-        </span>
-        <span className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white">
-          Narsil
-        </span>
-      </div>
+      <BrandMark
+        size={36}
+        showWordmark
+        wordmarkClassName="text-[11px] font-semibold uppercase tracking-[0.28em] text-white"
+      />
 
       <h1 className="mt-10 font-serif text-[2rem] leading-tight text-white">
         {mode === "signin" ? "Welcome back" : "Create your account"}

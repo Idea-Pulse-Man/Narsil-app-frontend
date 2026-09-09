@@ -22,6 +22,7 @@ import ContactAdminSheet from "./ContactAdminSheet";
 import OrdersSheet from "./OrdersSheet";
 import ProStatusSheet from "./ProStatusSheet";
 import BadgeCase from "./BadgeCase";
+import PersonLevelFrame from "./PersonLevelFrame";
 import type { ToastState } from "./Toast";
 import type { Screen } from "./navigation";
 
@@ -286,33 +287,36 @@ export default function YouView({
           <Stat label="Following" value={following.length} />
         </div>
 
-        {/* Daily quiz / Royal Assessment */}
-        <button
-          onClick={onOpenQuiz}
-          className="mt-6 flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 text-left transition-colors hover:bg-white/[0.06]"
-        >
-          <FlameIcon
-            filled={quizStreak > 0}
-            className={`h-6 w-6 shrink-0 ${
-              quizStreak > 0 ? "text-amber-300" : "text-white/30"
-            }`}
-          />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-white">
-              {quizStreak > 0
-                ? `${quizStreak} day assessment streak`
-                : WORLD.royalAssessment}
-            </p>
-            <p className="mt-0.5 text-xs text-white/50">
-              {quizProgress.lastDailyScore != null
-                ? `${levelTitle(quizProgress.levelId)} · ${quizProgress.totalPoints.toLocaleString()} pts · last ${quizProgress.lastDailyScore}/${quizProgress.lastDailyTotal}`
-                : `${levelTitle(quizProgress.levelId)} · ${quizProgress.totalPoints.toLocaleString()} pts`}
-            </p>
-          </div>
-          <span className="shrink-0 text-xs font-medium text-emerald-300/90">
-            {quizDoneToday ? "Done today" : "Play ›"}
-          </span>
-        </button>
+        {/* Person level + daily quiz / Royal Assessment */}
+        <div className="mt-6 flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4">
+          <PersonLevelFrame levelId={quizProgress.levelId} size={64} />
+          <button
+            onClick={onOpenQuiz}
+            className="flex min-w-0 flex-1 items-center gap-3 text-left transition-colors"
+          >
+            <FlameIcon
+              filled={quizStreak > 0}
+              className={`h-6 w-6 shrink-0 ${
+                quizStreak > 0 ? "text-amber-300" : "text-white/30"
+              }`}
+            />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-white">
+                {quizStreak > 0
+                  ? `${quizStreak} day assessment streak`
+                  : WORLD.royalAssessment}
+              </p>
+              <p className="mt-0.5 text-xs text-white/50">
+                {quizProgress.lastDailyScore != null
+                  ? `${levelTitle(quizProgress.levelId)} · ${quizProgress.totalPoints.toLocaleString()} pts · last ${quizProgress.lastDailyScore}/${quizProgress.lastDailyTotal}`
+                  : `${levelTitle(quizProgress.levelId)} · ${quizProgress.totalPoints.toLocaleString()} pts`}
+              </p>
+            </div>
+            <span className="shrink-0 text-xs font-medium text-emerald-300/90">
+              {quizDoneToday ? "Done today" : "Play ›"}
+            </span>
+          </button>
+        </div>
 
         <BadgeCase badges={badges} extraEmpires={searchFacets.empires} />
 

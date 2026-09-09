@@ -27,10 +27,6 @@ const REASON_COPY: Record<PaywallReason, { title: string; lead: string }> = {
     title: `Extract the ${WORLD.masterFile}`,
     lead: "Get the museum's original scan instead of the 2000px version.",
   },
-  "canvas-discount": {
-    title: WORLD.explorersGuild,
-    lead: WORLD.subscribePitch,
-  },
   settings: {
     title: WORLD.explorersGuild,
     lead: WORLD.subscribePitch,

@@ -134,9 +134,8 @@ an afternoon.
 
 Worth testing explicitly, because each is a different code path:
 
-- purchase → entitlement appears, 20% shows at canvas checkout
-- cancel in Settings → `EXPIRED` arrives → discount disappears, `?res=high`
-  returns 402
+- purchase → entitlement appears and paid learning/download features unlock
+- cancel in Settings → `EXPIRED` arrives and `?res=high` returns 402
 - refund (App Store Connect can issue one in sandbox) → `REFUND` → entitlement
   revoked immediately
 - delete the app, reinstall, sign in, **Restore Purchases** → entitlement returns

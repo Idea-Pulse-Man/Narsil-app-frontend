@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { artworks } from "@/data";
+import BrandMark from "./BrandMark";
 import { SparkleIcon } from "./Icons";
 import type { Preferences } from "./AppState";
 
@@ -125,13 +126,8 @@ function OnboardingWelcome({ onContinue }: { onContinue: () => void }) {
         transition={{ duration: 0.8, delay: 0.45, ease: WELCOME_EASE }}
         className="absolute inset-x-0 top-[calc(env(safe-area-inset-top)+2.75rem)] px-8 text-center"
       >
-        <div className="mb-8 flex items-center justify-center gap-2">
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-[13px] font-bold text-ink shadow-lg">
-            N
-          </span>
-          <span className="text-[12px] font-semibold uppercase tracking-[0.28em] text-white drop-shadow-md">
-            Narsil
-          </span>
+        <div className="mb-8 flex items-center justify-center">
+          <BrandMark size={52} showWordmark wordmarkClassName="text-[12px] font-semibold uppercase tracking-[0.28em] text-white drop-shadow-md" />
         </div>
         <h1 className="font-serif text-[34px] leading-[1.08] tracking-tight text-white drop-shadow-[0_2px_24px_rgba(0,0,0,0.45)]">
           The museum is open

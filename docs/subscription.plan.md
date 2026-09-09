@@ -1,6 +1,6 @@
 ---
 name: Narsil Pro — Apple Subscription
-overview: Ship an iOS-only auto-renewing subscription with three perks (20% canvas discount, endless quiz, high-resolution download), hand-rolled on StoreKit 2 with server-side verification — no RevenueCat. Canvas prices are re-costed first, because the 20% discount lands on demo placeholders.
+overview: Historical implementation plan. The canvas discount was removed from the final subscription offer; current perks are defined in ProPaywall.tsx.
 todos:
   - id: reprice-canvas
     content: "Re-cost the canvas price list against real Printful US figures; update pricing.ts + shop.ts together"
@@ -35,6 +35,10 @@ todos:
 ---
 
 # Narsil Pro — Apple Subscription Plan
+
+> Historical note: the client removed the 20% canvas discount from the offer.
+> Discount-related sections below document the original proposal only and must
+> not be implemented. The live product copy in `ProPaywall.tsx` is authoritative.
 
 ## Diagnosis — what exists, what doesn't
 

@@ -297,7 +297,7 @@ export default function MobileShell() {
         setPrefsOpen(true);
       }
     },
-    [ready, authSeen, onboardingDone, preferences.completed]
+    [ready, termsAccepted, authSeen, onboardingDone, preferences.completed]
   );
 
   const editPreferences = useCallback(() => {
@@ -394,6 +394,19 @@ export default function MobileShell() {
     },
     [tutorialActive, tutorialStep]
   );
+
+  const advanceTutorialCard = useCallback(() => {
+    if (!tutorialActive || advancingRef.current) return;
+    if (TUTORIAL_ALLOW[tutorialStep] === "actions") {
+      reportGesture("actions");
+      return;
+    }
+    // Steps after the live feed gestures are short app-room explanations.
+    // Their Next button advances directly; no gesture is required.
+    if (tutorialStep >= TUTORIAL_ALLOW.length) {
+      setTutorialStep((step) => step + 1);
+    }
+  }, [tutorialActive, tutorialStep, reportGesture]);
 
   const tutorialBridge = {
     active: tutorialActive,
@@ -780,7 +793,7 @@ export default function MobileShell() {
               advancing={advancing}
               onSkip={endTutorial}
               onStart={endTutorial}
-              onAdvance={() => reportGesture("actions")}
+              onAdvance={advanceTutorialCard}
               onUnlockPro={handleUnlockPro}
             />
           </Suspense>

@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { artworks } from "@/data";
+import BrandMark from "./BrandMark";
 import { CheckIcon } from "./Icons";
 import { tutorialFooterHintClass } from "./artwork-layout";
 
@@ -13,7 +14,8 @@ type HintKey =
   | "left"
   | "right"
   | "hold"
-  | "actions";
+  | "actions"
+  | "feature";
 
 interface CoachStep {
   label: string;
@@ -22,6 +24,8 @@ interface CoachStep {
   zone: "center" | "footer";
   /** Confirmation shown during the brief pause before the next step. */
   done: string;
+  /** Simple points shown for app-wide informational steps. */
+  details?: string[];
 }
 
 const STEPS: CoachStep[] = [
@@ -63,10 +67,62 @@ const STEPS: CoachStep[] = [
   {
     label: "Use quick actions",
     instruction:
-      "On the right rail you can open the artist's profile, like, save, comment, and download — tap Got it to finish.",
+      "On the right rail you can open the artist's profile, like, save, comment, and download.",
     hint: "actions",
     zone: "center",
     done: "All set",
+  },
+  {
+    label: "Discover art history",
+    instruction:
+      "Open Discover when you want to learn by age, empire, or artist.",
+    hint: "feature",
+    zone: "center",
+    done: "Discovery explained",
+    details: [
+      "Choose an art age or empire",
+      "Meet important artists and artworks",
+      "Start a quiz from each topic",
+    ],
+  },
+  {
+    label: "Quizzes and badges",
+    instruction:
+      "Each age and empire has three quiz difficulties and three badge ranks.",
+    hint: "feature",
+    zone: "center",
+    done: "Badges explained",
+    details: [
+      "Apprentice, Scholar, and Master",
+      "Score 100% to unlock a badge",
+      "Locked badges stay gray on your profile",
+    ],
+  },
+  {
+    label: "Build your person level",
+    instruction:
+      "Daily quiz points grow your person level from level 1 to level 7.",
+    hint: "feature",
+    zone: "center",
+    done: "Levels explained",
+    details: [
+      "Play the Royal Assessment",
+      "Earn points and grow your level",
+      "See your current frame on your profile",
+    ],
+  },
+  {
+    label: "Gallery, Vault, and Profile",
+    instruction:
+      "Use the other rooms to browse art, keep favorites, and see your progress.",
+    hint: "feature",
+    zone: "center",
+    done: "Rooms explained",
+    details: [
+      "Gallery: browse available artwork",
+      "Vault: find artwork you saved",
+      "Profile: see badges, levels, and restart this tour",
+    ],
   },
 ];
 
@@ -322,6 +378,41 @@ function ActionsExplainer({ onAdvance }: { onAdvance?: () => void }) {
   );
 }
 
+function FeatureExplainer({
+  details,
+  onAdvance,
+}: {
+  details: string[];
+  onAdvance?: () => void;
+}) {
+  return (
+    <div className="absolute inset-x-0 top-[44%] flex -translate-y-1/2 flex-col items-center px-8">
+      <div className="w-full max-w-[20rem] rounded-3xl border border-white/15 bg-black/60 p-5 shadow-2xl backdrop-blur-xl">
+        <ul className="space-y-3">
+          {details.map((detail, index) => (
+            <li
+              key={detail}
+              className="flex items-start gap-3 text-[14px] leading-relaxed text-white/80"
+            >
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-300 text-[10px] font-bold text-ink">
+                {index + 1}
+              </span>
+              {detail}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <motion.button
+        whileTap={{ scale: 0.97 }}
+        onClick={onAdvance}
+        className="pointer-events-auto mt-6 rounded-full bg-white px-8 py-3.5 text-sm font-semibold text-ink shadow-[0_8px_32px_rgba(0,0,0,0.35)]"
+      >
+        Next
+      </motion.button>
+    </div>
+  );
+}
+
 function GestureHint({ hint, footer = false }: { hint: HintKey; footer?: boolean }) {
   if (hint === "left" || hint === "right") {
     return <HorizontalSwipeHint direction={hint} />;
@@ -336,10 +427,10 @@ function GestureHint({ hint, footer = false }: { hint: HintKey; footer?: boolean
   }
 
   // "actions" is rendered separately by ActionsExplainer, never here.
-  if (hint === "actions") return null;
+  if (hint === "actions" || hint === "feature") return null;
 
   const labels: Record<
-    Exclude<HintKey, "left" | "right" | "hold" | "actions">,
+    Exclude<HintKey, "left" | "right" | "hold" | "actions" | "feature">,
     string
   > = {
     vertical: "Swipe up / down",
@@ -458,13 +549,8 @@ function TutorialFinale({
         transition={{ duration: 0.55, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
         className="absolute inset-x-0 top-[calc(env(safe-area-inset-top)+2.75rem)] px-8 text-center"
       >
-        <div className="mb-6 flex items-center justify-center gap-2">
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-[12px] font-bold text-ink shadow-lg">
-            N
-          </span>
-          <span className="text-[12px] font-semibold uppercase tracking-[0.24em] text-white drop-shadow-md">
-            Narsil
-          </span>
+        <div className="mb-6 flex items-center justify-center">
+          <BrandMark size={44} showWordmark wordmarkClassName="text-[12px] font-semibold uppercase tracking-[0.24em] text-white drop-shadow-md" />
         </div>
         <h2 className="font-serif text-[34px] leading-[1.08] tracking-tight text-white drop-shadow-[0_2px_24px_rgba(0,0,0,0.45)]">
           You&apos;re ready
@@ -550,6 +636,7 @@ export default function TutorialCoach({
   const current = STEPS[Math.min(step, STEPS.length - 1)];
   const confirming = advancing && !isFinal;
   const isActionsStep = !isFinal && current.hint === "actions";
+  const isFeatureStep = !isFinal && current.hint === "feature";
 
   return (
     <AnimatePresence>
@@ -608,9 +695,16 @@ export default function TutorialCoach({
                     <ActionsExplainer onAdvance={onAdvance} />
                   )}
 
+                  {isFeatureStep && (
+                    <FeatureExplainer
+                      details={current.details ?? []}
+                      onAdvance={onAdvance}
+                    />
+                  )}
+
                   {/* Animated gesture cue over the interaction zone — swapped
                       for a success confirmation during the post-gesture pause. */}
-                  {!isActionsStep && (
+                  {!isActionsStep && !isFeatureStep && (
                   <div
                     className={`absolute ${
                       current.zone === "footer"

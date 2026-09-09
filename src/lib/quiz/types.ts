@@ -91,7 +91,7 @@ export interface QuizProgress {
   totalAnswered: number;
   /** Competition points (level is derived from this only). */
   totalPoints: number;
-  /** Lasting ladder tier 0–4 (Peasant → Grand Archivist). */
+  /** Lasting ladder tier 0–6 (Peasant → Royal Archivist; display levels 1–7). */
   levelId: number;
   /** Points earned on the most recent daily (base+time+continue). */
   lastDailyPoints: number | null;

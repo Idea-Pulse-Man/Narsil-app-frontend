@@ -31,7 +31,6 @@ import {
 export type PaywallReason =
   | "practice-quiz"
   | "hi-res-download"
-  | "canvas-discount"
   /** Opened deliberately from Settings rather than by hitting a gate. */
   | "settings"
   /** Create tab — only Explorer's Guild members may upload artworks. */

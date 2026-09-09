@@ -1,11 +1,12 @@
 import { motion } from "framer-motion";
 import { appraisalFor, WORLD } from "@/data/worldCopy";
 import type { QuizQuestion, DailyPointsBreakdown } from "@/lib/quiz";
-import { levelTitle, nextThreshold } from "@/lib/quiz";
+import { levelTitle, nextThreshold, personLevelNumber } from "@/lib/quiz";
 import type { LevelBoard } from "@/lib/quizRemote";
 import { scrollForLevel, scrollPalette } from "@/lib/quiz/scrolls";
 import BlurImage from "./BlurImage";
 import { FlameIcon } from "./Icons";
+import PersonLevelFrame from "./PersonLevelFrame";
 import QuizRanking from "./QuizRanking";
 import QuizScrollFrame from "./QuizScrollFrame";
 import StreakCelebration from "./StreakCelebration";
@@ -88,7 +89,13 @@ export default function QuizResults({
             : `${WORLD.unchartedArchives} complete`}
         </p>
 
+        <div className="mt-4 flex justify-center">
+          <PersonLevelFrame levelId={levelId} size={96} />
+        </div>
         <p className={`mt-3 font-serif text-3xl ${heading}`}>{title}</p>
+        <p className={`mt-0.5 text-xs font-medium uppercase tracking-[0.16em] ${muted}`}>
+          Person level {personLevelNumber(levelId)}
+        </p>
         <p className={`mt-1 text-sm ${muted}`}>
           {totalPoints.toLocaleString()} pts
           {next != null && (

@@ -3,6 +3,9 @@
  *
  * Level is driven only by total points. Rankings are same-level display;
  * place on the board never promotes or demotes.
+ *
+ * Person ladder is seven tiers (internal ids 0–6 → display levels 1–7).
+ * Quiz badge ranks (Apprentice / Scholar / Master) are separate.
  */
 
 export const BASE_POINTS = 50;
@@ -11,8 +14,10 @@ export const MISS_DAY_PENALTY = 100;
 /** Soft cap per correct answer (base + time + continue). */
 export const PER_ANSWER_CAP = 120;
 
-/** Cumulative thresholds: 1000 × 3^(n-1) for n ≥ 1. */
-export const LEVEL_THRESHOLDS = [0, 1000, 3000, 9000, 27000] as const;
+/** Cumulative thresholds: 1000 × 3^(n-1) for n ≥ 1. Seven person levels. */
+export const LEVEL_THRESHOLDS = [
+  0, 1000, 3000, 9000, 27000, 81000, 243000,
+] as const;
 
 export const LEVEL_TITLES = [
   "Peasant",
@@ -20,9 +25,20 @@ export const LEVEL_TITLES = [
   "Archivist",
   "Master Archivist",
   "Grand Archivist",
+  "High Archivist",
+  "Royal Archivist",
 ] as const;
 
-export type LevelId = 0 | 1 | 2 | 3 | 4;
+export type LevelId = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+/** Highest person-level id (Royal Archivist). */
+export const MAX_LEVEL_ID = (LEVEL_THRESHOLDS.length - 1) as LevelId;
+
+/** Display number 1–7 for a person-level id. */
+export function personLevelNumber(levelId: number): number {
+  const id = Math.max(0, Math.min(MAX_LEVEL_ID, Math.floor(levelId)));
+  return id + 1;
+}
 
 export interface AnswerPoints {
   base: number;
@@ -128,7 +144,7 @@ export function levelFromPoints(totalPoints: number): LevelId {
   const pts = Math.max(0, totalPoints);
   let level: LevelId = 0;
   for (let i = LEVEL_THRESHOLDS.length - 1; i >= 0; i--) {
-    if (pts >= LEVEL_THRESHOLDS[i]) {
+    if (pts >= LEVEL_THRESHOLDS[i]!) {
       level = i as LevelId;
       break;
     }
@@ -142,13 +158,16 @@ export function levelTitle(levelId: number): string {
 
 /** Points required to enter this level (0 for Peasant). */
 export function thresholdFor(levelId: number): number {
-  return LEVEL_THRESHOLDS[levelId] ?? LEVEL_THRESHOLDS[LEVEL_THRESHOLDS.length - 1];
+  return (
+    LEVEL_THRESHOLDS[levelId] ??
+    LEVEL_THRESHOLDS[LEVEL_THRESHOLDS.length - 1]!
+  );
 }
 
 /** Next tier threshold, or null at the top. */
 export function nextThreshold(levelId: number): number | null {
   if (levelId >= LEVEL_THRESHOLDS.length - 1) return null;
-  return LEVEL_THRESHOLDS[levelId + 1];
+  return LEVEL_THRESHOLDS[levelId + 1]!;
 }
 
 export function clampPoints(n: number): number {

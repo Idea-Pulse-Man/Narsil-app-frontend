@@ -17,6 +17,9 @@ const SCROLLS: Record<number, LevelScroll> = {
   2: { src: "/quiz-scrolls/archivist.png", ink: "light" },
   3: { src: "/quiz-scrolls/master-archivist.png", ink: "dark" },
   4: { src: "/quiz-scrolls/grand-archivist.png", ink: "light" },
+  /** High / Royal tiers reuse the grand scroll until dedicated parchment ships. */
+  5: { src: "/quiz-scrolls/grand-archivist.png", ink: "light" },
+  6: { src: "/quiz-scrolls/grand-archivist.png", ink: "light" },
 };
 
 export function scrollForLevel(levelId: number): LevelScroll {
