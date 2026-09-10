@@ -11,10 +11,12 @@
  * anon key is enough — no secret ever reaches the client.
  *
  * Feed loading is paginated (80 popular works at a time via `fetchArtworkBatch`).
+ * The Gallery shop pages sellable rows via `fetchSellableArtworkBatch`.
  * Search queries the server for matches instead of downloading the whole archive.
  */
 import { supabase } from "./supabase";
 import { fetchCommunityTags } from "./tags";
+import { sellableArtworkOrFilter } from "./sellability";
 import type { Artwork, Artist, CategoryId, ArtworkOrigin, FypArtistCard } from "@/data";
 
 export interface RemoteCatalog {
@@ -491,6 +493,87 @@ export async function fetchArtworkBatch(
       .map(mapArtist)
       .filter((artist): artist is Artist => artist !== null),
     fypArtistCards,
+  };
+}
+
+export type CanvasShopSource = "museum" | "freelance";
+
+/**
+ * How many canvases the shop can sell in a tab, without downloading the rows.
+ */
+export async function fetchSellableArtworkCount(
+  source: CanvasShopSource,
+  signal?: AbortSignal,
+): Promise<number | null> {
+  if (!supabase) return null;
+  try {
+    let query = supabase
+      .from("artworks")
+      .select("id", { count: "exact", head: true })
+      .not("image_url", "is", null)
+      .or("hidden.is.null,hidden.eq.false");
+    query =
+      source === "freelance"
+        ? query.eq("origin", "artist-original").eq("for_sale", true)
+        : query.neq("origin", "artist-original").or(sellableArtworkOrFilter());
+    if (signal) query = query.abortSignal(signal);
+    const { count, error } = await query;
+    if (error) throw error;
+    return count ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * One page of shop-eligible canvases (museum allowlist / for_sale, or freelance
+ * originals marked for sale). Used by Gallery so it is not capped by the feed.
+ */
+export async function fetchSellableArtworkBatch(
+  offset: number,
+  limit: number = CATALOG_BATCH_SIZE,
+  source: CanvasShopSource = "museum",
+  signal?: AbortSignal,
+): Promise<RemoteCatalog> {
+  if (!supabase) return { artworks: [], artists: [], fypArtistCards: [] };
+
+  let query = supabase
+    .from("artworks")
+    .select(ARTWORK_PREVIEW_COLUMNS)
+    .not("image_url", "is", null)
+    .or("hidden.is.null,hidden.eq.false")
+    .order("featured", { ascending: false, nullsFirst: false })
+    .order("like_count", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+  query =
+    source === "freelance"
+      ? query.eq("origin", "artist-original").eq("for_sale", true)
+      : query.neq("origin", "artist-original").or(sellableArtworkOrFilter());
+  if (signal) query = query.abortSignal(signal);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  const artworkRows = ((data ?? []) as unknown as ArtworkRow[]).filter(
+    (r) => r.image_url,
+  );
+  const artistIds = artworkRows
+    .map((r) => r.artist_id)
+    .filter((id): id is string => Boolean(id));
+  const artistRows = await fetchArtistsByIds(
+    artistIds,
+    ARTIST_PREVIEW_COLUMNS,
+    signal,
+  );
+
+  return {
+    artworks: artworkRows
+      .map((r) => mapArtwork(r))
+      .filter((art): art is Artwork => art !== null),
+    artists: artistRows
+      .map(mapArtist)
+      .filter((artist): artist is Artist => artist !== null),
+    fypArtistCards: [],
   };
 }
 

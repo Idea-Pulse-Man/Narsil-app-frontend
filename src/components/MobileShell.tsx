@@ -520,7 +520,7 @@ export default function MobileShell() {
               inert={screen !== "buy" ? true : undefined}
             >
               <Suspense fallback={null}>
-                <BuyView showToast={showToast} />
+                <BuyView showToast={showToast} active={screen === "buy"} />
               </Suspense>
             </div>
           )}

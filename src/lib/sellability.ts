@@ -23,6 +23,22 @@ const SELLABLE_MUSEUM_SOURCES = new Set([
   "mia",
 ]);
 
+/** Ingest id prefixes that are legally sellable (Wellcome / Flickr excluded). */
+export const SELLABLE_ARTWORK_ID_PREFIXES = (
+  Object.keys(ID_PREFIX_TO_SOURCE) as (keyof typeof ID_PREFIX_TO_SOURCE)[]
+).filter((prefix) => SELLABLE_MUSEUM_SOURCES.has(ID_PREFIX_TO_SOURCE[prefix]));
+
+/**
+ * PostgREST `or()` clause for shop queries: `for_sale` plus allowlisted id
+ * prefixes, so canvases still appear if the museum backfill has not run.
+ */
+export function sellableArtworkOrFilter(): string {
+  return [
+    "for_sale.eq.true",
+    ...SELLABLE_ARTWORK_ID_PREFIXES.map((prefix) => `id.like.${prefix}-*`),
+  ].join(",");
+}
+
 function museumSourceFromArtworkId(artworkId: string): string | null {
   const prefix = artworkId.split("-")[0];
   return ID_PREFIX_TO_SOURCE[prefix] ?? null;

@@ -1,8 +1,14 @@
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { originLabel, priceFromId, WORLD, type Artwork } from "@/data";
 import { isCanvasSellable } from "@/lib/sellability";
 import { useCatalog } from "@/data/catalog";
+import {
+  CATALOG_BATCH_SIZE,
+  fetchSellableArtworkBatch,
+  fetchSellableArtworkCount,
+  type CanvasShopSource,
+} from "@/lib/catalog";
 import { useAppState } from "./AppState";
 import BlurImage from "./BlurImage";
 import CanvasPurchaseSheet from "./CanvasPurchaseSheet";
@@ -14,6 +20,19 @@ import type { ToastState } from "./Toast";
 
 interface BuyViewProps {
   showToast: (message: string, variant?: ToastState["variant"]) => void;
+  /** False when another tab is visible — pauses shop paging. */
+  active?: boolean;
+}
+
+function mergeById(base: Artwork[], extra: Artwork[]): Artwork[] {
+  const seen = new Set(base.map((item) => item.id));
+  const out = [...base];
+  for (const item of extra) {
+    if (seen.has(item.id)) continue;
+    seen.add(item.id);
+    out.push(item);
+  }
+  return out;
 }
 
 // Museum Art (public-domain) vs Freelance (artist-original) — matches the
@@ -36,50 +55,149 @@ const matchesSource = (artwork: Artwork, source: BuySource) =>
     ? artwork.origin === "artist-original"
     : artwork.origin !== "artist-original";
 
-export default function BuyView({ showToast }: BuyViewProps) {
-  const { feedPool, loading } = useCatalog();
+export default function BuyView({ showToast, active = true }: BuyViewProps) {
+  const { rememberSearchHits } = useCatalog();
   const [source, setSource] = useState<BuySource>("museum");
   const [activeId, setActiveId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
-
-  // Only artworks on the legal canvas allowlist appear in the shop.
-  const sellableArtworks = useMemo(
-    () => feedPool.filter(isCanvasSellable),
-    [feedPool],
+  const [shop, setShop] = useState<Record<BuySource, Artwork[]>>({
+    museum: [],
+    freelance: [],
+  });
+  const [serverCounts, setServerCounts] = useState<
+    Record<BuySource, number | null>
+  >({ museum: null, freelance: null });
+  const [serverHasMore, setServerHasMore] = useState<Record<BuySource, boolean>>(
+    { museum: true, freelance: true },
   );
+  const [shopLoading, setShopLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const offsetRef = useRef<Record<BuySource, number>>({
+    museum: 0,
+    freelance: 0,
+  });
+  const inFlightRef = useRef<Record<BuySource, boolean>>({
+    museum: false,
+    freelance: false,
+  });
+  const serverHasMoreRef = useRef<Record<BuySource, boolean>>({
+    museum: true,
+    freelance: true,
+  });
+  const pageRequested = useRef(false);
+
+  const loadPage = useCallback(
+    async (src: CanvasShopSource, signal?: AbortSignal) => {
+      if (inFlightRef.current[src] || !serverHasMoreRef.current[src]) return;
+      inFlightRef.current[src] = true;
+      if (offsetRef.current[src] === 0) setShopLoading(true);
+      else setLoadingMore(true);
+      try {
+        const page = await fetchSellableArtworkBatch(
+          offsetRef.current[src],
+          CATALOG_BATCH_SIZE,
+          src,
+          signal,
+        );
+        if (signal?.aborted) return;
+        rememberSearchHits(page);
+        const sellable = page.artworks.filter(
+          (art) => isCanvasSellable(art) && matchesSource(art, src),
+        );
+        offsetRef.current[src] += page.artworks.length;
+        const more = page.artworks.length >= CATALOG_BATCH_SIZE;
+        serverHasMoreRef.current[src] = more;
+        setShop((prev) => ({
+          ...prev,
+          [src]: mergeById(prev[src], sellable),
+        }));
+        setServerHasMore((prev) => ({ ...prev, [src]: more }));
+      } catch (err) {
+        if (!signal?.aborted) {
+          console.warn("Gallery: canvas page failed.", err);
+        }
+      } finally {
+        inFlightRef.current[src] = false;
+        if (!signal?.aborted) {
+          setShopLoading(false);
+          setLoadingMore(false);
+        }
+      }
+    },
+    [rememberSearchHits],
+  );
+
+  useEffect(() => {
+    if (!active) return;
+    const controller = new AbortController();
+    void Promise.all([
+      fetchSellableArtworkCount("museum", controller.signal),
+      fetchSellableArtworkCount("freelance", controller.signal),
+    ]).then(([museum, freelance]) => {
+      if (controller.signal.aborted) return;
+      setServerCounts({ museum, freelance });
+    });
+    return () => controller.abort();
+  }, [active]);
+
+  useEffect(() => {
+    if (!active) return;
+    if (offsetRef.current[source] > 0) return;
+    void loadPage(source);
+  }, [active, source, loadPage]);
 
   const products = useMemo(
     () =>
-      sellableArtworks.map((artwork) => ({
+      shop[source].map((artwork) => ({
         id: `canvas-${artwork.id}`,
         artwork,
         priceFrom: priceFromId(artwork.id),
       })),
-    [sellableArtworks],
+    [shop, source],
   );
 
   const counts = useMemo(
     () => ({
-      museum: products.filter((p) => matchesSource(p.artwork, "museum")).length,
-      freelance: products.filter((p) => matchesSource(p.artwork, "freelance"))
-        .length,
+      museum: serverCounts.museum ?? shop.museum.length,
+      freelance: serverCounts.freelance ?? shop.freelance.length,
     }),
-    [products],
-  );
-
-  const filteredProducts = useMemo(
-    () => products.filter((p) => matchesSource(p.artwork, source)),
-    [products, source],
+    [serverCounts, shop],
   );
 
   const {
     visible: visibleProducts,
     sentinelRef,
     hasMore,
-  } = useInfiniteScroll(filteredProducts, {
+  } = useInfiniteScroll(products, {
     resetKey: source,
     rootRef: scrollRef,
+    enabled: active,
   });
+
+  const loadedCount = shop[source].length;
+
+  useEffect(() => {
+    pageRequested.current = false;
+  }, [loadedCount, source]);
+
+  useEffect(() => {
+    if (!active || shopLoading || inFlightRef.current[source]) return;
+    if (!serverHasMore[source]) return;
+    if (products.length === 0) return;
+    const halfway = Math.max(1, Math.floor(products.length / 2));
+    if (visibleProducts.length >= halfway && !pageRequested.current) {
+      pageRequested.current = true;
+      void loadPage(source);
+    }
+  }, [
+    active,
+    shopLoading,
+    source,
+    serverHasMore,
+    products.length,
+    visibleProducts.length,
+    loadPage,
+  ]);
 
   const activeArtwork =
     products.find((p) => p.artwork.id === activeId)?.artwork ?? null;
@@ -89,14 +207,16 @@ export default function BuyView({ showToast }: BuyViewProps) {
 
   // Never claim a tab is empty while the catalogue is still arriving — the
   // grid shows skeletons until there's something real to say (see ArtFeed).
-  const showSkeletonGrid = loading && products.length === 0;
+  const showSkeletonGrid = shopLoading && products.length === 0;
+  const showSentinel =
+    hasMore || loadingMore || (active && serverHasMore[source]);
 
   const emptyCopy =
-    products.length === 0
-      ? "We couldn't reach the gallery. Check your connection and try again."
-      : otherCount > 0
-        ? "Nothing here for now — the other collection has plenty to browse."
-        : "Nothing here for now. Check back soon.";
+    otherCount > 0
+      ? "Nothing here for now — the other collection has plenty to browse."
+      : serverCounts[source] === 0
+        ? "Nothing here for now. Check back soon."
+        : "We couldn't reach the gallery. Check your connection and try again.";
 
   return (
     <div ref={scrollRef} className={screenScrollClass}>
@@ -201,7 +321,7 @@ export default function BuyView({ showToast }: BuyViewProps) {
 
         {/* Skeletons stand in for the next page so the grid keeps its shape
             while more canvases stream in. */}
-        {hasMore && (
+        {showSentinel && (
           <div
             ref={sentinelRef}
             role="status"
