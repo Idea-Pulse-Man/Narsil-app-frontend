@@ -64,12 +64,19 @@ export default function ArtworkCard({
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressFired = useRef(false);
   const startPos = useRef<{ x: number; y: number } | null>(null);
+  const lastPos = useRef<{ x: number; y: number } | null>(null);
   const footerStart = useRef<{ x: number; y: number } | null>(null);
+  const capturedPointerId = useRef<number | null>(null);
   // After a horizontal swipe, ignore the synthetic click on buttons underneath.
   const suppressClick = useRef(false);
   // Ref keeps clean mode readable inside pointer handlers (avoids stale closures).
   const cleanRef = useRef(clean);
   cleanRef.current = clean;
+  const fitRef = useRef(fit);
+  fitRef.current = fit;
+  // After restoring from fill, the next swipe-right opens the artist instead of
+  // filling again — so fit → unfit → artist is a single direction on FYP.
+  const readyForArtistRef = useRef(false);
 
   // During the tutorial, only the gesture being taught is permitted; this keeps
   // the user focused and prevents stray actions from firing out of order.
@@ -92,6 +99,8 @@ export default function ArtworkCard({
     setDiscussionOpen(false);
     onCleanChange(false);
     setFit("contain");
+    fitRef.current = "contain";
+    readyForArtistRef.current = false;
   }, [resetToken, onCleanChange]);
 
   const setClean = (next: boolean) => {
@@ -106,8 +115,18 @@ export default function ArtworkCard({
     }
   };
 
-  const toggleFit = () => {
-    setFit((prev) => (prev === "cover" ? "contain" : "cover"));
+  // Leaving this card (scrolled off For You) resets the fit → artist chain.
+  useEffect(() => {
+    if (!zoomable) readyForArtistRef.current = false;
+  }, [zoomable]);
+
+  const releasePointer = (target: EventTarget | null, pointerId: number) => {
+    if (capturedPointerId.current !== pointerId) return;
+    capturedPointerId.current = null;
+    const node = target as HTMLElement | undefined;
+    if (node?.hasPointerCapture?.(pointerId)) {
+      node.releasePointerCapture(pointerId);
+    }
   };
 
   const openPlacard = () => {
@@ -148,11 +167,54 @@ export default function ArtworkCard({
     footerStart.current = null;
   };
 
+  const applyHorizontalSwipe = (dx: number, dy: number) => {
+    const adx = Math.abs(dx);
+    const ady = Math.abs(dy);
+    if (adx <= SWIPE_DISTANCE || adx <= ady * 1.15) return;
+
+    if (dx < 0) {
+      // swipe left → artist profile
+      if (gestureBlocked("artist")) return;
+      readyForArtistRef.current = false;
+      suppressClick.current = true;
+      onOpenArtist(artist.id);
+      tutorial?.report("artist");
+      return;
+    }
+
+    // Swipe right on For You: fill the frame, restore the full artwork, then
+    // open the artist — so you can unfit without jumping, then continue right.
+    if (fitRef.current === "cover") {
+      if (tutorial?.active && tutorial.allow !== "fit") return;
+      suppressClick.current = true;
+      setFit("contain");
+      fitRef.current = "contain";
+      readyForArtistRef.current = true;
+      return;
+    }
+
+    if (readyForArtistRef.current && !gestureBlocked("artist")) {
+      suppressClick.current = true;
+      readyForArtistRef.current = false;
+      onOpenArtist(artist.id);
+      tutorial?.report("artist");
+      return;
+    }
+
+    if (gestureBlocked("fit")) return;
+    suppressClick.current = true;
+    setFit("cover");
+    fitRef.current = "cover";
+    readyForArtistRef.current = false;
+    tutorial?.report("fit");
+  };
+
   // Capture-phase handlers on the whole card so swipe-left works over chrome
   // (rail, title, footer), not only the artwork image layer.
   const handlePointerDown = (e: React.PointerEvent) => {
     if (placardOpen || discussionOpen) return;
     startPos.current = { x: e.clientX, y: e.clientY };
+    lastPos.current = { x: e.clientX, y: e.clientY };
     longPressFired.current = false;
     clearHold();
     // Only start a long-press when UI is visible; tap-to-exit uses pointerup/click.
@@ -169,15 +231,35 @@ export default function ArtworkCard({
 
   const handlePointerMove = (e: React.PointerEvent) => {
     if (!startPos.current) return;
-    const dx = Math.abs(e.clientX - startPos.current.x);
-    const dy = Math.abs(e.clientY - startPos.current.y);
-    if (dx > 8 || dy > 8) clearHold();
+    lastPos.current = { x: e.clientX, y: e.clientY };
+    const dx = e.clientX - startPos.current.x;
+    const dy = e.clientY - startPos.current.y;
+    const adx = Math.abs(dx);
+    const ady = Math.abs(dy);
+    if (adx > 8 || ady > 8) clearHold();
+    // Lock the pointer only after the gesture is clearly horizontal so vertical
+    // feed scrolling and footer swipe-up still reach their targets.
+    if (
+      capturedPointerId.current == null &&
+      adx > 12 &&
+      adx > ady * 1.15
+    ) {
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+        capturedPointerId.current = e.pointerId;
+      } catch {
+        /* section may not accept capture on every target */
+      }
+    }
   };
 
-  const handlePointerUp = (e: React.PointerEvent) => {
+  const finishPointer = (e: React.PointerEvent, cancelled: boolean) => {
     clearHold();
     const start = startPos.current;
+    const end = lastPos.current ?? { x: e.clientX, y: e.clientY };
     startPos.current = null;
+    lastPos.current = null;
+    releasePointer(e.currentTarget, e.pointerId);
 
     // Release after long-press enters clean view — ignore this up; wait for a new tap.
     // Also swallow the browser's follow-up click so it doesn't instantly exit clean.
@@ -189,40 +271,26 @@ export default function ArtworkCard({
 
     if (!start) return;
 
-    const dx = e.clientX - start.x;
-    const dy = e.clientY - start.y;
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
     const adx = Math.abs(dx);
     const ady = Math.abs(dy);
 
     // Tap while in clean view → restore the normal UI (no tight time limit).
-    if (cleanRef.current && adx < 12 && ady < 12) {
+    if (!cancelled && cleanRef.current && adx < 12 && ady < 12) {
       cleanRef.current = false;
       setClean(false);
       return;
     }
 
-    // Horizontal swipe — still requires clear sideways motion vs vertical scroll.
-    if (adx > SWIPE_DISTANCE && adx > ady * 1.15) {
-      if (dx < 0) {
-        // swipe left → artist profile
-        if (gestureBlocked("artist")) return;
-        suppressClick.current = true;
-        onOpenArtist(artist.id);
-        tutorial?.report("artist");
-      } else {
-        // swipe right → Fit / Fill
-        if (gestureBlocked("fit")) return;
-        suppressClick.current = true;
-        toggleFit();
-        tutorial?.report("fit");
-      }
-    }
+    applyHorizontalSwipe(dx, dy);
   };
 
-  const handlePointerCancel = () => {
-    clearHold();
-    startPos.current = null;
+  const handlePointerUp = (e: React.PointerEvent) => finishPointer(e, false);
+
+  const handlePointerCancel = (e: React.PointerEvent) => {
     // Don't leave long-press latched if the browser cancels mid-hold (e.g. image drag).
+    finishPointer(e, true);
     longPressFired.current = false;
   };
 
