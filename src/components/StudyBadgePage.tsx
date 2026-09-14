@@ -228,6 +228,7 @@ export function StudyBadgeMark({
     <TopicMedal
       difficulty={badge.difficulty ?? "apprentice"}
       unlocked={earned}
+      gated={!earned}
       mark={badge.topicTitle ?? badge.title}
       size={size}
       lockedWhite
@@ -287,6 +288,7 @@ export function DiscoverLevelCard({
               <TopicMedal
                 difficulty={spec.id as QuizDifficulty}
                 unlocked={on}
+                gated={!on}
                 mark={spec.label}
                 size={28}
                 lockedWhite

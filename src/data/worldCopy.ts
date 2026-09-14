@@ -36,7 +36,7 @@ export const WORLD = {
   trialNeedPerfect: "Only a flawless appraisal claims this seal.",
   trialEarned: "The seal is yours.",
   trialRetry: "Try again",
-  trialNeedPrior: "Pass the previous rank first",
+  trialNeedPrior: "Pass Apprentice first",
   trialNeedPro: "Subscribe to unlock this trial",
   seals: "Seals of the Archive",
   studyBadges: "Badges",

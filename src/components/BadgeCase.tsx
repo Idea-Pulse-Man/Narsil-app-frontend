@@ -118,6 +118,7 @@ function BadgeRow({
               <TopicMedal
                 difficulty={badge.difficulty}
                 unlocked={on}
+                gated={!on}
                 mark={title}
                 size={34}
               />

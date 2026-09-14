@@ -25,16 +25,6 @@ const METAL: Record<
   },
 };
 
-interface TopicMedalProps {
-  difficulty: QuizDifficulty;
-  unlocked: boolean;
-  /** First letter (or two) stamped on the medal. */
-  mark: string;
-  size?: number;
-  /** Locked seals render as pale white discs instead of grayscale metal. */
-  lockedWhite?: boolean;
-}
-
 const WHITE_METAL = {
   ring: "#e8e4dc",
   fill: "#f7f4ee",
@@ -42,20 +32,38 @@ const WHITE_METAL = {
   glow: "transparent",
 };
 
+interface TopicMedalProps {
+  difficulty: QuizDifficulty;
+  /** Seal earned (perfect score) — metal catches light. */
+  unlocked: boolean;
+  /** First letter (or two) stamped on the medal. */
+  mark: string;
+  size?: number;
+  /**
+   * Access gated (need prior rank / Pro / empty pool). Shows the lock.
+   * Playable-but-unearned trials keep metal color with no lock.
+   */
+  gated?: boolean;
+  /** Locked seals render as pale white discs (Study badge page). */
+  lockedWhite?: boolean;
+}
+
 /**
- * Bronze / silver / gold seal. Locked medals stay in the case but are grayed
- * (or white on the Study badge page) until a perfect score unlocks them.
+ * Bronze / silver / gold seal.
+ * Earned = glow. Playable = metal, no lock. Gated = faded + lock.
  */
 export default function TopicMedal({
   difficulty,
   unlocked,
   mark,
   size = 44,
+  gated = false,
   lockedWhite = false,
 }: TopicMedalProps) {
-  const metal = unlocked || !lockedWhite ? METAL[difficulty] : WHITE_METAL;
+  const useWhite = gated && lockedWhite && !unlocked;
+  const metal = useWhite ? WHITE_METAL : METAL[difficulty];
   const letter = mark.slice(0, 1).toUpperCase() || "•";
-  const faded = !unlocked && !lockedWhite;
+  const faded = gated && !unlocked;
 
   return (
     <span
@@ -98,9 +106,9 @@ export default function TopicMedal({
           {letter}
         </text>
       </svg>
-      {!unlocked && (
+      {gated && (
         <LockIcon
-          className={`absolute h-3 w-3 ${lockedWhite ? "text-[#8a8478]" : "text-white/70"}`}
+          className={`absolute h-3 w-3 ${useWhite ? "text-[#8a8478]" : "text-white/70"}`}
           style={{ bottom: size * 0.08, right: size * 0.08 }}
         />
       )}
