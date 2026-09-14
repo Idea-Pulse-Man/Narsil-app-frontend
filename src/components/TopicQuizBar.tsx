@@ -7,7 +7,6 @@ import {
   difficultySpec,
   formatRemainingMs,
   getTopicCooldown,
-  hasCachedTopicQuiz,
   type QuizDifficulty,
   type ScoreMap,
   type TopicRef,
@@ -60,12 +59,15 @@ export default function TopicQuizBar({
     return () => window.clearInterval(id);
   }, []);
 
-  // Hide the whole trial card until the collection can actually support a run
-  // (e.g. Medieval & Byzantine with too few works).
-  const prepared = QUIZ_DIFFICULTIES.some(
-    (spec) =>
-      hasCachedTopicQuiz(topic, spec.id) ||
-      canPlayTopicQuiz(targets, pool, spec.id, artists, topic.kind),
+  // Medieval & Byzantine is not quiz-ready yet — hide Apprentice / Scholar /
+  // Master entirely (do not show a locked "Not enough works" card).
+  if (topic.kind === "age" && topic.id === "medieval") return null;
+
+  // Hide the whole Trial card (all 3 ranks) until this period can actually
+  // support a run. Do not treat a stale cache as "prepared" — that left thin
+  // eras showing locked ranks with "Not enough works…".
+  const prepared = QUIZ_DIFFICULTIES.some((spec) =>
+    canPlayTopicQuiz(targets, pool, spec.id, artists, topic.kind),
   );
   if (!prepared) return null;
 
@@ -79,15 +81,13 @@ export default function TopicQuizBar({
         {QUIZ_DIFFICULTIES.map((spec) => {
           const id = badgeId(topic, spec.id);
           const earned = unlockedIds.has(id);
-          const poolReady =
-            hasCachedTopicQuiz(topic, spec.id) ||
-            canPlayTopicQuiz(
-              targets,
-              pool,
-              spec.id,
-              artists,
-              topic.kind,
-            );
+          const poolReady = canPlayTopicQuiz(
+            targets,
+            pool,
+            spec.id,
+            artists,
+            topic.kind,
+          );
           const access = accessTopicQuiz(
             topic,
             spec.id,
