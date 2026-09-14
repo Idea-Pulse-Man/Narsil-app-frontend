@@ -99,8 +99,8 @@ export function AdminState({
           If this mentions a missing column or function, run
           supabase/admin-dashboard.sql, supabase/artwork-approval.sql,
           supabase/support-inbox.sql, supabase/admin-overview-charts.sql,
-          supabase/admin-users-enrich.sql, supabase/admin-alerts.sql, or
-          supabase/quiz-questions.sql.
+          supabase/admin-users-enrich.sql, supabase/admin-alerts.sql,
+          supabase/quiz-questions.sql, or supabase/news-posts.sql.
         </p>
         {onRetry && (
           <button

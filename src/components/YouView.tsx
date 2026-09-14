@@ -20,6 +20,7 @@ import { useAudio } from "@/lib/audio/AudioProvider";
 import ArtworkTile from "./ArtworkTile";
 import AddressManager from "./AddressManager";
 import ContactAdminSheet from "./ContactAdminSheet";
+import NewsSheet from "./NewsSheet";
 import OrdersSheet from "./OrdersSheet";
 import ProStatusSheet from "./ProStatusSheet";
 import BadgeCase from "./BadgeCase";
@@ -83,6 +84,7 @@ export default function YouView({
   const [ordersOpen, setOrdersOpen] = useState(false);
   const [proOpen, setProOpen] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
+  const [newsOpen, setNewsOpen] = useState(false);
   const [quizProgress, setQuizProgress] =
     useState<QuizProgress>(EMPTY_PROGRESS);
   const { badges } = useQuizBadges(user?.id ?? null, quizRefresh);
@@ -452,6 +454,11 @@ export default function YouView({
           />
           <Row label="Terms of Service" onClick={onOpenTerms} />
           <Row
+            label="News"
+            hint="Updates from Narsil"
+            onClick={() => setNewsOpen(true)}
+          />
+          <Row
             label="Contact admin"
             hint="Email or live chat"
             onClick={openContact}
@@ -500,6 +507,7 @@ export default function YouView({
         onClose={() => setContactOpen(false)}
         showToast={showToast}
       />
+      <NewsSheet open={newsOpen} onClose={() => setNewsOpen(false)} />
       <OrdersSheet open={ordersOpen} onClose={() => setOrdersOpen(false)} />
       <ProStatusSheet
         open={proOpen}

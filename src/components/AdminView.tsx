@@ -1,5 +1,5 @@
 /**
- * Admin-only app shell — Overview / Users / Quiz / Canvas / Artworks / Chatting.
+ * Admin-only app shell — Overview / Users / Quiz / News / Canvas / Artworks / Chatting.
  *
  * Mounted instead of the member museum (Narsil / Discover / …) when
  * `profile.role === 'admin'`. RLS still gates every write; this UI is only a
@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAppState } from "./AppState";
 import AdminArtworks from "./AdminArtworks";
 import AdminInbox from "./AdminInbox";
+import AdminNews from "./AdminNews";
 import AdminOrders from "./AdminOrders";
 import AdminOverview from "./AdminOverview";
 import AdminQuiz from "./AdminQuiz";
@@ -25,6 +26,7 @@ type AdminTab =
   | "overview"
   | "users"
   | "quiz"
+  | "news"
   | "orders"
   | "artworks"
   | "inbox";
@@ -33,6 +35,7 @@ const HINTS: Record<AdminTab, string> = {
   overview: "Narsil users, daily sign-ins and subscriptions.",
   users: "Status, role, Guild subscription, and password reset.",
   quiz: "Manage quiz problems — add, delete, or generate with AI.",
+  news: "Write, edit, save, and publish news for members.",
   orders: "Track the canvas pipeline and unstick failed fulfilments.",
   artworks: "Approve member uploads, feature, hide, or take a work down.",
   inbox: "Reply to member live chat. Email stays in your mail app.",
@@ -113,6 +116,7 @@ export default function AdminView({ showToast }: AdminViewProps) {
         { id: "overview" as const, label: "Overview" },
         { id: "users" as const, label: "Users" },
         { id: "quiz" as const, label: "Quiz" },
+        { id: "news" as const, label: "News" },
         { id: "orders" as const, label: "Canvas" },
         { id: "artworks" as const, label: "Artworks" },
         {
@@ -208,6 +212,7 @@ export default function AdminView({ showToast }: AdminViewProps) {
             {tab === "overview" && <AdminOverview onJumpToOrders={jumpToOrders} />}
             {tab === "users" && <AdminUsers showToast={showToast} />}
             {tab === "quiz" && <AdminQuiz showToast={showToast} />}
+            {tab === "news" && <AdminNews showToast={showToast} />}
             {tab === "orders" && (
               <AdminOrders
                 key={orderKey}
