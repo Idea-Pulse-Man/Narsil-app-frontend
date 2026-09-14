@@ -78,11 +78,15 @@ export { getQuizInstallId, quizSalt } from "./install";
 export {
   QUIZ_DIFFICULTIES,
   CANONICAL_EMPIRES,
+  FREE_TOPIC,
   MIN_TOPIC_QUESTIONS,
   badgeId,
   parseBadgeId,
   earnsBadge,
   difficultySpec,
+  priorDifficulty,
+  isFreeTopic,
+  accessTopicQuiz,
   filterTopicTargets,
   buildTopicQuiz,
   topicQuizCapacity,
@@ -97,6 +101,7 @@ export type {
   TopicQuizLaunch,
   DifficultySpec,
   BadgeDef,
+  TopicQuizAccess,
 } from "./topic";
 export {
   loadBadges,
@@ -106,6 +111,30 @@ export {
   useQuizBadges,
 } from "./badges";
 export type { UnlockedBadge, BadgeMap } from "./badges";
+export {
+  starsFromScore,
+  loadScores,
+  mergeScores,
+  applyTopicScore,
+  useQuizScores,
+} from "./scores";
+export type { QuizScore, ScoreMap } from "./scores";
+export {
+  assessmentBadgeId,
+  parseAssessmentBadgeId,
+  listAssessmentBadges,
+  listDiscoverStudyBadges,
+  discoverStudyBadge,
+  extraEmpireTopicsFromBadges,
+  isStudyBadgeEarned,
+  highestDiscoverRank,
+  discoverSealCounts,
+  loadSelectedBadgeId,
+  saveSelectedBadgeId,
+  sanitizeSelectedBadgeId,
+  findStudyBadge,
+} from "./studyBadges";
+export type { StudyBadge, StudyBadgeKind } from "./studyBadges";
 export type { DailySession } from "./session";
 export {
   loadDailySession,

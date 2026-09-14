@@ -31,20 +31,31 @@ interface TopicMedalProps {
   /** First letter (or two) stamped on the medal. */
   mark: string;
   size?: number;
+  /** Locked seals render as pale white discs instead of grayscale metal. */
+  lockedWhite?: boolean;
 }
+
+const WHITE_METAL = {
+  ring: "#e8e4dc",
+  fill: "#f7f4ee",
+  ink: "#b8b2a6",
+  glow: "transparent",
+};
 
 /**
  * Bronze / silver / gold seal. Locked medals stay in the case but are grayed
- * out — the whole catalog is visible, only earned ones catch the light.
+ * (or white on the Study badge page) until a perfect score unlocks them.
  */
 export default function TopicMedal({
   difficulty,
   unlocked,
   mark,
   size = 44,
+  lockedWhite = false,
 }: TopicMedalProps) {
-  const metal = METAL[difficulty];
+  const metal = unlocked || !lockedWhite ? METAL[difficulty] : WHITE_METAL;
   const letter = mark.slice(0, 1).toUpperCase() || "•";
+  const faded = !unlocked && !lockedWhite;
 
   return (
     <span
@@ -57,7 +68,7 @@ export default function TopicMedal({
         width={size}
         height={size}
         className={`transition-[filter,opacity] ${
-          unlocked ? "" : "opacity-40 grayscale"
+          faded ? "opacity-40 grayscale" : ""
         }`}
         style={
           unlocked ? { filter: `drop-shadow(0 0 6px ${metal.glow})` } : undefined
@@ -89,7 +100,7 @@ export default function TopicMedal({
       </svg>
       {!unlocked && (
         <LockIcon
-          className="absolute h-3 w-3 text-white/70"
+          className={`absolute h-3 w-3 ${lockedWhite ? "text-[#8a8478]" : "text-white/70"}`}
           style={{ bottom: size * 0.08, right: size * 0.08 }}
         />
       )}

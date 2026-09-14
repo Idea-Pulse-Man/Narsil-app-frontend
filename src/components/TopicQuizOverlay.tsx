@@ -1,17 +1,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  accessTopicQuiz,
   buildTopicQuiz,
+  canPlayTopicQuiz,
   difficultySpec,
   filterTopicTargets,
+  loadBadges,
+  starsFromScore,
   useQuizBadges,
   useQuizPool,
+  useQuizScores,
   type QuizQuestion,
   type TopicQuizLaunch,
 } from "@/lib/quiz";
 import { WORLD } from "@/data/worldCopy";
 import { useAppState } from "./AppState";
 import QuizQuestionView from "./QuizQuestion";
+import QuizStars from "./QuizStars";
 import TopicMedal from "./TopicMedal";
 import { ArrowLeftIcon, CloseIcon } from "./Icons";
 
@@ -20,30 +26,32 @@ interface TopicQuizOverlayProps {
   onClose: () => void;
 }
 
-type Stage = "playing" | "results";
+type Stage = "playing" | "results" | "blocked";
 
 const REVEAL_MS = 900;
 
 /**
- * Age / empire trial. Starts immediately on the chosen difficulty; a seal is
- * granted only when every answer is correct.
+ * Age / empire trial. Starts only when access rules allow it; a seal is
+ * granted only when every answer is correct. Stars update on every run.
  */
 export default function TopicQuizOverlay({
   launch,
   onClose,
 }: TopicQuizOverlayProps) {
   const { pool, artists } = useQuizPool();
-  const { user } = useAppState();
+  const { user, isPro, requestPro } = useAppState();
   const { recordResult } = useQuizBadges(user?.id ?? null);
+  const { recordScore } = useQuizScores(user?.id ?? null);
   const spec = difficultySpec(launch.difficulty);
 
   const [stage, setStage] = useState<Stage>("playing");
+  const [blockReason, setBlockReason] = useState<"need_pro" | "need_prior" | "insufficient" | null>(null);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [qIndex, setQIndex] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [correct, setCorrect] = useState<boolean[]>([]);
   const [newlyEarned, setNewlyEarned] = useState(false);
-  const [empty, setEmpty] = useState(false);
+  const [runStars, setRunStars] = useState(0);
   const [run, setRun] = useState(0);
 
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -70,6 +78,34 @@ export default function TopicQuizOverlay({
     const full = poolRef.current;
     const index = artistsRef.current;
     const targets = filterTopicTargets(full, topic);
+    const poolReady = canPlayTopicQuiz(
+      targets,
+      full,
+      launch.difficulty,
+      index,
+      topic.kind,
+    );
+    const unlockedIds = new Set(Object.keys(loadBadges()));
+    const access = accessTopicQuiz(
+      topic,
+      launch.difficulty,
+      unlockedIds,
+      isPro,
+      poolReady,
+    );
+    if (access.status !== "playable") {
+      setBlockReason(
+        access.status === "need_prior"
+          ? "need_prior"
+          : access.status === "need_pro"
+            ? "need_pro"
+            : "insufficient",
+      );
+      setStage("blocked");
+      setQuestions([]);
+      return;
+    }
+
     const built = buildTopicQuiz(
       targets,
       full,
@@ -79,19 +115,20 @@ export default function TopicQuizOverlay({
       topic.kind,
     );
     if (built.length < spec.questionCount) {
-      setEmpty(true);
+      setBlockReason("insufficient");
+      setStage("blocked");
       setQuestions([]);
-      setStage("playing");
       return;
     }
-    setEmpty(false);
+    setBlockReason(null);
     setQuestions(built);
     setQIndex(0);
     setSelected(null);
     setCorrect([]);
     setNewlyEarned(false);
+    setRunStars(0);
     setStage("playing");
-  }, [topic, launch.difficulty, spec.questionCount]);
+  }, [topic, launch.difficulty, spec.questionCount, isPro]);
 
   useEffect(() => {
     startRun();
@@ -101,17 +138,15 @@ export default function TopicQuizOverlay({
   const finish = useCallback(
     (finalCorrect: boolean[]) => {
       const score = finalCorrect.filter(Boolean).length;
-      const result = recordResult(
-        topic,
-        launch.difficulty,
-        score,
-        questions.length,
-      );
+      const total = questions.length;
+      const starResult = recordScore(topic, launch.difficulty, score, total);
+      const result = recordResult(topic, launch.difficulty, score, total);
+      setRunStars(starResult.stars);
       setNewlyEarned(result.unlocked);
       setCorrect(finalCorrect);
       setStage("results");
     },
-    [recordResult, topic, launch.difficulty, questions.length],
+    [recordResult, recordScore, topic, launch.difficulty, questions.length],
   );
 
   const handleSelect = useCallback(
@@ -139,6 +174,8 @@ export default function TopicQuizOverlay({
   const score = correct.filter(Boolean).length;
   const total = questions.length;
   const perfect = total > 0 && score === total;
+  const displayStars =
+    stage === "results" ? runStars : starsFromScore(score, total);
 
   return (
     <AnimatePresence>
@@ -178,11 +215,35 @@ export default function TopicQuizOverlay({
         </div>
 
         <div className="min-h-0 flex-1">
-          {empty && (
-            <p className="px-6 pt-16 text-center text-sm text-white/50">
-              Not enough works in this collection yet. Come back as the
-              archive grows.
-            </p>
+          {stage === "blocked" && (
+            <div className="flex h-full flex-col items-center px-6 pt-16 text-center">
+              <p className="max-w-[16rem] text-sm leading-relaxed text-white/60">
+                {blockReason === "need_pro"
+                  ? WORLD.trialNeedPro
+                  : blockReason === "need_prior"
+                    ? WORLD.trialNeedPrior
+                    : "Not enough works in this collection yet. Come back as the archive grows."}
+              </p>
+              {blockReason === "need_pro" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    requestPro("topic-quiz");
+                  }}
+                  className="mt-6 w-full max-w-xs rounded-2xl bg-accent py-3.5 text-sm font-semibold text-ink"
+                >
+                  {WORLD.explorersGuild}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onClose}
+                className="mt-3 w-full max-w-xs rounded-2xl border border-white/15 bg-white/5 py-3.5 text-sm font-semibold text-white"
+              >
+                Done
+              </button>
+            </div>
           )}
 
           {stage === "playing" && current && (
@@ -210,7 +271,8 @@ export default function TopicQuizOverlay({
                   size={88}
                 />
               </motion.div>
-              <p className="mt-5 font-serif text-[28px] leading-tight text-white">
+              <QuizStars stars={displayStars} size={18} className="mt-4" />
+              <p className="mt-4 font-serif text-[28px] leading-tight text-white">
                 {score}/{total}
               </p>
               <p className="mt-1 text-sm text-white/55">

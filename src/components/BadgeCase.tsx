@@ -3,22 +3,26 @@ import {
   listBadgeCatalog,
   parseBadgeId,
   type BadgeMap,
+  type ScoreMap,
   type TopicRef,
 } from "@/lib/quiz";
 import { WORLD } from "@/data/worldCopy";
 import TopicMedal from "./TopicMedal";
+import QuizStars from "./QuizStars";
 
 interface BadgeCaseProps {
   badges: BadgeMap;
+  scores?: ScoreMap;
   extraEmpires?: string[];
 }
 
 /**
  * Full seal catalog on the profile. Every age and empire medal is shown;
- * unearned ones stay grayed out until a perfect score unlocks them.
+ * unearned ones stay grayed out. Stars show the best attempt so far.
  */
 export default function BadgeCase({
   badges,
+  scores = {},
   extraEmpires = [],
 }: BadgeCaseProps) {
   const extraTopics: TopicRef[] = [];
@@ -48,8 +52,8 @@ export default function BadgeCase({
         </p>
       </div>
       <p className="mt-1 text-xs text-white/45">
-        Perfect a trial on Discover to light a seal. Higher trials award
-        higher ranks.
+        Perfect a trial on Discover to light a seal. Stars show your best
+        score on each rank.
       </p>
 
       <h3 className="mt-5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">
@@ -62,6 +66,7 @@ export default function BadgeCase({
             title={group.topic.title}
             badges={group.badges}
             unlocked={badges}
+            scores={scores}
           />
         ))}
       </div>
@@ -76,6 +81,7 @@ export default function BadgeCase({
             title={group.topic.title}
             badges={group.badges}
             unlocked={badges}
+            scores={scores}
           />
         ))}
       </div>
@@ -87,23 +93,27 @@ function BadgeRow({
   title,
   badges,
   unlocked,
+  scores,
 }: {
   title: string;
   badges: ReturnType<typeof listBadgeCatalog>;
   unlocked: BadgeMap;
+  scores: ScoreMap;
 }) {
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
       <p className="min-w-0 flex-1 truncate text-[13px] text-white/80">
         {title}
       </p>
-      <div className="flex shrink-0 items-center gap-1.5">
+      <div className="flex shrink-0 items-center gap-2">
         {badges.map((badge) => {
           const on = !!unlocked[badge.id];
+          const stars = scores[badge.id]?.stars ?? 0;
           return (
             <span
               key={badge.id}
-              title={`${badge.label}${on ? " — earned" : " — locked"}`}
+              className="flex flex-col items-center gap-0.5"
+              title={`${badge.label}${on ? " — earned" : " — locked"} · ${stars}/5 stars`}
             >
               <TopicMedal
                 difficulty={badge.difficulty}
@@ -111,9 +121,10 @@ function BadgeRow({
                 mark={title}
                 size={34}
               />
+              <QuizStars stars={stars} size={7} />
               <span className="sr-only">
                 {title} {badge.label}
-                {on ? ", earned" : ", locked"}
+                {on ? ", earned" : ", locked"}, {stars} of 5 stars
               </span>
             </span>
           );

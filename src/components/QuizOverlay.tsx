@@ -7,6 +7,8 @@ import {
   todayKey,
   useQuizPool,
   useQuizProgress,
+  useQuizBadges,
+  useQuizScores,
   QUIZ_MODES,
   DAILY_COUNT,
   loadDailySession,
@@ -19,10 +21,18 @@ import {
   scoreDaily,
   FREE_PRACTICE_QUESTIONS,
   levelTitle,
+  listDiscoverStudyBadges,
+  extraEmpireTopicsFromBadges,
+  findStudyBadge,
+  loadSelectedBadgeId,
+  sanitizeSelectedBadgeId,
+  listAssessmentBadges,
   type DailySession,
   type QuizQuestion,
   type DailyPointsBreakdown,
+  type BadgeMap,
 } from "@/lib/quiz";
+import { useCatalog } from "@/data/catalog";
 import {
   submitDailyQuizResult,
   fetchLevelBoard,
@@ -34,8 +44,12 @@ import QuizQuestionView from "./QuizQuestion";
 import QuizResults from "./QuizResults";
 import QuizRanking from "./QuizRanking";
 import QuizScrollFrame from "./QuizScrollFrame";
+import StudyBadgePage, {
+  DiscoverLevelCard,
+  StudyBadgeMark,
+} from "./StudyBadgePage";
 import { scrollForLevel, scrollPalette } from "@/lib/quiz/scrolls";
-import { ArrowLeftIcon, CloseIcon, FlameIcon } from "./Icons";
+import { ArrowLeftIcon, CloseIcon, FlameIcon, MedalIcon } from "./Icons";
 
 interface QuizOverlayProps {
   open: boolean;
@@ -43,7 +57,7 @@ interface QuizOverlayProps {
   onOpenArtwork: (artworkId: string) => void;
 }
 
-type Stage = "hub" | "playing" | "results";
+type Stage = "hub" | "badges" | "playing" | "results";
 
 /** How the daily quiz should behave from the hub, given saved state. */
 type DailyMode = "new" | "resume" | "review" | "locked";
@@ -91,6 +105,8 @@ export default function QuizOverlay({
     recordPractice,
     previewDaily,
   } = useQuizProgress(user?.id ?? null);
+  const { badges: seals } = useQuizBadges(user?.id ?? null);
+  const { scores } = useQuizScores(user?.id ?? null);
 
   const [stage, setStage] = useState<Stage>("hub");
   const [isDaily, setIsDaily] = useState(true);
@@ -499,9 +515,20 @@ export default function QuizOverlay({
                 totalPoints={progress.totalPoints}
                 board={hubBoard}
                 boardLocked={isGuest}
+                seals={seals}
                 onDaily={startDaily}
                 onStartPractice={startPractice}
+                onOpenBadges={() => setStage("badges")}
                 onClose={onClose}
+              />
+            )}
+
+            {stage === "badges" && (
+              <StudyBadgePage
+                levelId={progress.levelId}
+                seals={seals}
+                scores={scores}
+                onBack={() => setStage("hub")}
               />
             )}
 
@@ -545,7 +572,7 @@ export default function QuizOverlay({
   );
 }
 
-/** The landing screen: parchment scroll, same-level ranking, daily CTA. */
+/** The landing screen: ranking, Discover trial rank, badges, daily CTA. */
 function QuizHub({
   loading,
   streak,
@@ -557,8 +584,10 @@ function QuizHub({
   totalPoints,
   board,
   boardLocked,
+  seals,
   onDaily,
   onStartPractice,
+  onOpenBadges,
   onClose,
 }: {
   loading: boolean;
@@ -571,10 +600,24 @@ function QuizHub({
   totalPoints: number;
   board: LevelBoard | null;
   boardLocked: boolean;
+  seals: BadgeMap;
   onDaily: () => void;
   onStartPractice: () => void;
+  onOpenBadges: () => void;
   onClose: () => void;
 }) {
+  const { searchFacets } = useCatalog();
+  const extraTopics = extraEmpireTopicsFromBadges(seals);
+  const discoverCatalog = listDiscoverStudyBadges(
+    searchFacets.empires,
+    extraTopics,
+  );
+  const catalog = [...listAssessmentBadges(), ...discoverCatalog];
+  const worn = findStudyBadge(
+    sanitizeSelectedBadgeId(loadSelectedBadgeId(), levelId, seals, catalog),
+    catalog,
+  );
+
   const done = dailyMode === "review" || dailyMode === "locked";
   const dailyCta =
     dailyMode === "resume"
@@ -594,7 +637,7 @@ function QuizHub({
 
   const { ink } = scrollForLevel(levelId);
   const dark = ink === "dark";
-  const { heading, muted, box } = scrollPalette(ink);
+  const { heading, muted, box, label } = scrollPalette(ink);
   const cta = dark
     ? "border-[#5c3d12]/40 bg-[#2a1c0c] text-[#f6ead0]"
     : "border-amber-200/30 bg-[#f6ead0] text-[#2a1c0c]";
@@ -646,14 +689,57 @@ function QuizHub({
         <CloseIcon className="h-4 w-4" />
       </button>
 
-      <h1 className={`font-serif text-[28px] leading-tight ${heading}`}>
-        {WORLD.royalAssessment}
-      </h1>
-      <p className={`mt-1 text-sm ${muted}`}>
-        {levelTitle(levelId)} · {totalPoints.toLocaleString()} pts
-      </p>
+      <div className="flex items-start gap-3">
+        {worn && (
+          <StudyBadgeMark badge={worn} earned size={52} />
+        )}
+        <div className="min-w-0 flex-1">
+          <h1 className={`font-serif text-[28px] leading-tight ${heading}`}>
+            {WORLD.royalAssessment}
+          </h1>
+          <p className={`mt-1 text-sm ${muted}`}>
+            {levelTitle(levelId)} · {totalPoints.toLocaleString()} pts
+          </p>
+        </div>
+      </div>
 
-      <div className={`mt-4 flex items-center gap-3 rounded-xl border px-3 py-3 ${box}`}>
+      <div className="mt-5">
+        <QuizRanking
+          levelId={levelId}
+          board={board}
+          boardLocked={boardLocked}
+          ink={ink}
+          compact
+        />
+      </div>
+
+      <DiscoverLevelCard
+        seals={seals}
+        catalogSize={discoverCatalog.length}
+        ink={ink}
+        onOpenBadges={onOpenBadges}
+      />
+
+      <button
+        type="button"
+        onClick={onOpenBadges}
+        className={`mt-3 flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left ${box}`}
+      >
+        <MedalIcon className={`h-5 w-5 shrink-0 ${heading}`} />
+        <div className="min-w-0 flex-1">
+          <p className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${label}`}>
+            {WORLD.studyBadges}
+          </p>
+          <p className={`mt-0.5 text-sm ${heading}`}>
+            {worn
+              ? `Wearing ${worn.title}${worn.kind === "discover" ? ` · ${worn.label}` : ""}`
+              : "Assessment ranks and Discover seals"}
+          </p>
+        </div>
+        <span className={muted}>›</span>
+      </button>
+
+      <div className={`mt-3 flex items-center gap-3 rounded-xl border px-3 py-3 ${box}`}>
         <FlameIcon
           filled={streak > 0}
           className={`h-5 w-5 ${streak > 0 ? "text-amber-700" : muted}`}
@@ -670,17 +756,7 @@ function QuizHub({
         </div>
       </div>
 
-      <div className="mt-5">
-        <QuizRanking
-          levelId={levelId}
-          board={board}
-          boardLocked={boardLocked}
-          ink={ink}
-          compact
-        />
-      </div>
-
-      <h2 className={`mt-6 font-serif text-lg ${heading}`}>
+      <h2 className={`mt-5 font-serif text-lg ${heading}`}>
         {WORLD.unchartedArchives}
         {!isPro && (
           <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${box}`}>

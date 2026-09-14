@@ -13,6 +13,7 @@ import {
   EMPTY_PROGRESS,
   levelTitle,
   useQuizBadges,
+  useQuizScores,
   type QuizProgress,
 } from "@/lib/quiz";
 import { useAudio } from "@/lib/audio/AudioProvider";
@@ -85,6 +86,7 @@ export default function YouView({
   const [quizProgress, setQuizProgress] =
     useState<QuizProgress>(EMPTY_PROGRESS);
   const { badges } = useQuizBadges(user?.id ?? null, quizRefresh);
+  const { scores } = useQuizScores(user?.id ?? null, quizRefresh);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -318,7 +320,11 @@ export default function YouView({
           </button>
         </div>
 
-        <BadgeCase badges={badges} extraEmpires={searchFacets.empires} />
+        <BadgeCase
+          badges={badges}
+          scores={scores}
+          extraEmpires={searchFacets.empires}
+        />
 
         {/* Preferences */}
         <section className="mt-8 rounded-2xl border border-white/10 bg-white/[0.03] p-4">

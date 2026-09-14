@@ -21,7 +21,7 @@ import { useEraWorks, useArtistsForWorks } from "./era-works";
 import { useInfiniteScroll } from "./useInfiniteScroll";
 import TopicQuizBar from "./TopicQuizBar";
 import { useAppState } from "./AppState";
-import { useQuizBadges, type TopicQuizLaunch } from "@/lib/quiz";
+import { useQuizBadges, useQuizScores, type TopicQuizLaunch } from "@/lib/quiz";
 
 interface DiscoverViewProps {
   onOpenArtist: (artistId: string) => void;
@@ -75,6 +75,7 @@ export default function DiscoverView({
   } = useCatalog();
   const { user } = useAppState();
   const { badges } = useQuizBadges(user?.id ?? null, quizRefresh);
+  const { scores } = useQuizScores(user?.id ?? null, quizRefresh);
   const unlockedIds = useMemo(() => new Set(Object.keys(badges)), [badges]);
   const [lens, setLens] = useState<Lens>("age");
   const [activeEmpire, setActiveEmpire] = useState<string | null>(null);
@@ -305,6 +306,7 @@ export default function DiscoverView({
                       pool={artworkPool}
                       artists={artistMap}
                       unlockedIds={unlockedIds}
+                      scores={scores}
                       onPlay={onOpenTopicQuiz}
                     />
 
@@ -410,6 +412,7 @@ export default function DiscoverView({
                         pool={artworkPool}
                         artists={artistMap}
                         unlockedIds={unlockedIds}
+                        scores={scores}
                         onPlay={onOpenTopicQuiz}
                       />
 

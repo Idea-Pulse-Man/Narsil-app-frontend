@@ -30,6 +30,7 @@ import {
  */
 export type PaywallReason =
   | "practice-quiz"
+  | "topic-quiz"
   | "hi-res-download"
   /** Opened deliberately from Settings rather than by hitting a gate. */
   | "settings"

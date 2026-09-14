@@ -12,6 +12,8 @@ interface PersonLevelFrameProps {
   /** Show "Lv N · Title" under the frame. */
   showCaption?: boolean;
   className?: string;
+  /** Unearned ranks render pale / white. */
+  unlocked?: boolean;
 }
 
 /**
@@ -23,6 +25,7 @@ export default function PersonLevelFrame({
   size = 72,
   showCaption = false,
   className = "",
+  unlocked = true,
 }: PersonLevelFrameProps) {
   const id = clampLevelId(levelId);
   const n = personLevelNumber(id);
@@ -42,7 +45,9 @@ export default function PersonLevelFrame({
           alt=""
           width={size}
           height={size}
-          className="h-full w-full object-contain"
+          className={`h-full w-full object-contain ${
+            unlocked ? "" : "opacity-50 brightness-150 grayscale contrast-50"
+          }`}
           draggable={false}
         />
       </span>

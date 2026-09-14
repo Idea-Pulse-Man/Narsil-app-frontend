@@ -26,6 +26,8 @@ export const STORAGE_KEYS = {
   quizDaily: "narsil:quiz-daily",
   quizInstallId: "narsil:quiz-install-id",
   quizBadges: "narsil:quiz-badges",
+  quizScores: "narsil:quiz-scores",
+  quizSelectedBadge: "narsil:quiz-selected-badge",
   // v3 validates each artist/artwork row before hydration. Bumping the key
   // drops legacy snapshots that can crash startup when `.name` is missing.
   catalogSnapshot: "narsil:catalog-snapshot:v3",

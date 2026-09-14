@@ -258,3 +258,66 @@ export async function upsertQuizBadge(
     console.warn("Supabase: quiz badge write failed.", err);
   }
 }
+
+/** Load best star ratings for topic trials. */
+export async function fetchQuizScores(): Promise<Record<
+  string,
+  { id: string; stars: number; score: number; total: number; updatedAt: string }
+> | null> {
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from("quiz_scores")
+      .select("quiz_id, stars, score, total, updated_at");
+    if (error) {
+      console.warn("Supabase: quiz scores load failed.", error.message);
+      return null;
+    }
+    const map: Record<
+      string,
+      { id: string; stars: number; score: number; total: number; updatedAt: string }
+    > = {};
+    for (const row of data ?? []) {
+      const id = (row as { quiz_id?: string }).quiz_id;
+      if (!id) continue;
+      map[id] = {
+        id,
+        stars: (row as { stars?: number }).stars ?? 0,
+        score: (row as { score?: number }).score ?? 0,
+        total: (row as { total?: number }).total ?? 0,
+        updatedAt:
+          (row as { updated_at?: string }).updated_at ??
+          new Date().toISOString(),
+      };
+    }
+    return map;
+  } catch (err) {
+    console.warn("Supabase: quiz scores load error.", err);
+    return null;
+  }
+}
+
+/** Persist a best star rating (caller should only upsert improvements). */
+export async function upsertQuizScore(
+  quizId: string,
+  stars: number,
+  score: number,
+  total: number,
+  updatedAt: string,
+): Promise<void> {
+  if (!supabase) return;
+  try {
+    await supabase.from("quiz_scores").upsert(
+      {
+        quiz_id: quizId,
+        stars,
+        score,
+        total,
+        updated_at: updatedAt,
+      },
+      { onConflict: "user_id,quiz_id" },
+    );
+  } catch (err) {
+    console.warn("Supabase: quiz score write failed.", err);
+  }
+}

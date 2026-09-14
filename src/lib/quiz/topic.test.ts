@@ -8,9 +8,17 @@ import {
   filterTopicTargets,
   groupBadgesByTopic,
   listBadgeCatalog,
+  accessTopicQuiz,
+  priorDifficulty,
   QUIZ_DIFFICULTIES,
 } from "./topic";
 import { applyTopicResult, mergeBadges, type BadgeMap } from "./badges";
+import {
+  applyTopicScore,
+  mergeScores,
+  starsFromScore,
+  type ScoreMap,
+} from "./scores";
 import { mulberry32 } from "./random";
 
 function art(
@@ -468,5 +476,121 @@ describe("badge unlocks", () => {
     expect(roman?.badges).toHaveLength(3);
     expect(catalog.some((b) => b.difficulty === "apprentice")).toBe(true);
     expect(catalog.some((b) => b.difficulty === "master")).toBe(true);
+  });
+});
+
+describe("topic quiz access", () => {
+  const egypt = {
+    kind: "age" as const,
+    id: "ancient-egypt",
+    title: "Ancient Egypt",
+  };
+  const renaissance = {
+    kind: "age" as const,
+    id: "renaissance",
+    title: "Renaissance",
+  };
+
+  it("free plan only enables Ancient Egypt Apprentice at first", () => {
+    const unlocked = new Set<string>();
+    expect(
+      accessTopicQuiz(egypt, "apprentice", unlocked, false, true).status,
+    ).toBe("playable");
+    expect(
+      accessTopicQuiz(egypt, "scholar", unlocked, false, true).status,
+    ).toBe("need_prior");
+    expect(
+      accessTopicQuiz(egypt, "master", unlocked, false, true).status,
+    ).toBe("need_prior");
+    expect(
+      accessTopicQuiz(renaissance, "apprentice", unlocked, false, true).status,
+    ).toBe("need_pro");
+  });
+
+  it("unlocks Scholar after Apprentice seal, then Master", () => {
+    const unlocked = new Set([badgeId(egypt, "apprentice")]);
+    expect(
+      accessTopicQuiz(egypt, "scholar", unlocked, false, true).status,
+    ).toBe("playable");
+    expect(
+      accessTopicQuiz(egypt, "master", unlocked, false, true).status,
+    ).toBe("need_prior");
+
+    unlocked.add(badgeId(egypt, "scholar"));
+    expect(
+      accessTopicQuiz(egypt, "master", unlocked, false, true).status,
+    ).toBe("playable");
+  });
+
+  it("Pro unlocks other topics but still needs prior seals", () => {
+    const unlocked = new Set<string>();
+    expect(
+      accessTopicQuiz(renaissance, "apprentice", unlocked, true, true).status,
+    ).toBe("playable");
+    expect(
+      accessTopicQuiz(renaissance, "scholar", unlocked, true, true),
+    ).toEqual({ status: "need_prior", prior: "apprentice" });
+    expect(priorDifficulty("master")).toBe("scholar");
+  });
+
+  it("sends free users to Pro for other topics even if the pool is thin", () => {
+    const unlocked = new Set<string>();
+    expect(
+      accessTopicQuiz(renaissance, "apprentice", unlocked, false, false).status,
+    ).toBe("need_pro");
+  });
+});
+
+describe("quiz stars", () => {
+  const topic = {
+    kind: "age" as const,
+    id: "ancient-egypt",
+    title: "Ancient Egypt",
+  };
+
+  it("maps score onto 0–5 stars", () => {
+    expect(starsFromScore(0, 5)).toBe(0);
+    expect(starsFromScore(4, 5)).toBe(4);
+    expect(starsFromScore(5, 5)).toBe(5);
+    expect(starsFromScore(7, 10)).toBe(4);
+    expect(starsFromScore(0, 0)).toBe(0);
+  });
+
+  it("keeps the best star rating across replays", () => {
+    let map: ScoreMap = {};
+    map = applyTopicScore(map, topic, "apprentice", 3, 5).map;
+    expect(map[badgeId(topic, "apprentice")]?.stars).toBe(3);
+
+    const worse = applyTopicScore(map, topic, "apprentice", 1, 5);
+    expect(worse.improved).toBe(false);
+    expect(worse.map[badgeId(topic, "apprentice")]?.stars).toBe(3);
+
+    const better = applyTopicScore(map, topic, "apprentice", 5, 5);
+    expect(better.improved).toBe(true);
+    expect(better.bestStars).toBe(5);
+  });
+
+  it("merges remote and local by higher stars", () => {
+    const merged = mergeScores(
+      {
+        "age:ancient-egypt:apprentice": {
+          id: "age:ancient-egypt:apprentice",
+          stars: 3,
+          score: 3,
+          total: 5,
+          updatedAt: "2026-01-01",
+        },
+      },
+      {
+        "age:ancient-egypt:apprentice": {
+          id: "age:ancient-egypt:apprentice",
+          stars: 5,
+          score: 5,
+          total: 5,
+          updatedAt: "2026-02-01",
+        },
+      },
+    );
+    expect(merged["age:ancient-egypt:apprentice"]?.stars).toBe(5);
   });
 });

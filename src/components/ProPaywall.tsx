@@ -23,6 +23,10 @@ const REASON_COPY: Record<PaywallReason, { title: string; lead: string }> = {
     title: "Keep exploring",
     lead: `You've used your five free questions. ${WORLD.explorersGuild} unlocks ${WORLD.unchartedArchives}.`,
   },
+  "topic-quiz": {
+    title: "Unlock every trial",
+    lead: `Free members may trial Ancient Egypt. ${WORLD.explorersGuild} opens every age and empire quiz.`,
+  },
   "hi-res-download": {
     title: `Extract the ${WORLD.masterFile}`,
     lead: "Get the museum's original scan instead of the 2000px version.",
@@ -39,6 +43,7 @@ const REASON_COPY: Record<PaywallReason, { title: string; lead: string }> = {
 
 const PERKS = [
   `${WORLD.unchartedArchives} — play as long as you can keep answering`,
+  `Every age and empire trial beyond Ancient Egypt`,
   `Extract uncompressed ${WORLD.masterFile}s straight from the museum scan`,
 ];
 

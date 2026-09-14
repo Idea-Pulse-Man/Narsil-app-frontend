@@ -10,7 +10,12 @@ import { useEraWorks, useArtistsForWorks } from "./era-works";
 import { useInfiniteScroll } from "./useInfiniteScroll";
 import TopicQuizBar from "./TopicQuizBar";
 import { useAppState } from "./AppState";
-import { useQuizBadges, useQuizPool, type TopicQuizLaunch } from "@/lib/quiz";
+import {
+  useQuizBadges,
+  useQuizPool,
+  useQuizScores,
+  type TopicQuizLaunch,
+} from "@/lib/quiz";
 
 interface EraScreenProps {
   era: HistoryEra | null;
@@ -44,6 +49,7 @@ export default function EraScreen({
   const { pool, artists: artistIndex } = useQuizPool();
   const { user } = useAppState();
   const { badges } = useQuizBadges(user?.id ?? null, quizRefresh);
+  const { scores } = useQuizScores(user?.id ?? null, quizRefresh);
   const unlockedIds = new Set(Object.keys(badges));
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -116,6 +122,7 @@ export default function EraScreen({
               pool={pool}
               artists={artistIndex}
               unlockedIds={unlockedIds}
+              scores={scores}
               onPlay={onOpenTopicQuiz}
             />
 

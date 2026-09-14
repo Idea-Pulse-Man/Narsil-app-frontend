@@ -206,6 +206,54 @@ export function canPlayTopicQuiz(
   );
 }
 
+/** Free plan may only trial Ancient Egypt — everything else needs Pro. */
+export const FREE_TOPIC: TopicRef = {
+  kind: "age",
+  id: "ancient-egypt",
+  title: "Ancient Egypt",
+};
+
+export function isFreeTopic(topic: TopicRef): boolean {
+  return topic.kind === FREE_TOPIC.kind && topic.id === FREE_TOPIC.id;
+}
+
+/** Difficulty that must be sealed before this one unlocks (null = first). */
+export function priorDifficulty(
+  difficulty: QuizDifficulty,
+): QuizDifficulty | null {
+  const i = QUIZ_DIFFICULTIES.findIndex((d) => d.id === difficulty);
+  if (i <= 0) return null;
+  return QUIZ_DIFFICULTIES[i - 1]!.id;
+}
+
+export type TopicQuizAccess =
+  | { status: "playable" }
+  | { status: "insufficient" }
+  | { status: "need_prior"; prior: QuizDifficulty }
+  | { status: "need_pro" };
+
+/**
+ * Free users: only Ancient Egypt, and only after sealing the prior rank.
+ * Pro users: any age/empire, still progressive Apprentice → Scholar → Master.
+ * Non-Egypt topics always surface the Pro gate for free members (even if the
+ * pool is still thin) so tapping opens the subscription sheet.
+ */
+export function accessTopicQuiz(
+  topic: TopicRef,
+  difficulty: QuizDifficulty,
+  unlockedIds: ReadonlySet<string>,
+  isPro: boolean,
+  poolReady: boolean,
+): TopicQuizAccess {
+  if (!isPro && !isFreeTopic(topic)) return { status: "need_pro" };
+  if (!poolReady) return { status: "insufficient" };
+  const prior = priorDifficulty(difficulty);
+  if (prior && !unlockedIds.has(badgeId(topic, prior))) {
+    return { status: "need_prior", prior };
+  }
+  return { status: "playable" };
+}
+
 export interface BadgeDef {
   id: string;
   kind: TopicKind;
