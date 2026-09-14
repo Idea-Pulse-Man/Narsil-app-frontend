@@ -99,7 +99,8 @@ export function AdminState({
           If this mentions a missing column or function, run
           supabase/admin-dashboard.sql, supabase/artwork-approval.sql,
           supabase/support-inbox.sql, supabase/admin-overview-charts.sql,
-          supabase/admin-users-enrich.sql, or supabase/admin-alerts.sql.
+          supabase/admin-users-enrich.sql, supabase/admin-alerts.sql, or
+          supabase/quiz-questions.sql.
         </p>
         {onRetry && (
           <button
@@ -207,6 +208,82 @@ export function Chip({
     >
       {label}
     </button>
+  );
+}
+
+/**
+ * Shared list card for Users / Quiz / Artworks — thumbnail or initial on the
+ * left, title + meta, status chips on the right, optional expand body.
+ */
+export function AdminListCard({
+  thumbnail,
+  initial,
+  title,
+  meta,
+  badges,
+  open,
+  onToggle,
+  children,
+  actions,
+}: {
+  thumbnail?: ReactNode;
+  /** Shown when there is no thumbnail (e.g. user initial). */
+  initial?: string;
+  title: string;
+  meta?: string;
+  badges?: ReactNode;
+  open?: boolean;
+  onToggle?: () => void;
+  children?: ReactNode;
+  /** Always-visible action row under the header. */
+  actions?: ReactNode;
+}) {
+  const header = (
+    <div className="flex w-full items-start gap-3 p-3 text-left">
+      {thumbnail ? (
+        <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-white/5">
+          {thumbnail}
+        </div>
+      ) : initial ? (
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-sm font-semibold text-white/70">
+          {initial.slice(0, 2).toUpperCase()}
+        </div>
+      ) : null}
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-medium text-white">{title}</p>
+        {meta && (
+          <p className="mt-0.5 truncate text-xs text-white/45">{meta}</p>
+        )}
+      </div>
+      <div className="flex shrink-0 flex-col items-end gap-1">
+        {badges}
+        {onToggle && (
+          <span className="text-xs text-white/25">{open ? "▲" : "▼"}</span>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.04]">
+      {onToggle ? (
+        <button type="button" onClick={onToggle} className="w-full">
+          {header}
+        </button>
+      ) : (
+        header
+      )}
+      {actions && (
+        <div className="flex flex-wrap items-center gap-2 border-t border-white/8 px-3 py-2.5">
+          {actions}
+        </div>
+      )}
+      {open && children && (
+        <div className="space-y-3 border-t border-white/8 px-3 pb-3 pt-2.5">
+          {children}
+        </div>
+      )}
+    </div>
   );
 }
 

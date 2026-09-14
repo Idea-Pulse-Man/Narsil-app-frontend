@@ -24,6 +24,7 @@ import {
 } from "@/lib/admin";
 import BlurImage from "./BlurImage";
 import {
+  AdminListCard,
   AdminSearch,
   AdminState,
   Chip,
@@ -138,8 +139,6 @@ export default function AdminArtworks({ showToast }: AdminArtworksProps) {
 
   return (
     <div className="mt-5">
-      {/* Both controls reset paging here rather than in an effect, so a new
-          query never fires a throwaway fetch at the old offset. */}
       <AdminSearch
         value={search}
         onChange={(next) => {
@@ -180,114 +179,108 @@ export default function AdminArtworks({ showToast }: AdminArtworksProps) {
               const status = row.approval_status ?? "approved";
               const pending = status === "pending";
               const rejected = status === "rejected";
-              // Sell only applies to artist originals (BuyView gates on origin
-              // too) — but still offer the chip on a mis-flagged work so an
-              // admin can clear it.
               const sellable = row.origin === "artist-original" || row.for_sale;
               return (
-                <div
+                <AdminListCard
                   key={row.id}
-                  className="rounded-2xl border border-white/10 bg-white/[0.04] p-3"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-white/5">
-                      {row.image_url && (
-                        <BlurImage
-                          src={row.image_url}
-                          alt={row.title}
-                          accent={row.accent ?? "#22242b"}
-                          thumbWidth={128}
-                        />
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start gap-2">
-                        <p className="min-w-0 flex-1 truncate font-medium text-white">
-                          {row.title}
-                        </p>
-                        {pending && <ApprovalBadge tone="pending" />}
-                        {rejected && <ApprovalBadge tone="rejected" />}
-                      </div>
-                      <p className="mt-0.5 truncate text-xs text-white/45">
-                        ♥ {row.like_count} · ★ {row.save_count} ·{" "}
-                        {fmtDate(row.created_at)}
-                      </p>
-                      <p className="mt-0.5 truncate text-[11px] text-white/30">
-                        {row.created_by ? "User upload" : "Museum ingest"} ·{" "}
-                        {row.artist_id ?? "unknown artist"}
-                      </p>
-                    </div>
-                  </div>
-
-                  {(pending || rejected) && (
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <Chip
-                        label="Approve"
-                        on
-                        disabled={busy === row.id}
-                        onClick={() => void decide(row, "approved")}
+                  thumbnail={
+                    row.image_url ? (
+                      <BlurImage
+                        src={row.image_url}
+                        alt={row.title}
+                        accent={row.accent ?? "#22242b"}
+                        thumbWidth={128}
                       />
-                      {pending && (
-                        <Chip
-                          label="Reject"
-                          tone="danger"
-                          disabled={busy === row.id}
-                          onClick={() => void decide(row, "rejected")}
-                        />
-                      )}
-                    </div>
-                  )}
-
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <Chip
-                      label="Feature"
-                      on={row.featured}
-                      disabled={busy === row.id || pending || rejected}
-                      onClick={() => void toggle(row, "featured")}
-                    />
-                    <Chip
-                      label="Hide"
-                      on={row.hidden}
-                      disabled={busy === row.id || pending || rejected}
-                      onClick={() => void toggle(row, "hidden")}
-                    />
-                    {sellable && (
-                      <Chip
-                        label="Sell"
-                        on={row.for_sale}
-                        disabled={busy === row.id}
-                        onClick={() => void toggle(row, "for_sale")}
-                      />
-                    )}
-                    <span className="flex-1" />
-                    {confirmDelete === row.id ? (
-                      <>
-                        <span className="w-full text-[11px] text-red-300/70">
-                          Also removes its saves, likes, comments and tags.
-                          Existing canvas orders are kept.
+                    ) : undefined
+                  }
+                  title={row.title}
+                  meta={`♥ ${row.like_count} · ★ ${row.save_count} · ${fmtDate(row.created_at)} · ${row.created_by ? "User upload" : "Museum ingest"}`}
+                  badges={
+                    <>
+                      {pending && <ApprovalBadge tone="pending" />}
+                      {rejected && <ApprovalBadge tone="rejected" />}
+                      {row.featured && (
+                        <span className="rounded-full border border-sky-400/30 bg-sky-400/10 px-2 py-0.5 text-[11px] text-sky-100">
+                          Featured
                         </span>
+                      )}
+                      {row.hidden && !pending && (
+                        <span className="rounded-full border border-white/15 px-2 py-0.5 text-[11px] text-white/50">
+                          Hidden
+                        </span>
+                      )}
+                    </>
+                  }
+                  actions={
+                    <>
+                      {(pending || rejected) && (
+                        <>
+                          <Chip
+                            label="Approve"
+                            on
+                            disabled={busy === row.id}
+                            onClick={() => void decide(row, "approved")}
+                          />
+                          {pending && (
+                            <Chip
+                              label="Reject"
+                              tone="danger"
+                              disabled={busy === row.id}
+                              onClick={() => void decide(row, "rejected")}
+                            />
+                          )}
+                        </>
+                      )}
+                      <Chip
+                        label="Feature"
+                        on={row.featured}
+                        disabled={busy === row.id || pending || rejected}
+                        onClick={() => void toggle(row, "featured")}
+                      />
+                      <Chip
+                        label="Hide"
+                        on={row.hidden}
+                        disabled={busy === row.id || pending || rejected}
+                        onClick={() => void toggle(row, "hidden")}
+                      />
+                      {sellable && (
                         <Chip
-                          label="Confirm"
-                          on
+                          label="Sell"
+                          on={row.for_sale}
+                          disabled={busy === row.id}
+                          onClick={() => void toggle(row, "for_sale")}
+                        />
+                      )}
+                      <span className="flex-1" />
+                      {confirmDelete === row.id ? (
+                        <>
+                          <span className="w-full text-[11px] text-red-300/70">
+                            Also removes its saves, likes, comments and tags.
+                            Existing canvas orders are kept.
+                          </span>
+                          <Chip
+                            label="Confirm"
+                            on
+                            tone="danger"
+                            disabled={busy === row.id}
+                            onClick={() => void remove(row)}
+                          />
+                          <Chip
+                            label="Cancel"
+                            onClick={() => setConfirmDelete(null)}
+                          />
+                        </>
+                      ) : (
+                        <Chip
+                          label="Delete"
                           tone="danger"
                           disabled={busy === row.id}
-                          onClick={() => void remove(row)}
+                          onClick={() => setConfirmDelete(row.id)}
                         />
-                        <Chip
-                          label="Cancel"
-                          onClick={() => setConfirmDelete(null)}
-                        />
-                      </>
-                    ) : (
-                      <Chip
-                        label="Delete"
-                        tone="danger"
-                        disabled={busy === row.id}
-                        onClick={() => setConfirmDelete(row.id)}
-                      />
-                    )}
-                  </div>
-                </div>
+                      )}
+                    </>
+                  }
+                />
               );
             })}
           </div>

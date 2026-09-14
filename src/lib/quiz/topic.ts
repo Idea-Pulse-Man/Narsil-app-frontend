@@ -138,12 +138,26 @@ export function buildTopicQuiz(
   rng: Rng,
   artists?: ArtistIndex,
   kind: TopicKind = "age",
+  /** Authored bank questions — used first, then catalog fill. */
+  bank: QuizQuestion[] = [],
 ): QuizQuestion[] {
   const spec = difficultySpec(difficulty);
   const modes = modesFor(spec, kind);
   const usedWorks = new Set<string>();
   const usedPairs = new Set<string>();
   const questions: QuizQuestion[] = [];
+
+  // Prefer authored bank rows (already shuffled by caller if desired).
+  for (const q of bank) {
+    if (questions.length >= spec.questionCount) break;
+    if (usedPairs.has(`${q.artworkId}:${q.mode}`)) continue;
+    usedWorks.add(q.artworkId);
+    usedPairs.add(`${q.artworkId}:${q.mode}`);
+    questions.push({
+      ...q,
+      id: `topic:${kind}:${difficulty}:${questions.length}:bank:${q.id}`,
+    });
+  }
 
   const trySlot = (preferFresh: boolean): QuizQuestion | null => {
     const order = shuffle(modes, rng);
@@ -172,7 +186,7 @@ export function buildTopicQuiz(
     return null;
   };
 
-  for (let slot = 0; slot < spec.questionCount; slot++) {
+  while (questions.length < spec.questionCount) {
     // Prefer a new work each time; if the era is thin, reuse a work under a
     // different mode so Apprentice can still open with curated-only data.
     const built = trySlot(true) ?? trySlot(false);

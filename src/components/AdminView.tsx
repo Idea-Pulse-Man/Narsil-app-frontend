@@ -1,5 +1,5 @@
 /**
- * Admin-only app shell — Overview / Artworks / Orders / Users / Inbox.
+ * Admin-only app shell — Overview / Users / Quiz / Canvas / Artworks / Chatting.
  *
  * Mounted instead of the member museum (Narsil / Discover / …) when
  * `profile.role === 'admin'`. RLS still gates every write; this UI is only a
@@ -12,6 +12,7 @@ import AdminArtworks from "./AdminArtworks";
 import AdminInbox from "./AdminInbox";
 import AdminOrders from "./AdminOrders";
 import AdminOverview from "./AdminOverview";
+import AdminQuiz from "./AdminQuiz";
 import AdminUsers from "./AdminUsers";
 import { screenScrollClass, screenContentClass } from "./artwork-layout";
 import { FilterTabs } from "./admin-ui";
@@ -20,13 +21,20 @@ import { fetchUnreadSupportCount } from "@/lib/support";
 import type { CanvasOrderStatus } from "@/lib/orders";
 import type { ToastState } from "./Toast";
 
-type AdminTab = "overview" | "artworks" | "orders" | "users" | "inbox";
+type AdminTab =
+  | "overview"
+  | "users"
+  | "quiz"
+  | "orders"
+  | "artworks"
+  | "inbox";
 
 const HINTS: Record<AdminTab, string> = {
   overview: "Narsil users, daily sign-ins and subscriptions.",
-  artworks: "Approve member uploads, feature, hide, or take a work down.",
-  orders: "Track the canvas pipeline and unstick failed fulfilments.",
   users: "Status, role, Guild subscription, and password reset.",
+  quiz: "Manage quiz problems — add, delete, or generate with AI.",
+  orders: "Track the canvas pipeline and unstick failed fulfilments.",
+  artworks: "Approve member uploads, feature, hide, or take a work down.",
   inbox: "Reply to member live chat. Email stays in your mail app.",
 };
 
@@ -76,7 +84,7 @@ export default function AdminView({ showToast }: AdminViewProps) {
     void refreshUnread();
     const id = window.setInterval(() => {
       void refreshUnread().then((n) => {
-        // Toast only when alerts are on and unread grows while not on Inbox.
+        // Toast only when alerts are on and unread grows while not on Chatting.
         if (
           alertsOn &&
           prevUnread.current !== null &&
@@ -85,8 +93,8 @@ export default function AdminView({ showToast }: AdminViewProps) {
         ) {
           showToast(
             n === 1
-              ? "New inbox message waiting"
-              : `${n} inbox threads need a reply`,
+              ? "New chat message waiting"
+              : `${n} chat threads need a reply`,
           );
         }
         prevUnread.current = n;
@@ -103,12 +111,13 @@ export default function AdminView({ showToast }: AdminViewProps) {
     () =>
       [
         { id: "overview" as const, label: "Overview" },
-        { id: "artworks" as const, label: "Artworks" },
-        { id: "orders" as const, label: "Orders" },
         { id: "users" as const, label: "Users" },
+        { id: "quiz" as const, label: "Quiz" },
+        { id: "orders" as const, label: "Canvas" },
+        { id: "artworks" as const, label: "Artworks" },
         {
           id: "inbox" as const,
-          label: "Inbox",
+          label: "Chatting",
           badge: inboxUnread > 0 ? inboxUnread : undefined,
         },
       ] satisfies { id: AdminTab; label: string; badge?: number }[],
@@ -172,7 +181,7 @@ export default function AdminView({ showToast }: AdminViewProps) {
               disabled={alertsBusy}
               title={
                 alertsOn
-                  ? "Alerts on — toast when new inbox messages arrive"
+                  ? "Alerts on — toast when new chat messages arrive"
                   : "Alerts off — no toast notifications"
               }
               className={`rounded-full px-3 py-1.5 text-xs font-medium disabled:opacity-40 ${
@@ -197,7 +206,8 @@ export default function AdminView({ showToast }: AdminViewProps) {
             </div>
 
             {tab === "overview" && <AdminOverview onJumpToOrders={jumpToOrders} />}
-            {tab === "artworks" && <AdminArtworks showToast={showToast} />}
+            {tab === "users" && <AdminUsers showToast={showToast} />}
+            {tab === "quiz" && <AdminQuiz showToast={showToast} />}
             {tab === "orders" && (
               <AdminOrders
                 key={orderKey}
@@ -205,7 +215,7 @@ export default function AdminView({ showToast }: AdminViewProps) {
                 showToast={showToast}
               />
             )}
-            {tab === "users" && <AdminUsers showToast={showToast} />}
+            {tab === "artworks" && <AdminArtworks showToast={showToast} />}
             {tab === "inbox" && (
               <AdminInbox
                 showToast={showToast}

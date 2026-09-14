@@ -25,6 +25,7 @@ import {
 } from "@/lib/admin";
 import { planLabel } from "@/lib/subscription";
 import {
+  AdminListCard,
   AdminSearch,
   AdminState,
   Chip,
@@ -206,30 +207,19 @@ export default function AdminUsers({ showToast }: AdminUsersProps) {
               const status = accountStatusOf(row);
               const open = openId === row.id;
               const guild = Boolean(row.is_subscriber);
+              const name =
+                row.full_name?.trim() || row.email || "Guest account";
+              const initial = name.replace(/[^a-zA-Z0-9]/g, "").slice(0, 2) || "?";
               return (
-                <div
+                <AdminListCard
                   key={row.id}
-                  className="rounded-2xl border border-white/10 bg-white/[0.04]"
-                >
-                  <button
-                    type="button"
-                    onClick={() => setOpenId(open ? null : row.id)}
-                    className="flex w-full items-start justify-between gap-3 p-4 text-left"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium text-white">
-                        {row.full_name?.trim() || row.email || "Guest account"}
-                      </p>
-                      <p className="mt-0.5 truncate text-xs text-white/45">
-                        {row.email ?? "no email (anonymous)"}
-                      </p>
-                      <p className="mt-2 text-[11px] text-white/35">
-                        Joined {fmtDate(row.created_at)} · {row.order_count} order
-                        {row.order_count === 1 ? "" : "s"} · {row.artwork_count}{" "}
-                        upload{row.artwork_count === 1 ? "" : "s"}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 flex-col items-end gap-1">
+                  initial={initial}
+                  title={name}
+                  meta={`${row.email ?? "no email"} · Joined ${fmtDate(row.created_at)} · ${row.order_count} order${row.order_count === 1 ? "" : "s"} · ${row.artwork_count} upload${row.artwork_count === 1 ? "" : "s"}`}
+                  open={open}
+                  onToggle={() => setOpenId(open ? null : row.id)}
+                  badges={
+                    <>
                       <StatusBadge status={status} />
                       {row.role === "admin" && (
                         <span className="rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[11px] text-white/80">
@@ -250,130 +240,100 @@ export default function AdminUsers({ showToast }: AdminUsersProps) {
                           Alerts off
                         </span>
                       )}
-                      <span className="text-xs text-white/25">
-                        {open ? "▲" : "▼"}
-                      </span>
+                    </>
+                  }
+                >
+                  <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-[11px]">
+                    <Detail label="User id" value={row.id} />
+                    <Detail
+                      label="Last sign-in"
+                      value={fmtDate(row.last_sign_in_at ?? null)}
+                    />
+                    <Detail
+                      label="ToS"
+                      value={
+                        row.terms_accepted_at
+                          ? `Accepted ${fmtDate(row.terms_accepted_at)}`
+                          : "Pending"
+                      }
+                    />
+                    <Detail
+                      label="Subscription"
+                      value={
+                        guild
+                          ? `${planLabel(row.subscription_product ?? null)} · until ${fmtDate(row.subscription_expires_at ?? null)}`
+                          : row.subscription_status
+                            ? `${row.subscription_status} (not entitled)`
+                            : "None"
+                      }
+                    />
+                  </dl>
+
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">
+                      Account
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <Chip
+                        label="Good"
+                        on={status === "active"}
+                        disabled={busy === row.id || self}
+                        onClick={() => void changeStatus(row, "active")}
+                      />
+                      <Chip
+                        label="Pause"
+                        on={status === "paused"}
+                        disabled={busy === row.id || self}
+                        onClick={() => void changeStatus(row, "paused")}
+                      />
+                      <Chip
+                        label="Suspend"
+                        on={status === "suspended"}
+                        tone="danger"
+                        disabled={busy === row.id || self}
+                        onClick={() => void changeStatus(row, "suspended")}
+                      />
                     </div>
-                  </button>
+                  </div>
 
-                  {open && (
-                    <div className="space-y-4 border-t border-white/8 px-4 pb-4 pt-3">
-                      <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-[11px]">
-                        <Detail label="User id" value={row.id} />
-                        <Detail
-                          label="Last sign-in"
-                          value={fmtDate(row.last_sign_in_at ?? null)}
-                        />
-                        <Detail
-                          label="ToS"
-                          value={
-                            row.terms_accepted_at
-                              ? `Accepted ${fmtDate(row.terms_accepted_at)}`
-                              : "Pending"
-                          }
-                        />
-                        <Detail
-                          label="Subscription"
-                          value={
-                            guild
-                              ? `${planLabel(row.subscription_product ?? null)} · until ${fmtDate(row.subscription_expires_at ?? null)}`
-                              : row.subscription_status
-                                ? `${row.subscription_status} (not entitled)`
-                                : "None"
-                          }
-                        />
-                      </dl>
-
-                      <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">
-                          Account status
-                        </p>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          <Chip
-                            label="Good"
-                            on={status === "active"}
-                            disabled={busy === row.id || self}
-                            onClick={() => void changeStatus(row, "active")}
-                          />
-                          <Chip
-                            label="Pause"
-                            on={status === "paused"}
-                            disabled={busy === row.id || self}
-                            onClick={() => void changeStatus(row, "paused")}
-                          />
-                          <Chip
-                            label="Suspend"
-                            on={status === "suspended"}
-                            tone="danger"
-                            disabled={busy === row.id || self}
-                            onClick={() => void changeStatus(row, "suspended")}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">
-                          Notifications
-                        </p>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          <Chip
-                            label="Alerts on"
-                            on={!row.notifications_disabled}
-                            disabled={busy === row.id || self}
-                            onClick={() => {
-                              if (row.notifications_disabled)
-                                void toggleNotifications(row);
-                            }}
-                          />
-                          <Chip
-                            label="Alerts off"
-                            on={Boolean(row.notifications_disabled)}
-                            tone="danger"
-                            disabled={busy === row.id || self}
-                            onClick={() => {
-                              if (!row.notifications_disabled)
-                                void toggleNotifications(row);
-                            }}
-                          />
-                        </div>
-                        <p className="mt-2 text-[11px] text-white/35">
-                          Mute this member from notification alerts (inbox /
-                          future push). Does not block live chat.
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">
-                          Role & security
-                        </p>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          <Chip
-                            label={row.role === "admin" ? "Admin" : "Make admin"}
-                            on={row.role === "admin"}
-                            disabled={busy === row.id || self}
-                            onClick={() => void toggleAdmin(row)}
-                          />
-                          <Chip
-                            label="Send password reset"
-                            disabled={busy === row.id || !row.email}
-                            onClick={() => void resetPassword(row)}
-                          />
-                          {self && (
-                            <span className="self-center text-[11px] text-white/25">
-                              This is you
-                            </span>
-                          )}
-                        </div>
-                        {!row.email && (
-                          <p className="mt-2 text-[11px] text-white/35">
-                            Guest / OAuth account without email — password reset
-                            unavailable.
-                          </p>
-                        )}
-                      </div>
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">
+                      Access
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <Chip
+                        label={
+                          row.notifications_disabled ? "Alerts off" : "Alerts on"
+                        }
+                        on={!row.notifications_disabled}
+                        disabled={busy === row.id || self}
+                        onClick={() => void toggleNotifications(row)}
+                      />
+                      <Chip
+                        label={row.role === "admin" ? "Admin" : "Make admin"}
+                        on={row.role === "admin"}
+                        disabled={busy === row.id || self}
+                        onClick={() => void toggleAdmin(row)}
+                      />
+                      <Chip
+                        label="Send password reset"
+                        disabled={busy === row.id || !row.email}
+                        onClick={() => void resetPassword(row)}
+                      />
+                      {self && (
+                        <span className="self-center text-[11px] text-white/25">
+                          This is you
+                        </span>
+                      )}
                     </div>
-                  )}
-                </div>
+                    {!row.email && (
+                      <p className="mt-2 text-[11px] text-white/35">
+                        Guest / OAuth account without email — password reset
+                        unavailable.
+                      </p>
+                    )}
+                  </div>
+                </AdminListCard>
               );
             })}
           </div>

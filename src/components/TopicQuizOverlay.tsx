@@ -20,6 +20,7 @@ import {
   type QuizQuestion,
   type TopicQuizLaunch,
 } from "@/lib/quiz";
+import { loadBankQuizQuestions } from "@/lib/quizBank";
 import { WORLD } from "@/data/worldCopy";
 import { useAppState } from "./AppState";
 import QuizQuestionView from "./QuizQuestion";
@@ -100,7 +101,7 @@ export default function TopicQuizOverlay({
     return () => window.clearInterval(id);
   }, [refreshCooldown, blockReason]);
 
-  const startRun = useCallback(() => {
+  const startRun = useCallback(async () => {
     clearTimer();
     const full = poolRef.current;
     const index = artistsRef.current;
@@ -146,16 +147,33 @@ export default function TopicQuizOverlay({
       return;
     }
 
+    const bank = await loadBankQuizQuestions(
+      topic.kind,
+      topic.id,
+      launch.difficulty,
+      full,
+      targets,
+    );
     const built =
-      cached ??
-      buildTopicQuiz(
-        targets,
-        full,
-        launch.difficulty,
-        Math.random,
-        index,
-        topic.kind,
-      );
+      bank.length > 0
+        ? buildTopicQuiz(
+            targets,
+            full,
+            launch.difficulty,
+            Math.random,
+            index,
+            topic.kind,
+            bank,
+          )
+        : (cached ??
+          buildTopicQuiz(
+            targets,
+            full,
+            launch.difficulty,
+            Math.random,
+            index,
+            topic.kind,
+          ));
     if (built.length < MIN_TOPIC_QUESTIONS) {
       setBlockReason("insufficient");
       setStage("blocked");
@@ -173,8 +191,15 @@ export default function TopicQuizOverlay({
   }, [topic, launch.difficulty, isPro, run]);
 
   useEffect(() => {
-    startRun();
-    return clearTimer;
+    let cancelled = false;
+    void (async () => {
+      await startRun();
+      if (cancelled) return;
+    })();
+    return () => {
+      cancelled = true;
+      clearTimer();
+    };
   }, [startRun]);
 
   const finish = useCallback(
