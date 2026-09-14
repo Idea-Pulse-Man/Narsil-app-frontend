@@ -14,6 +14,7 @@ import {
   useQuizBadges,
   useQuizPool,
   useQuizScores,
+  useTopicQuizCache,
   type TopicQuizLaunch,
 } from "@/lib/quiz";
 
@@ -50,6 +51,7 @@ export default function EraScreen({
   const { user } = useAppState();
   const { badges } = useQuizBadges(user?.id ?? null, quizRefresh);
   const { scores } = useQuizScores(user?.id ?? null, quizRefresh);
+  useTopicQuizCache(pool, artistIndex);
   const unlockedIds = new Set(Object.keys(badges));
   const scrollRef = useRef<HTMLDivElement>(null);
 

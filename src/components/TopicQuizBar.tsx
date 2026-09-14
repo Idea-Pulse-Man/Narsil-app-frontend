@@ -5,6 +5,7 @@ import {
   badgeId,
   canPlayTopicQuiz,
   difficultySpec,
+  hasCachedTopicQuiz,
   type QuizDifficulty,
   type ScoreMap,
   type TopicRef,
@@ -61,13 +62,15 @@ export default function TopicQuizBar({
         {QUIZ_DIFFICULTIES.map((spec) => {
           const id = badgeId(topic, spec.id);
           const earned = unlockedIds.has(id);
-          const poolReady = canPlayTopicQuiz(
-            targets,
-            pool,
-            spec.id,
-            artists,
-            topic.kind,
-          );
+          const poolReady =
+            hasCachedTopicQuiz(topic, spec.id) ||
+            canPlayTopicQuiz(
+              targets,
+              pool,
+              spec.id,
+              artists,
+              topic.kind,
+            );
           const access = accessTopicQuiz(
             topic,
             spec.id,

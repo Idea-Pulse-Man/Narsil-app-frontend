@@ -21,7 +21,7 @@ import { useEraWorks, useArtistsForWorks } from "./era-works";
 import { useInfiniteScroll } from "./useInfiniteScroll";
 import TopicQuizBar from "./TopicQuizBar";
 import { useAppState } from "./AppState";
-import { useQuizBadges, useQuizScores, type TopicQuizLaunch } from "@/lib/quiz";
+import { useQuizBadges, useQuizScores, useTopicQuizCache, type TopicQuizLaunch } from "@/lib/quiz";
 
 interface DiscoverViewProps {
   onOpenArtist: (artistId: string) => void;
@@ -101,6 +101,10 @@ export default function DiscoverView({
     () => mergeById(curatedArtworks, liveArtworks),
     [liveArtworks],
   );
+
+  // Pre-build Discover trials per age/empire so ranks light up as soon as the
+  // pool can support them (curated first, then live catalog).
+  useTopicQuizCache(artworkPool, artistMap);
 
   // ── Lens 1: Ages ── shared with the era screen so both agree on what an
   // age contains.

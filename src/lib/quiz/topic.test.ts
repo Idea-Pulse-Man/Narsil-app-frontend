@@ -414,6 +414,33 @@ describe("topic quizzes", () => {
       true,
     );
   });
+
+  it("fills a thin era by reusing one work across modes", () => {
+    const lone = art({
+      id: "lone-egypt",
+      title: "Funerary Mask",
+      artistId: "leo",
+      year: "1323 BC",
+      period: "New Kingdom",
+      medium: "Gold",
+      source: "Cairo",
+      empire: "Egyptian",
+      tags: ["portrait"],
+    });
+    const thinPool = [...pool, lone];
+    const quiz = buildTopicQuiz(
+      [lone],
+      thinPool,
+      "apprentice",
+      mulberry32(11),
+      artists,
+      "age",
+    );
+    expect(quiz.length).toBeGreaterThanOrEqual(3);
+    expect(canPlayTopicQuiz([lone], thinPool, "apprentice", artists, "age")).toBe(
+      true,
+    );
+  });
 });
 
 describe("badge unlocks", () => {

@@ -141,32 +141,41 @@ export function buildTopicQuiz(
 ): QuizQuestion[] {
   const spec = difficultySpec(difficulty);
   const modes = modesFor(spec, kind);
-  const used = new Set<string>();
+  const usedWorks = new Set<string>();
+  const usedPairs = new Set<string>();
   const questions: QuizQuestion[] = [];
 
-  for (let slot = 0; slot < spec.questionCount; slot++) {
+  const trySlot = (preferFresh: boolean): QuizQuestion | null => {
     const order = shuffle(modes, rng);
-    let built: QuizQuestion | null = null;
     for (const mode of order) {
       const candidates = shuffle(
-        targets.filter(
-          (art) => !used.has(art.id) && isEligible(art, mode, artists),
-        ),
+        targets.filter((art) => {
+          if (!isEligible(art, mode, artists)) return false;
+          if (usedPairs.has(`${art.id}:${mode}`)) return false;
+          if (preferFresh && usedWorks.has(art.id)) return false;
+          return true;
+        }),
         rng,
       );
       for (const target of candidates) {
         const question = buildQuestion(mode, target, fullPool, rng, artists);
         if (question) {
-          built = {
+          usedWorks.add(target.id);
+          usedPairs.add(`${target.id}:${mode}`);
+          return {
             ...question,
-            id: `topic:${kind}:${difficulty}:${slot}:${target.id}:${mode}`,
+            id: `topic:${kind}:${difficulty}:${questions.length}:${target.id}:${mode}`,
           };
-          used.add(target.id);
-          break;
         }
       }
-      if (built) break;
     }
+    return null;
+  };
+
+  for (let slot = 0; slot < spec.questionCount; slot++) {
+    // Prefer a new work each time; if the era is thin, reuse a work under a
+    // different mode so Apprentice can still open with curated-only data.
+    const built = trySlot(true) ?? trySlot(false);
     if (!built) break;
     questions.push(built);
   }
@@ -182,14 +191,16 @@ export function topicQuizCapacity(
   artists?: ArtistIndex,
   kind: TopicKind = "age",
 ): number {
-  // Cheap upper bound: unique works that can host at least one mode.
+  // Count unique (work, mode) pairs — reuse across modes is allowed when thin.
   const spec = difficultySpec(difficulty);
   const modes = modesFor(spec, kind);
-  let eligible = 0;
+  let pairs = 0;
   for (const art of targets) {
-    if (modes.some((mode) => isEligible(art, mode, artists))) eligible += 1;
+    for (const mode of modes) {
+      if (isEligible(art, mode, artists)) pairs += 1;
+    }
   }
-  return Math.min(eligible, spec.questionCount);
+  return Math.min(pairs, spec.questionCount);
 }
 
 export function canPlayTopicQuiz(
@@ -199,10 +210,11 @@ export function canPlayTopicQuiz(
   artists?: ArtistIndex,
   kind: TopicKind = "age",
 ): boolean {
-  const spec = difficultySpec(difficulty);
+  // Thin ages (e.g. Ancient Egypt with one curated mask) still open once we
+  // can fill a short trial; fuller catalogs get the full difficulty length.
   return (
     topicQuizCapacity(targets, fullPool, difficulty, artists, kind) >=
-    spec.questionCount
+    MIN_TOPIC_QUESTIONS
   );
 }
 

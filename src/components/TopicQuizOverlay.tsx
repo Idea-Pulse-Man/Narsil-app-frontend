@@ -6,7 +6,9 @@ import {
   canPlayTopicQuiz,
   difficultySpec,
   filterTopicTargets,
+  getCachedTopicQuiz,
   loadBadges,
+  MIN_TOPIC_QUESTIONS,
   starsFromScore,
   useQuizBadges,
   useQuizPool,
@@ -78,13 +80,17 @@ export default function TopicQuizOverlay({
     const full = poolRef.current;
     const index = artistsRef.current;
     const targets = filterTopicTargets(full, topic);
-    const poolReady = canPlayTopicQuiz(
-      targets,
-      full,
-      launch.difficulty,
-      index,
-      topic.kind,
-    );
+    const cached =
+      run === 0 ? getCachedTopicQuiz(topic, launch.difficulty) : null;
+    const poolReady =
+      !!getCachedTopicQuiz(topic, launch.difficulty) ||
+      canPlayTopicQuiz(
+        targets,
+        full,
+        launch.difficulty,
+        index,
+        topic.kind,
+      );
     const unlockedIds = new Set(Object.keys(loadBadges()));
     const access = accessTopicQuiz(
       topic,
@@ -106,15 +112,17 @@ export default function TopicQuizOverlay({
       return;
     }
 
-    const built = buildTopicQuiz(
-      targets,
-      full,
-      launch.difficulty,
-      Math.random,
-      index,
-      topic.kind,
-    );
-    if (built.length < spec.questionCount) {
+    const built =
+      cached ??
+      buildTopicQuiz(
+        targets,
+        full,
+        launch.difficulty,
+        Math.random,
+        index,
+        topic.kind,
+      );
+    if (built.length < MIN_TOPIC_QUESTIONS) {
       setBlockReason("insufficient");
       setStage("blocked");
       setQuestions([]);
@@ -128,12 +136,12 @@ export default function TopicQuizOverlay({
     setNewlyEarned(false);
     setRunStars(0);
     setStage("playing");
-  }, [topic, launch.difficulty, spec.questionCount, isPro]);
+  }, [topic, launch.difficulty, isPro, run]);
 
   useEffect(() => {
     startRun();
     return clearTimer;
-  }, [startRun, run]);
+  }, [startRun]);
 
   const finish = useCallback(
     (finalCorrect: boolean[]) => {

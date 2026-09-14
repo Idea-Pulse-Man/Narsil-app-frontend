@@ -120,6 +120,14 @@ export {
 } from "./scores";
 export type { QuizScore, ScoreMap } from "./scores";
 export {
+  topicQuizCacheKey,
+  warmTopicQuizCache,
+  getCachedTopicQuiz,
+  hasCachedTopicQuiz,
+  listCachedTopicQuizKeys,
+  useTopicQuizCache,
+} from "./topicCache";
+export {
   assessmentBadgeId,
   parseAssessmentBadgeId,
   listAssessmentBadges,
