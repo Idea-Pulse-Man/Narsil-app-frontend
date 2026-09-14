@@ -60,6 +60,15 @@ export default function TopicQuizBar({
     return () => window.clearInterval(id);
   }, []);
 
+  // Hide the whole trial card until the collection can actually support a run
+  // (e.g. Medieval & Byzantine with too few works).
+  const prepared = QUIZ_DIFFICULTIES.some(
+    (spec) =>
+      hasCachedTopicQuiz(topic, spec.id) ||
+      canPlayTopicQuiz(targets, pool, spec.id, artists, topic.kind),
+  );
+  if (!prepared) return null;
+
   return (
     <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
       <div className="flex items-baseline justify-between gap-2">
