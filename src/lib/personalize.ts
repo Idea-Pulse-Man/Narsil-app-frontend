@@ -1,4 +1,5 @@
 import type { Artwork, Artist } from "@/data";
+import { seededShuffle } from "./feed-utils";
 
 /** Taste fields used to rank For You. Kept here so AppState can import this file. */
 export interface TastePrefs {
@@ -129,6 +130,14 @@ export interface PreferenceScoreOptions {
   artistMap?: Record<string, Artist>;
 }
 
+export interface PrioritizeByTasteOptions extends PreferenceScoreOptions {
+  /**
+   * Per-session seed. When set, each taste bucket is shuffled in small
+   * popularity windows so the opening card is not always the same work.
+   */
+  seed?: number;
+}
+
 /**
  * Score one artwork against saved taste.
  * Artist is always the top signal — higher than any period/empire/type combo.
@@ -249,6 +258,26 @@ export function preferenceScore(
 type ScoredArt = { art: Artwork; index: number; score: number };
 
 const ARTIST_SCORE_FLOOR = 100;
+/** Rotate among the top matches rather than always opening on #1. */
+const MATCH_SHUFFLE_BATCH = 8;
+/** Discovery bucket can mix a wider popular window each session. */
+const REST_SHUFFLE_BATCH = 20;
+
+/** Fisher–Yates within consecutive windows so rank stays in the same tier. */
+function shuffleScoredBatches(
+  list: ScoredArt[],
+  seed: number,
+  batchSize: number,
+): ScoredArt[] {
+  if (list.length <= 1) return list;
+  const out: ScoredArt[] = [];
+  let batch = 0;
+  for (let i = 0; i < list.length; i += batchSize, batch += 1) {
+    const slice = list.slice(i, i + batchSize);
+    out.push(...seededShuffle(slice, (seed + batch * 0x9e3779b1) | 0));
+  }
+  return out;
+}
 
 /**
  * Pull from buckets in a repeating pattern, skipping empty ones.
@@ -293,13 +322,15 @@ function weaveBuckets(
  *
  * Strong: 1 favorite-artist work, then 1 other taste match, then 2 discoveries.
  * Aggressive: denser — 1 artist, 1 taste, 1 discovery.
- * Within each bucket, original popularity order is kept (stable).
+ * Within each bucket, original popularity order is kept unless `opts.seed` is
+ * set — then small windows shuffle so a session does not always open on the
+ * same masterpiece.
  */
 export function prioritizeByTaste(
   list: Artwork[],
   prefs: TastePrefs,
   mode: FeedMatchMode,
-  opts: PreferenceScoreOptions = {},
+  opts: PrioritizeByTasteOptions = {},
 ): Artwork[] {
   if (mode === "normal" || !hasTastePreferences(prefs)) return list;
 
@@ -328,10 +359,27 @@ export function prioritizeByTaste(
   artistHits.sort(byScoreThenIndex);
   tasteHits.sort(byScoreThenIndex);
 
+  const seed = opts.seed;
+  const artistBucket =
+    typeof seed === "number"
+      ? shuffleScoredBatches(artistHits, seed, MATCH_SHUFFLE_BATCH)
+      : artistHits;
+  const tasteBucket =
+    typeof seed === "number"
+      ? shuffleScoredBatches(tasteHits, seed ^ 0xa5a5, MATCH_SHUFFLE_BATCH)
+      : tasteHits;
+  const restBucket =
+    typeof seed === "number"
+      ? shuffleScoredBatches(rest, seed ^ 0x5a5a, REST_SHUFFLE_BATCH)
+      : rest;
+
   const pattern: Array<"artist" | "taste" | "rest"> =
     mode === "aggressive"
       ? ["artist", "taste", "rest"]
       : ["artist", "taste", "rest", "rest"];
 
-  return weaveBuckets({ artist: artistHits, taste: tasteHits, rest }, pattern);
+  return weaveBuckets(
+    { artist: artistBucket, taste: tasteBucket, rest: restBucket },
+    pattern,
+  );
 }

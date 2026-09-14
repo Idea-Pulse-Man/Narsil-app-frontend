@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Artwork, FeedItem } from "@/data";
 import { feedItemKey } from "@/data";
 import { useCatalog } from "@/data/catalog";
-import { orderSessionFeed, interleaveStorySlides } from "@/lib/feed-utils";
-import { prioritizeByTaste } from "@/lib/personalize";
+import { orderSessionFeed, interleaveStorySlides, shufflePreRankedBatches, diversifyFeed } from "@/lib/feed-utils";
+import { prioritizeByTaste, hasTastePreferences } from "@/lib/personalize";
 import { isRenderableFeedItem } from "@/lib/feedItemGuards";
 import { markImageWarmed } from "@/lib/imageCache";
 import { useAppState } from "./AppState";
@@ -61,7 +61,7 @@ export default function ArtFeed({
     fypArtistCardMap,
     artistMap,
   } = useCatalog();
-  const { seen, markSeen, preferences, feedMatchMode } = useAppState();
+  const { seen, markSeen, preferences, feedMatchMode, ready } = useAppState();
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastScrollTop = useRef(0);
   const lastIndex = useRef(0);
@@ -73,11 +73,11 @@ export default function ArtFeed({
   // or a source-filter switch, since MobileShell keys ArtFeed by filter).
   const sessionSeed = useRef(Math.floor(Math.random() * 0x7fffffff)).current;
 
-  // Freeze the "seen" set once the catalog is ready, so cards marked seen while
-  // scrolling don't reshuffle under the user mid-session. The snapshot refreshes
-  // on the next app load — that's when unseen art gets promoted to the top.
+  // Freeze the "seen" set once prefs + catalog are ready, so cards marked seen
+  // while scrolling don't reshuffle under the user mid-session. The snapshot
+  // refreshes on the next app load — that's when unseen art gets promoted.
   const frozenSeen = useRef<Set<string> | null>(null);
-  if (frozenSeen.current === null && !loading && feedPool.length > 0) {
+  if (frozenSeen.current === null && ready && !loading && feedPool.length > 0) {
     frozenSeen.current = new Set(seen);
   }
   const seenSnapshot = frozenSeen.current;
@@ -97,15 +97,27 @@ export default function ArtFeed({
       return true;
     });
 
-    const prioritized = prioritizeByTaste(filtered, preferences, feedMatchMode, {
-      artistMap,
-    });
-    const ranked = orderSessionFeed(prioritized, {
-      limit: prioritized.length,
-      seen: seenSnapshot ?? undefined,
-    });
+    const personalized =
+      feedMatchMode !== "normal" && hasTastePreferences(preferences);
+
+    const mixed = personalized
+      ? prioritizeByTaste(filtered, preferences, feedMatchMode, {
+          artistMap,
+          seed: sessionSeed,
+        })
+      : shufflePreRankedBatches(filtered, sessionSeed);
+
+    const ranked = diversifyFeed(
+      orderSessionFeed(mixed, {
+        limit: mixed.length,
+        seen: seenSnapshot ?? undefined,
+      }),
+    );
 
     if (ranked.length === 0) return frozenArtworks.current ?? ranked;
+    // Don't lock order until local prefs/seen have hydrated — otherwise every
+    // launch freezes the same unpersonalized snapshot as the opening card.
+    if (!ready) return ranked;
     if (frozenArtworks.current === null || freezeKey.current !== nextFreezeKey) {
       freezeKey.current = nextFreezeKey;
       frozenArtworks.current = ranked;
@@ -119,7 +131,7 @@ export default function ArtFeed({
       ...extra,
     ];
     return frozenArtworks.current;
-  }, [feedPool, filter, seenSnapshot, preferences, feedMatchMode, nextFreezeKey, artistMap]);
+  }, [feedPool, filter, seenSnapshot, preferences, feedMatchMode, nextFreezeKey, artistMap, sessionSeed, ready]);
 
   const renderGuard = useMemo(
     () => ({ getArtist, getFypArtistCard }),

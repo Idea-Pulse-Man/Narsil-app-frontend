@@ -195,4 +195,38 @@ describe("preferenceScore / prioritizeByTaste", () => {
     );
     expect(ranked.map((a) => a.id)).toEqual(["a", "b"]);
   });
+
+  it("rotates which favorite-artist work opens the feed when a seed is given", () => {
+    const pool = [
+      ...Array.from({ length: 8 }, (_, i) =>
+        art({ id: `vg-${i}`, artistId: "live-vg" }),
+      ),
+      ...Array.from({ length: 4 }, (_, i) =>
+        art({ id: `other-${i}`, artistId: "live-other" }),
+      ),
+    ];
+    const prefs = {
+      artTypes: [],
+      periods: [],
+      empires: [],
+      artists: ["Van Gogh"],
+      interests: [] as string[],
+    };
+
+    const unseeded = prioritizeByTaste(pool, prefs, "strong", {
+      artistMap: artists,
+    });
+    expect(unseeded[0].id).toBe("vg-0");
+
+    const firsts = new Set<string>();
+    for (const seed of [1, 2, 3, 7, 11, 99]) {
+      const ranked = prioritizeByTaste(pool, prefs, "strong", {
+        artistMap: artists,
+        seed,
+      });
+      expect(ranked[0].artistId).toBe("live-vg");
+      firsts.add(ranked[0].id);
+    }
+    expect(firsts.size).toBeGreaterThan(1);
+  });
 });

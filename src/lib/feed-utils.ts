@@ -168,6 +168,31 @@ export function batchShuffleByPopularity(
   return out;
 }
 
+/**
+ * Shuffle an already-ranked list in descending windows. Unlike
+ * `batchShuffleByPopularity`, this does not re-sort — it keeps freelance
+ * weaving / taste order, but the exact sequence is fresh each session.
+ */
+export function shufflePreRankedBatches(
+  list: Artwork[],
+  seed: number,
+  batchSizes: number[] = DEFAULT_FEED_BATCH_SIZES,
+): Artwork[] {
+  if (list.length <= 1) return list;
+  const out: Artwork[] = [];
+  let i = 0;
+  let batch = 0;
+  while (i < list.length) {
+    const raw = batchSizes[Math.min(batch, batchSizes.length - 1)];
+    const size = Math.max(1, raw ?? 1);
+    const slice = list.slice(i, i + size);
+    out.push(...seededShuffle(slice, (seed + batch * 0x9e3779b1) | 0));
+    i += size;
+    batch += 1;
+  }
+  return out;
+}
+
 /** Max artworks the feed keeps ranked in memory — enough variety without blocking the UI. */
 export const FEED_POOL_CAP = 1000;
 
@@ -189,6 +214,9 @@ export function orderSessionFeed(
 
 /** Minimum artworks between two works by the same artist in the feed. */
 const ARTIST_MIN_GAP = 2;
+
+/** Never show the exact same image file on two consecutive cards. */
+const IMAGE_MIN_GAP = 1;
 
 /** Minimum number of other cards between two sketch/pencil drawings. */
 export const SKETCH_MIN_GAP = 50;
@@ -284,6 +312,7 @@ export function spaceOutBy<T>(list: T[], rules: SpacingRule<T>[]): T[] {
 export function diversifyFeed(list: Artwork[]): Artwork[] {
   return spaceOutBy(list, [
     { keyOf: (art) => art.artistId, gap: ARTIST_MIN_GAP },
+    { keyOf: (art) => art.image || null, gap: IMAGE_MIN_GAP },
     {
       keyOf: (art) => (isSketchArtwork(art) ? "sketch" : null),
       gap: SKETCH_MIN_GAP,
@@ -379,8 +408,11 @@ export function pickFamousBackdrop(
   artistId: string,
   recent: Artwork[],
   pool: Artwork[],
+  excludeId?: string,
 ): Artwork | undefined {
-  const byArtist = pool.filter((a) => a.artistId === artistId && a.image);
+  const byArtist = pool.filter(
+    (a) => a.artistId === artistId && a.image && a.id !== excludeId,
+  );
   if (byArtist.length > 0) {
     const ranked = [...byArtist].sort((a, b) => {
       const score = (art: Artwork) =>
@@ -392,8 +424,10 @@ export function pickFamousBackdrop(
     return finished ?? ranked[0];
   }
   return (
-    [...recent].reverse().find((a) => a.artistId === artistId && a.image) ??
-    [...recent].reverse().find((a) => a.image)
+    [...recent]
+      .reverse()
+      .find((a) => a.artistId === artistId && a.image && a.id !== excludeId) ??
+    [...recent].reverse().find((a) => a.image && a.id !== excludeId)
   );
 }
 
@@ -442,9 +476,14 @@ export function interleaveStorySlides(
       if (!card?.active) continue;
       if (usedArtists.has(card.artistId)) continue;
       usedArtists.add(card.artistId);
+      const excludeId = art.id;
+      const cardBackdrop =
+        card.backdropArtworkId && card.backdropArtworkId !== excludeId
+          ? card.backdropArtworkId
+          : undefined;
       const backdropId =
-        card.backdropArtworkId ??
-        pickFamousBackdrop(card.artistId, recent, artworks)?.id ??
+        cardBackdrop ??
+        pickFamousBackdrop(card.artistId, recent, artworks, excludeId)?.id ??
         art.id;
       return {
         kind: "artist-story",
@@ -462,16 +501,22 @@ export function interleaveStorySlides(
       const era = eraForArtwork(art);
       if (!era || usedEras.has(era.id)) continue;
       usedEras.add(era.id);
-      // Prefer a finished work from the lookback that belongs to this era.
+      // Prefer a finished work from the lookback that belongs to this era,
+      // but not the card the user just saw — that reads as a duplicate image.
       const eraBackdrop =
         [...recent]
           .reverse()
           .find(
             (a) =>
+              a.id !== art.id &&
               eraForArtwork(a)?.id === era.id &&
               a.image &&
               !isSketchArtwork(a),
-          ) ?? art;
+          ) ??
+        [...recent]
+          .reverse()
+          .find((a) => a.id !== art.id && eraForArtwork(a)?.id === era.id && a.image) ??
+        art;
       return {
         kind: "era-story",
         eraId: era.id,
