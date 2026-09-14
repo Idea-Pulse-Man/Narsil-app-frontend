@@ -138,8 +138,11 @@ function DifficultyButton({
   onHint: (message: string) => void;
 }) {
   const cooling = cooldownMs > 0;
-  const playable = access.status === "playable" && !cooling;
-  const gated = !playable;
+  const accessOk = access.status === "playable";
+  const playable = accessOk && !cooling;
+  // Lock only for real gates (prior rank / Pro / empty pool) — never for a
+  // temporary retry wait on a level the member can already attempt.
+  const showLock = !accessOk;
   const priorLabel =
     access.status === "need_prior"
       ? difficultySpec(access.prior).label
@@ -187,7 +190,7 @@ function DifficultyButton({
       className={`flex flex-col items-center gap-1 rounded-xl border px-1.5 py-2.5 text-center transition-colors ${
         earned
           ? "border-amber-300/30 bg-amber-300/[0.08] hover:border-amber-300/50"
-          : playable
+          : accessOk
             ? "border-white/20 bg-white/[0.05] hover:border-white/30 hover:bg-white/[0.08]"
             : "border-white/10 bg-white/[0.03] opacity-55 hover:opacity-70"
       }`}
@@ -195,7 +198,7 @@ function DifficultyButton({
       <TopicMedal
         difficulty={difficulty}
         unlocked={earned}
-        gated={gated}
+        gated={showLock}
         mark={topic.title}
         size={36}
       />
@@ -203,19 +206,18 @@ function DifficultyButton({
         className={`text-[10px] font-medium leading-tight ${
           earned
             ? "text-amber-100"
-            : playable
+            : accessOk
               ? "text-white/85"
               : "text-white/45"
         }`}
       >
         {label}
       </span>
-      {cooling ? (
+      <QuizStars stars={bestStars} size={8} />
+      {cooling && (
         <span className="text-[9px] tabular-nums text-amber-200/80">
           {formatRemainingMs(cooldownMs)}
         </span>
-      ) : (
-        <QuizStars stars={bestStars} size={8} />
       )}
     </button>
   );

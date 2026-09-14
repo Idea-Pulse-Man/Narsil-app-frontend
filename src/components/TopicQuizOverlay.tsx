@@ -321,17 +321,22 @@ export default function TopicQuizOverlay({
                 <TopicMedal
                   difficulty={launch.difficulty}
                   unlocked={perfect}
+                  gated={false}
                   mark={launch.title}
                   size={88}
                 />
               </motion.div>
-              <QuizStars stars={displayStars} size={18} className="mt-4" />
-              <p className="mt-4 font-serif text-[28px] leading-tight text-white">
+              <p className="mt-5 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/45">
+                Your score
+              </p>
+              <p className="mt-1 font-serif text-[36px] leading-none text-white">
                 {score}/{total}
               </p>
-              <p className="mt-1 text-sm text-white/55">
-                {spec.label} · {launch.title}
+              <QuizStars stars={displayStars} size={20} className="mt-3" />
+              <p className="mt-2 text-sm text-white/55">
+                {displayStars} of 5 stars · {spec.label}
               </p>
+              <p className="mt-1 text-[12px] text-white/40">{launch.title}</p>
               <p className="mt-4 max-w-[16rem] text-sm leading-relaxed text-white/70">
                 {perfect
                   ? newlyEarned
@@ -340,7 +345,7 @@ export default function TopicQuizOverlay({
                   : WORLD.trialNeedPerfect}
               </p>
               {!perfect && cooldownLeft > 0 && (
-                <p className="mt-2 max-w-[16rem] text-[12px] text-white/45">
+                <p className="mt-2 max-w-[16rem] text-[12px] text-amber-200/80">
                   {WORLD.trialRetryWait} {formatRemainingMs(cooldownLeft)}
                 </p>
               )}
