@@ -11,12 +11,16 @@ interface QuizQuestionProps {
   /** Chosen option, or null before the user has answered. */
   selected: number | null;
   onSelect: (index: number) => void;
+  /**
+   * When false (Discover trials), never highlight the correct option — only
+   * mark the member's own pick as right or wrong.
+   */
+  revealAnswer?: boolean;
 }
 
 /**
  * A single quiz question — big artwork up top, four answer buttons below.
- * Once answered, the correct option flashes green and a wrong pick flashes red;
- * the buttons lock until the parent advances to the next question.
+ * Once answered, feedback locks the buttons until the parent advances.
  */
 export default function QuizQuestion({
   question,
@@ -24,6 +28,7 @@ export default function QuizQuestion({
   total,
   selected,
   onSelect,
+  revealAnswer = true,
 }: QuizQuestionProps) {
   const answered = selected !== null;
 
@@ -76,10 +81,12 @@ export default function QuizQuestion({
           {question.options.map((option, i) => {
             const isCorrect = i === question.correctIndex;
             const isChosen = i === selected;
-            const showCorrect = answered && isCorrect;
+            const showCorrect = answered && isCorrect && revealAnswer;
+            const showChosenRight =
+              answered && isChosen && isCorrect && !revealAnswer;
             const showWrong = answered && isChosen && !isCorrect;
 
-            const state = showCorrect
+            const state = showCorrect || showChosenRight
               ? "border-emerald-400/70 bg-emerald-400/15 text-white"
               : showWrong
                 ? "border-red-400/70 bg-red-400/15 text-white"
@@ -97,7 +104,7 @@ export default function QuizQuestion({
                 className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3.5 text-left text-[15px] font-medium transition-colors ${state}`}
               >
                 <span className="min-w-0">{option}</span>
-                {showCorrect && (
+                {(showCorrect || showChosenRight) && (
                   <CheckIcon className="h-5 w-5 shrink-0 text-emerald-300" />
                 )}
                 {showWrong && (

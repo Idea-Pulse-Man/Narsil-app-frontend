@@ -4,11 +4,15 @@ import {
   accessTopicQuiz,
   buildTopicQuiz,
   canPlayTopicQuiz,
+  clearTopicCooldown,
   difficultySpec,
   filterTopicTargets,
+  formatRemainingMs,
   getCachedTopicQuiz,
+  getTopicCooldown,
   loadBadges,
   MIN_TOPIC_QUESTIONS,
+  recordTopicFail,
   starsFromScore,
   useQuizBadges,
   useQuizPool,
@@ -30,11 +34,11 @@ interface TopicQuizOverlayProps {
 
 type Stage = "playing" | "results" | "blocked";
 
-const REVEAL_MS = 900;
+const REVEAL_MS = 700;
 
 /**
- * Age / empire trial. Starts only when access rules allow it; a seal is
- * granted only when every answer is correct. Stars update on every run.
+ * Age / empire trial. Correct answers are never revealed. A failed run starts
+ * an escalating retry wait (30s → 24h). Seals still require a perfect score.
  */
 export default function TopicQuizOverlay({
   launch,
@@ -47,7 +51,9 @@ export default function TopicQuizOverlay({
   const spec = difficultySpec(launch.difficulty);
 
   const [stage, setStage] = useState<Stage>("playing");
-  const [blockReason, setBlockReason] = useState<"need_pro" | "need_prior" | "insufficient" | null>(null);
+  const [blockReason, setBlockReason] = useState<
+    "need_pro" | "need_prior" | "insufficient" | "cooldown" | null
+  >(null);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [qIndex, setQIndex] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
@@ -55,6 +61,7 @@ export default function TopicQuizOverlay({
   const [newlyEarned, setNewlyEarned] = useState(false);
   const [runStars, setRunStars] = useState(0);
   const [run, setRun] = useState(0);
+  const [cooldownLeft, setCooldownLeft] = useState(0);
 
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const poolRef = useRef(pool);
@@ -74,6 +81,24 @@ export default function TopicQuizOverlay({
 
   const heading =
     launch.kind === "empire" ? WORLD.empireTrial : WORLD.ageTrial;
+
+  const refreshCooldown = useCallback(() => {
+    const cd = getTopicCooldown(topic, launch.difficulty);
+    setCooldownLeft(cd?.remainingMs ?? 0);
+    return cd;
+  }, [topic, launch.difficulty]);
+
+  useEffect(() => {
+    refreshCooldown();
+    const id = window.setInterval(() => {
+      const cd = refreshCooldown();
+      if (!cd && blockReason === "cooldown") {
+        setBlockReason(null);
+        setRun((n) => n + 1);
+      }
+    }, 250);
+    return () => window.clearInterval(id);
+  }, [refreshCooldown, blockReason]);
 
   const startRun = useCallback(() => {
     clearTimer();
@@ -107,6 +132,15 @@ export default function TopicQuizOverlay({
             ? "need_pro"
             : "insufficient",
       );
+      setStage("blocked");
+      setQuestions([]);
+      return;
+    }
+
+    const cd = getTopicCooldown(topic, launch.difficulty);
+    if (cd && cd.remainingMs > 0) {
+      setCooldownLeft(cd.remainingMs);
+      setBlockReason("cooldown");
       setStage("blocked");
       setQuestions([]);
       return;
@@ -147,8 +181,16 @@ export default function TopicQuizOverlay({
     (finalCorrect: boolean[]) => {
       const score = finalCorrect.filter(Boolean).length;
       const total = questions.length;
+      const perfect = total > 0 && score === total;
       const starResult = recordScore(topic, launch.difficulty, score, total);
       const result = recordResult(topic, launch.difficulty, score, total);
+      if (perfect) {
+        clearTopicCooldown(topic, launch.difficulty);
+        setCooldownLeft(0);
+      } else {
+        const fail = recordTopicFail(topic, launch.difficulty);
+        setCooldownLeft(Math.max(0, Date.parse(fail.lockedUntil) - Date.now()));
+      }
       setRunStars(starResult.stars);
       setNewlyEarned(result.unlocked);
       setCorrect(finalCorrect);
@@ -184,6 +226,7 @@ export default function TopicQuizOverlay({
   const perfect = total > 0 && score === total;
   const displayStars =
     stage === "results" ? runStars : starsFromScore(score, total);
+  const retryLocked = !perfect && cooldownLeft > 0;
 
   return (
     <AnimatePresence>
@@ -230,7 +273,9 @@ export default function TopicQuizOverlay({
                   ? WORLD.trialNeedPro
                   : blockReason === "need_prior"
                     ? WORLD.trialNeedPrior
-                    : "Not enough works in this collection yet. Come back as the archive grows."}
+                    : blockReason === "cooldown"
+                      ? `${WORLD.trialRetryWait} ${formatRemainingMs(cooldownLeft)}`
+                      : "Not enough works in this collection yet. Come back as the archive grows."}
               </p>
               {blockReason === "need_pro" && (
                 <button
@@ -262,6 +307,7 @@ export default function TopicQuizOverlay({
               total={questions.length}
               selected={selected}
               onSelect={handleSelect}
+              revealAnswer={false}
             />
           )}
 
@@ -293,14 +339,22 @@ export default function TopicQuizOverlay({
                     : "Already in your case — still a flawless run."
                   : WORLD.trialNeedPerfect}
               </p>
+              {!perfect && cooldownLeft > 0 && (
+                <p className="mt-2 max-w-[16rem] text-[12px] text-white/45">
+                  {WORLD.trialRetryWait} {formatRemainingMs(cooldownLeft)}
+                </p>
+              )}
               <div className="mt-8 flex w-full max-w-xs flex-col gap-2">
                 {!perfect && (
                   <button
                     type="button"
+                    disabled={retryLocked}
                     onClick={() => setRun((n) => n + 1)}
-                    className="w-full rounded-2xl bg-accent py-3.5 text-sm font-semibold text-ink"
+                    className="w-full rounded-2xl bg-accent py-3.5 text-sm font-semibold text-ink disabled:opacity-45"
                   >
-                    {WORLD.trialRetry}
+                    {retryLocked
+                      ? `${WORLD.trialRetryWait} ${formatRemainingMs(cooldownLeft)}`
+                      : WORLD.trialRetry}
                   </button>
                 )}
                 <button

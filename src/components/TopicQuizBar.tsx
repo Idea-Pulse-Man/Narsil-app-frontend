@@ -5,6 +5,8 @@ import {
   badgeId,
   canPlayTopicQuiz,
   difficultySpec,
+  formatRemainingMs,
+  getTopicCooldown,
   hasCachedTopicQuiz,
   type QuizDifficulty,
   type ScoreMap,
@@ -30,7 +32,7 @@ interface TopicQuizBarProps {
 /**
  * Three difficulty trials for one age or empire.
  * Free: Ancient Egypt Apprentice only. Scholar/Master after sealing the prior.
- * Other topics need Pro; then the same Apprentice → Scholar → Master ladder.
+ * Failed runs apply an escalating retry wait before the next attempt.
  */
 export default function TopicQuizBar({
   topic,
@@ -43,6 +45,7 @@ export default function TopicQuizBar({
 }: TopicQuizBarProps) {
   const { isPro, requestPro } = useAppState();
   const [hint, setHint] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const title =
     topic.kind === "empire" ? WORLD.empireTrial : WORLD.ageTrial;
 
@@ -51,6 +54,11 @@ export default function TopicQuizBar({
     const t = window.setTimeout(() => setHint(null), 2800);
     return () => window.clearTimeout(t);
   }, [hint]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
 
   return (
     <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
@@ -78,6 +86,7 @@ export default function TopicQuizBar({
             isPro,
             poolReady,
           );
+          const cooldown = getTopicCooldown(topic, spec.id, now);
           const bestStars = scores[id]?.stars ?? 0;
           return (
             <DifficultyButton
@@ -87,6 +96,7 @@ export default function TopicQuizBar({
               label={spec.label}
               earned={earned}
               access={access}
+              cooldownMs={cooldown?.remainingMs ?? 0}
               bestStars={bestStars}
               onPlay={onPlay}
               onNeedPro={() => requestPro("topic-quiz")}
@@ -110,6 +120,7 @@ function DifficultyButton({
   label,
   earned,
   access,
+  cooldownMs,
   bestStars,
   onPlay,
   onNeedPro,
@@ -120,12 +131,14 @@ function DifficultyButton({
   label: string;
   earned: boolean;
   access: ReturnType<typeof accessTopicQuiz>;
+  cooldownMs: number;
   bestStars: number;
   onPlay: (launch: TopicQuizLaunch) => void;
   onNeedPro: () => void;
   onHint: (message: string) => void;
 }) {
-  const playable = access.status === "playable";
+  const cooling = cooldownMs > 0;
+  const playable = access.status === "playable" && !cooling;
   const gated = !playable;
   const priorLabel =
     access.status === "need_prior"
@@ -133,7 +146,9 @@ function DifficultyButton({
       : null;
 
   let title = `${label} trial`;
-  if (access.status === "insufficient") {
+  if (cooling) {
+    title = `${WORLD.trialRetryWait} ${formatRemainingMs(cooldownMs)}`;
+  } else if (access.status === "insufficient") {
     title = "Not enough works in this collection yet";
   } else if (access.status === "need_prior") {
     title = `Pass ${priorLabel} first`;
@@ -156,6 +171,10 @@ function DifficultyButton({
         }
         if (access.status === "insufficient") {
           onHint("Not enough works in this collection yet");
+          return;
+        }
+        if (cooling) {
+          onHint(`${WORLD.trialRetryWait} ${formatRemainingMs(cooldownMs)}`);
           return;
         }
         onPlay({
@@ -191,7 +210,13 @@ function DifficultyButton({
       >
         {label}
       </span>
-      <QuizStars stars={bestStars} size={8} />
+      {cooling ? (
+        <span className="text-[9px] tabular-nums text-amber-200/80">
+          {formatRemainingMs(cooldownMs)}
+        </span>
+      ) : (
+        <QuizStars stars={bestStars} size={8} />
+      )}
     </button>
   );
 }

@@ -128,6 +128,17 @@ export {
   useTopicQuizCache,
 } from "./topicCache";
 export {
+  TOPIC_RETRY_WAITS_MS,
+  waitMsForFailCount,
+  formatWaitMs,
+  formatRemainingMs,
+  getTopicCooldown,
+  recordTopicFail,
+  clearTopicCooldown,
+  loadCooldowns,
+} from "./cooldowns";
+export type { TopicCooldown, CooldownMap } from "./cooldowns";
+export {
   assessmentBadgeId,
   parseAssessmentBadgeId,
   listAssessmentBadges,
