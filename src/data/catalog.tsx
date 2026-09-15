@@ -111,7 +111,7 @@ interface CatalogValue {
 
 const CatalogContext = createContext<CatalogValue | null>(null);
 
-/** Merge two artwork/artist lists, keeping the first occurrence of each id. */
+/** Merge two lists, keeping the first occurrence of each id. */
 function mergeById<T extends { id: string }>(base: T[], extra: T[]): T[] {
   const seen = new Set(base.map((item) => item.id));
   const out = [...base];
@@ -123,13 +123,44 @@ function mergeById<T extends { id: string }>(base: T[], extra: T[]): T[] {
   return out;
 }
 
+/** Prefer incoming placard copy when the cached row was loaded without it. */
+function pickRicherArtwork(prev: Artwork, next: Artwork): Artwork {
+  const prevDesc = prev.description?.trim() ?? "";
+  const nextDesc = next.description?.trim() ?? "";
+  const prevAi = prev.aiDescription?.trim() ?? "";
+  const nextAi = next.aiDescription?.trim() ?? "";
+  if (!nextDesc && !nextAi) return prev;
+  if (nextDesc === prevDesc && nextAi === prevAi) return prev;
+  return {
+    ...prev,
+    ...next,
+    description: nextDesc || prevDesc,
+    ...(nextAi || prevAi ? { aiDescription: nextAi || prevAi } : {}),
+  };
+}
+
+function mergeArtworks(base: Artwork[], extra: Artwork[]): Artwork[] {
+  const indexById = new Map(base.map((item, i) => [item.id, i]));
+  const out = [...base];
+  for (const item of extra) {
+    const idx = indexById.get(item.id);
+    if (idx === undefined) {
+      indexById.set(item.id, out.length);
+      out.push(item);
+      continue;
+    }
+    out[idx] = pickRicherArtwork(out[idx], item);
+  }
+  return out;
+}
+
 function mergeRemoteCatalog(
   base: RemoteCatalog | null,
   incoming: RemoteCatalog,
 ): RemoteCatalog {
   if (!base) return incoming;
   return {
-    artworks: mergeById(base.artworks, incoming.artworks),
+    artworks: mergeArtworks(base.artworks, incoming.artworks),
     artists: mergeById(base.artists, incoming.artists),
     fypArtistCards: mergeById(base.fypArtistCards, incoming.fypArtistCards),
   };
@@ -266,8 +297,13 @@ export function CatalogProvider({
 
       if (snapshotRef.current) {
         setLoading(false);
-        if (serverOffsetRef.current === 0) {
+        try {
+          // Always refresh the first window so slim/legacy snapshots pick up
+          // placard descriptions without waiting for Search's full archive.
           await fetchBatchAtOffset(0, signal);
+        } catch (err) {
+          if (signal.aborted) return;
+          console.warn("Catalog: first batch refresh failed.", err);
         }
         return;
       }

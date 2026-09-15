@@ -12,10 +12,11 @@ const MAX_DESCRIPTION = 600;
 const MAX_BIO = 400;
 
 function slimArtwork(art: Artwork): Artwork {
+  const ai = art.aiDescription?.trim().slice(0, MAX_DESCRIPTION);
   return {
     ...art,
     description: (art.description ?? "").slice(0, MAX_DESCRIPTION),
-    aiDescription: undefined,
+    ...(ai ? { aiDescription: ai } : { aiDescription: undefined }),
     communityTags: undefined,
   };
 }

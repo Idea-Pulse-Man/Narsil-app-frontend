@@ -34,12 +34,11 @@ export const CATALOG_BATCH_SIZE = 80;
 export const CATALOG_PREVIEW_COUNT = 150;
 const ARTIST_IN_BATCH = 80;
 
-/** Slim first-paint payload: skip long descriptions (they land in the full fetch). */
+/** Browse payload for feed, shop, search, and saved lookups. Includes placard copy. */
 const ARTWORK_PREVIEW_COLUMNS =
-  "id, title, image_url, artist_id, category, origin, year, period, medium, source, accent, tags, empire, like_count, save_count, featured, hidden, for_sale";
+  "id, title, image_url, artist_id, category, origin, year, period, medium, source, accent, tags, empire, like_count, save_count, featured, hidden, for_sale, description, ai_description";
 
-const ARTWORK_FULL_COLUMNS =
-  `${ARTWORK_PREVIEW_COLUMNS}, description, ai_description`;
+const ARTWORK_FULL_COLUMNS = ARTWORK_PREVIEW_COLUMNS;
 
 const ARTIST_PREVIEW_COLUMNS =
   "id, name, initials, profile_type, avatar_url, lifespan, nationality, period, style, known_for, accent, followers, likes, saves, profile_ready";
@@ -633,7 +632,7 @@ function ilikePattern(raw: string): string | null {
 
 /**
  * Find matching artworks on the server (title or artist name). Returns one
- * page of preview rows — never the whole archive, never full-size images.
+ * page of browse rows — never the whole archive, never full-size images.
  */
 export async function searchCatalog(
   text: string,

@@ -75,4 +75,24 @@ describe("sanitizeRemoteCatalog", () => {
     expect(result?.artists[0]?.initials).toBe("CL");
     expect(result?.artworks[0]?.description).toBe("");
   });
+
+  it("keeps museum and AI placard copy", () => {
+    const result = sanitizeRemoteCatalog({
+      artists: [{ id: "a1", name: "Giordano", bio: "", initials: "GI" }],
+      artworks: [
+        {
+          id: "cma-1",
+          title: "The Virgin and Child",
+          image: "https://example.com/w1.jpg",
+          artistId: "a1",
+          description: "A Baroque altarpiece of the Virgin appearing to Saint Francis.",
+          aiDescription: "Francis kneels as the Virgin and Child appear in a burst of light.",
+        },
+      ],
+      fypArtistCards: [],
+    });
+
+    expect(result?.artworks[0]?.description).toContain("Baroque altarpiece");
+    expect(result?.artworks[0]?.aiDescription).toContain("Francis kneels");
+  });
 });

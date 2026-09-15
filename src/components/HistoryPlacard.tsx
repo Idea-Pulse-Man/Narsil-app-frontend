@@ -1,10 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import type { Artwork, Artist } from "@/data";
-import { addCommunityTag } from "@/lib/tags";
-import { useAppState } from "./AppState";
-import { useCatalog } from "@/data/catalog";
-import { ChevronDownIcon } from "./Icons";
 
 interface HistoryPlacardProps {
   artwork: Artwork;
@@ -74,10 +70,6 @@ export default function HistoryPlacard({
   onClose,
   passThroughBackdrop = false,
 }: HistoryPlacardProps) {
-  const { isGuest, requestSignIn } = useAppState();
-  const { refresh } = useCatalog();
-  const [tagDraft, setTagDraft] = useState("");
-  const [tagBusy, setTagBusy] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -88,7 +80,6 @@ export default function HistoryPlacard({
 
   // Fresh placard content when the feed advances to another artwork.
   useEffect(() => {
-    setTagDraft("");
     setDescExpanded(false);
     scrollRef.current?.scrollTo({ top: 0 });
   }, [artwork.id]);
@@ -146,17 +137,6 @@ export default function HistoryPlacard({
     };
   }, [open, passThroughBackdrop, onClose]);
 
-  const submitTag = async () => {
-    const tag = tagDraft.trim();
-    if (!tag || isGuest || tagBusy) return;
-    setTagBusy(true);
-    const { error } = await addCommunityTag(artwork.id, tag);
-    setTagBusy(false);
-    if (error) return;
-    setTagDraft("");
-    await refresh();
-  };
-
   return (
     <AnimatePresence>
       {open && (
@@ -179,9 +159,9 @@ export default function HistoryPlacard({
             transition={{ type: "spring", stiffness: 320, damping: 36 }}
             className="pointer-events-auto absolute inset-x-0 bottom-0 z-50 flex max-h-[82%] flex-col overflow-hidden rounded-t-[28px] border-t border-white/15 bg-canvas/95 text-ink shadow-placard backdrop-blur-2xl"
           >
-            {/* Top third — fixed; swipe down here closes without shifting layout */}
+            {/* Header — swipe down here closes without shifting layout */}
             <div
-              className="flex-[0_0_33%] shrink-0 touch-none px-6 pb-3 pt-3"
+              className="shrink-0 touch-none px-6 pb-3 pt-3"
               onPointerDown={(e) => {
                 headerDragStart.current = { y: e.clientY, t: Date.now() };
               }}
@@ -215,11 +195,6 @@ export default function HistoryPlacard({
               </h2>
               <p className="mt-1 text-[15px] text-ink/70">
                 {artist.name} · {artwork.year}
-              </p>
-              <p className="mt-3 text-[11px] text-ink/40">
-                {passThroughBackdrop
-                  ? "Tap above to close · swipe the artwork for the next piece"
-                  : "Swipe down here to close"}
               </p>
             </div>
 
@@ -262,82 +237,47 @@ export default function HistoryPlacard({
                 </div>
               </dl>
 
-              <h3 className="mt-6 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink/45">
-                About this work
-              </h3>
-              {artwork.aiDescription && (
-                <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-ink/40">
-                  Curator note
-                </p>
-              )}
-              <p
-                className={`mt-2 text-[15px] leading-relaxed text-ink/80 ${
-                  descClamps && !descExpanded ? "line-clamp-4" : ""
-                }`}
-              >
-                {displayDescription}
-              </p>
-              {descClamps && (
-                <button
-                  type="button"
-                  onClick={() => setDescExpanded((open) => !open)}
-                  className="mt-1.5 text-[13px] font-medium text-ink/55 underline-offset-2 hover:text-ink/80 hover:underline"
-                >
-                  {descExpanded ? "Show less" : "Read more"}
-                </button>
-              )}
-
-              <div className="mt-6 flex flex-wrap gap-2">
-                {artwork.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="rounded-full border border-ink/12 bg-ink/[0.04] px-3 py-1.5 text-xs font-medium text-ink/70"
+              {displayDescription ? (
+                <>
+                  <h3 className="mt-6 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink/45">
+                    About this work
+                  </h3>
+                  {artwork.aiDescription && (
+                    <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-ink/40">
+                      Curator note
+                    </p>
+                  )}
+                  <p
+                    className={`mt-2 text-[15px] leading-relaxed text-ink/80 ${
+                      descClamps && !descExpanded ? "line-clamp-4" : ""
+                    }`}
                   >
-                    {tag}
-                  </span>
-                ))}
-              </div>
+                    {displayDescription}
+                  </p>
+                  {descClamps && (
+                    <button
+                      type="button"
+                      onClick={() => setDescExpanded((open) => !open)}
+                      className="mt-1.5 text-[13px] font-medium text-ink/55 underline-offset-2 hover:text-ink/80 hover:underline"
+                    >
+                      {descExpanded ? "Show less" : "Read more"}
+                    </button>
+                  )}
+                </>
+              ) : null}
 
-              {isGuest ? (
-                <button
-                  type="button"
-                  onClick={requestSignIn}
-                  className="mt-4 text-[13px] font-medium text-ink/55 underline-offset-2 hover:text-ink/80 hover:underline"
-                >
-                  Sign in to add a community tag
-                </button>
-              ) : (
-                <div className="mt-4 flex gap-2">
-                  <input
-                    value={tagDraft}
-                    onChange={(e) => setTagDraft(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        void submitTag();
-                      }
-                    }}
-                    placeholder="Add a community tag"
-                    className="min-w-0 flex-1 rounded-full border border-ink/12 bg-ink/[0.03] px-3 py-2 text-sm text-ink outline-none"
-                  />
-                  <button
-                    type="button"
-                    disabled={!tagDraft.trim() || tagBusy}
-                    onClick={() => void submitTag()}
-                    className="rounded-full bg-ink px-4 py-2 text-xs font-medium text-canvas disabled:opacity-40"
-                  >
-                    Add
-                  </button>
+              {artwork.tags.length > 0 && (
+                <div className="mt-6 flex flex-wrap gap-2">
+                  {artwork.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="rounded-full border border-ink/12 bg-ink/[0.04] px-3 py-1.5 text-xs font-medium text-ink/70"
+                    >
+                      {tag}
+                    </span>
+                  ))}
                 </div>
               )}
-
-              <button
-                onClick={onClose}
-                className="mt-8 flex w-full items-center justify-center gap-2 rounded-full bg-ink py-3.5 text-sm font-medium text-canvas transition-transform active:scale-[0.98]"
-              >
-                <ChevronDownIcon className="h-4 w-4" />
-                Close placard
-              </button>
               </motion.div>
             </div>
           </motion.div>
