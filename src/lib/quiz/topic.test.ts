@@ -349,6 +349,13 @@ describe("topic quizzes", () => {
     };
     expect(isTopicQuizPrepared(topic)).toBe(false);
     expect(
+      isTopicQuizPrepared({
+        kind: "age",
+        id: "middle-ages",
+        title: "Medieval & Byzantine",
+      }),
+    ).toBe(false);
+    expect(
       accessTopicQuiz(topic, "apprentice", new Set(), true, true).status,
     ).toBe("insufficient");
     expect(

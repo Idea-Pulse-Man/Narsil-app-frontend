@@ -21,7 +21,13 @@ import { useEraWorks, useArtistsForWorks } from "./era-works";
 import { useInfiniteScroll } from "./useInfiniteScroll";
 import TopicQuizBar from "./TopicQuizBar";
 import { useAppState } from "./AppState";
-import { useQuizBadges, useQuizScores, useTopicQuizCache, type TopicQuizLaunch } from "@/lib/quiz";
+import {
+  isTopicQuizPrepared,
+  useQuizBadges,
+  useQuizScores,
+  useTopicQuizCache,
+  type TopicQuizLaunch,
+} from "@/lib/quiz";
 
 interface DiscoverViewProps {
   onOpenArtist: (artistId: string) => void;
@@ -304,15 +310,21 @@ export default function DiscoverView({
                       {era.description}
                     </p>
 
-                    <TopicQuizBar
-                      topic={{ kind: "age", id: era.id, title: era.title }}
-                      targets={works}
-                      pool={artworkPool}
-                      artists={artistMap}
-                      unlockedIds={unlockedIds}
-                      scores={scores}
-                      onPlay={onOpenTopicQuiz}
-                    />
+                    {isTopicQuizPrepared({
+                      kind: "age",
+                      id: era.id,
+                      title: era.title,
+                    }) && (
+                      <TopicQuizBar
+                        topic={{ kind: "age", id: era.id, title: era.title }}
+                        targets={works}
+                        pool={artworkPool}
+                        artists={artistMap}
+                        unlockedIds={unlockedIds}
+                        scores={scores}
+                        onPlay={onOpenTopicQuiz}
+                      />
+                    )}
 
                     {/* Who was working in this age */}
                     <ArtistRail artists={eraArtists.slice(0, 6)} onOpen={onOpenArtist} />

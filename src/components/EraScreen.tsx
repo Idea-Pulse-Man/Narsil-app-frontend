@@ -11,6 +11,7 @@ import { useInfiniteScroll } from "./useInfiniteScroll";
 import TopicQuizBar from "./TopicQuizBar";
 import { useAppState } from "./AppState";
 import {
+  isTopicQuizPrepared,
   useQuizBadges,
   useQuizPool,
   useQuizScores,
@@ -118,15 +119,21 @@ export default function EraScreen({
               {era.description}
             </p>
 
-            <TopicQuizBar
-              topic={{ kind: "age", id: era.id, title: era.title }}
-              targets={works}
-              pool={pool}
-              artists={artistIndex}
-              unlockedIds={unlockedIds}
-              scores={scores}
-              onPlay={onOpenTopicQuiz}
-            />
+            {isTopicQuizPrepared({
+              kind: "age",
+              id: era.id,
+              title: era.title,
+            }) && (
+              <TopicQuizBar
+                topic={{ kind: "age", id: era.id, title: era.title }}
+                targets={works}
+                pool={pool}
+                artists={artistIndex}
+                unlockedIds={unlockedIds}
+                scores={scores}
+                onPlay={onOpenTopicQuiz}
+              />
+            )}
 
             <ArtistRail artists={artists.slice(0, 8)} onOpen={onOpenArtist} />
 

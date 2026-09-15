@@ -85,7 +85,15 @@ export const MIN_TOPIC_QUESTIONS = 3;
 const TOPIC_QUIZ_UNPREPARED = new Set<string>(["age:medieval"]);
 
 export function isTopicQuizPrepared(topic: TopicRef): boolean {
-  return !TOPIC_QUIZ_UNPREPARED.has(`${topic.kind}:${topic.id}`);
+  if (TOPIC_QUIZ_UNPREPARED.has(`${topic.kind}:${topic.id}`)) return false;
+  // Title fallback so a renamed era id cannot bring the three ranks back.
+  if (
+    topic.kind === "age" &&
+    /medieval|byzantine/i.test(`${topic.id} ${topic.title}`)
+  ) {
+    return false;
+  }
+  return true;
 }
 
 export function difficultySpec(id: QuizDifficulty): DifficultySpec {
