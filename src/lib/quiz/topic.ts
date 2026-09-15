@@ -82,17 +82,12 @@ export const MIN_TOPIC_QUESTIONS = 3;
  * Scholar / Master for these periods even if the live catalog happens
  * to match a few works by year or keyword.
  */
-const TOPIC_QUIZ_UNPREPARED = new Set<string>(["age:medieval"]);
-
 export function isTopicQuizPrepared(topic: TopicRef): boolean {
-  if (TOPIC_QUIZ_UNPREPARED.has(`${topic.kind}:${topic.id}`)) return false;
+  if (topic.kind !== "age") return true;
+  const era = historyEras.find((e) => e.id === topic.id);
+  if (era?.quizPrepared === false) return false;
   // Title fallback so a renamed era id cannot bring the three ranks back.
-  if (
-    topic.kind === "age" &&
-    /medieval|byzantine/i.test(`${topic.id} ${topic.title}`)
-  ) {
-    return false;
-  }
+  if (/medieval|byzantine/i.test(`${topic.id} ${topic.title}`)) return false;
   return true;
 }
 

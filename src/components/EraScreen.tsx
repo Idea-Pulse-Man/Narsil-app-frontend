@@ -119,21 +119,22 @@ export default function EraScreen({
               {era.description}
             </p>
 
-            {isTopicQuizPrepared({
-              kind: "age",
-              id: era.id,
-              title: era.title,
-            }) && (
-              <TopicQuizBar
-                topic={{ kind: "age", id: era.id, title: era.title }}
-                targets={works}
-                pool={pool}
-                artists={artistIndex}
-                unlockedIds={unlockedIds}
-                scores={scores}
-                onPlay={onOpenTopicQuiz}
-              />
-            )}
+            {era.quizPrepared !== false &&
+              isTopicQuizPrepared({
+                kind: "age",
+                id: era.id,
+                title: era.title,
+              }) && (
+                <TopicQuizBar
+                  topic={{ kind: "age", id: era.id, title: era.title }}
+                  targets={works}
+                  pool={pool}
+                  artists={artistIndex}
+                  unlockedIds={unlockedIds}
+                  scores={scores}
+                  onPlay={onOpenTopicQuiz}
+                />
+              )}
 
             <ArtistRail artists={artists.slice(0, 8)} onOpen={onOpenArtist} />
 

@@ -310,21 +310,22 @@ export default function DiscoverView({
                       {era.description}
                     </p>
 
-                    {isTopicQuizPrepared({
-                      kind: "age",
-                      id: era.id,
-                      title: era.title,
-                    }) && (
-                      <TopicQuizBar
-                        topic={{ kind: "age", id: era.id, title: era.title }}
-                        targets={works}
-                        pool={artworkPool}
-                        artists={artistMap}
-                        unlockedIds={unlockedIds}
-                        scores={scores}
-                        onPlay={onOpenTopicQuiz}
-                      />
-                    )}
+                    {era.quizPrepared !== false &&
+                      isTopicQuizPrepared({
+                        kind: "age",
+                        id: era.id,
+                        title: era.title,
+                      }) && (
+                        <TopicQuizBar
+                          topic={{ kind: "age", id: era.id, title: era.title }}
+                          targets={works}
+                          pool={artworkPool}
+                          artists={artistMap}
+                          unlockedIds={unlockedIds}
+                          scores={scores}
+                          onPlay={onOpenTopicQuiz}
+                        />
+                      )}
 
                     {/* Who was working in this age */}
                     <ArtistRail artists={eraArtists.slice(0, 6)} onOpen={onOpenArtist} />
