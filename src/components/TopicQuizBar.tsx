@@ -148,7 +148,6 @@ function DifficultyButton({
 }) {
   const cooling = cooldownMs > 0;
   const accessOk = access.status === "playable";
-  const playable = accessOk && !cooling;
   // Lock only for real gates (prior rank / Pro / empty pool) — never for a
   // temporary retry wait on a level the member can already attempt.
   const showLock = !accessOk;
