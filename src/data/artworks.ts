@@ -223,6 +223,92 @@ export const artworks: Artwork[] = [
     empire: "Greek",
   },
 
+  // ── Medieval & Byzantine ────────────────────────────────────────────
+  {
+    id: "justinian-mosaic",
+    title: "Justinian and His Attendants",
+    artistId: "ravenna-mosaicists",
+    year: "c. 547",
+    period: "Byzantine",
+    medium: "Glass mosaic",
+    source: "Basilica of San Vitale, Ravenna",
+    image: wm("Meister von San Vitale in Ravenna 003.jpg"),
+    accent: "#3a2a18",
+    description:
+      "Emperor Justinian stands at the centre of his court, haloed and bearing a golden paten toward the altar. The mosaic at San Vitale is the defining image of Byzantine imperial power — flat gold ground, frontal stare, and a sacred hierarchy of church, army, and state.",
+    tags: ["Byzantine", "Mosaic", "Religious", "Medieval"],
+    category: "medieval",
+    origin: "public-domain",
+    empire: "Byzantine",
+  },
+  {
+    id: "vladimir-icon",
+    title: "Our Lady of Vladimir",
+    artistId: "constantinople-painters",
+    year: "c. 1131",
+    period: "Byzantine",
+    medium: "Tempera on wood",
+    source: "Tretyakov Gallery, Moscow",
+    image: wm("Vladimirskaya.jpg"),
+    accent: "#3a2414",
+    description:
+      "The Virgin presses her cheek to the Christ Child in a gesture of tenderness that became the model for later Orthodox icons. Painted in Constantinople and later venerated in Russia, it is among the most beloved images of Byzantine devotion.",
+    tags: ["Byzantine", "Icon", "Religious", "Medieval"],
+    category: "medieval",
+    origin: "public-domain",
+    empire: "Byzantine",
+  },
+  {
+    id: "book-of-kells",
+    title: "Chi Rho Page, Book of Kells",
+    artistId: "columban-scribes",
+    year: "c. 800",
+    period: "Insular",
+    medium: "Ink and pigment on vellum",
+    source: "Trinity College Library, Dublin",
+    image: wm("KellsFol034rChiRhoMonogram.jpg"),
+    accent: "#2a2418",
+    description:
+      "The opening of Matthew's nativity is turned into a labyrinth of spirals, beasts, and gold. The Chi Rho monogram of the Book of Kells is the masterpiece of Insular illumination — a sacred page meant to be dwelt on, not merely read.",
+    tags: ["Medieval", "Illuminated manuscript", "Religious", "Insular"],
+    category: "etching-writing-books",
+    origin: "public-domain",
+  },
+  {
+    id: "bayeux-tapestry",
+    title: "Bayeux Tapestry — William as Duke",
+    artistId: "bayeux-embroiderers",
+    year: "c. 1077",
+    period: "Romanesque",
+    medium: "Wool embroidery on linen",
+    source: "Musée de la Tapisserie, Bayeux",
+    image: wm("Bayeux Tapestry WillelmDux.jpg"),
+    accent: "#3a2c1c",
+    description:
+      "William, labelled Willelm Dux, rides among his men in the embroidered chronicle of the Norman Conquest. Nearly seventy metres of linen tell the story of Hastings in a vivid Romanesque strip that is part history, part propaganda, and wholly unique.",
+    tags: ["Medieval", "Romanesque", "Tapestry", "Battle"],
+    category: "medieval",
+    origin: "public-domain",
+  },
+  {
+    id: "giotto-lamentation",
+    title: "The Lamentation",
+    artistId: "giotto",
+    year: "c. 1305",
+    period: "Gothic",
+    medium: "Fresco",
+    source: "Scrovegni Chapel, Padua",
+    image: wm(
+      "Giotto - Scrovegni - -36- - Lamentation (The Mourning of Christ).jpg"
+    ),
+    accent: "#2a241c",
+    description:
+      "Mourners crowd the body of Christ while angels wheel in grief above a rocky ridge. Giotto's Arena Chapel fresco broke with Byzantine flatness — weight, space, and human feeling that opened the road toward the Renaissance.",
+    tags: ["Gothic", "Medieval", "Fresco", "Religious"],
+    category: "paintings",
+    origin: "public-domain",
+  },
+
   // ── Sample freelance artist originals (mock imagery) ────────────────
   {
     id: "concentric-hours",

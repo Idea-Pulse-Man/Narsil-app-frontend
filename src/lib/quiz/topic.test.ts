@@ -341,7 +341,7 @@ describe("topic quizzes", () => {
     expect(targets.length).toBe(romanWorks.length);
   });
 
-  it("does not offer Medieval & Byzantine trials until authored", () => {
+  it("does not offer a Medieval & Byzantine trial", () => {
     const topic = {
       kind: "age" as const,
       id: "medieval",
@@ -349,18 +349,8 @@ describe("topic quizzes", () => {
     };
     expect(isTopicQuizPrepared(topic)).toBe(false);
     expect(
-      isTopicQuizPrepared({
-        kind: "age",
-        id: "middle-ages",
-        title: "Medieval & Byzantine",
-      }),
-    ).toBe(false);
-    expect(
       accessTopicQuiz(topic, "apprentice", new Set(), true, true).status,
     ).toBe("insufficient");
-    expect(
-      listBadgeCatalog().some((b) => b.topicId === "medieval"),
-    ).toBe(false);
   });
 
   it("builds more questions for higher difficulties", () => {
@@ -526,6 +516,7 @@ describe("badge unlocks", () => {
     expect(roman?.badges).toHaveLength(3);
     expect(catalog.some((b) => b.difficulty === "apprentice")).toBe(true);
     expect(catalog.some((b) => b.difficulty === "master")).toBe(true);
+    expect(catalog.some((b) => b.topicId === "medieval")).toBe(false);
   });
 });
 

@@ -130,6 +130,36 @@ const KNOWN: KnownPlace[] = [
     city: "Cairo",
     country: "Egypt",
   },
+  {
+    needles: ["san vitale"],
+    museum: "Basilica of San Vitale",
+    city: "Ravenna",
+    country: "Italy",
+  },
+  {
+    needles: ["tretyakov"],
+    museum: "Tretyakov Gallery",
+    city: "Moscow",
+    country: "Russia",
+  },
+  {
+    needles: ["trinity college"],
+    museum: "Trinity College Library",
+    city: "Dublin",
+    country: "Ireland",
+  },
+  {
+    needles: ["tapisserie", "bayeux"],
+    museum: "Musée de la Tapisserie",
+    city: "Bayeux",
+    country: "France",
+  },
+  {
+    needles: ["scrovegni"],
+    museum: "Scrovegni Chapel",
+    city: "Padua",
+    country: "Italy",
+  },
 ];
 
 const CITY_COUNTRY: Record<string, string> = {
@@ -149,6 +179,11 @@ const CITY_COUNTRY: Record<string, string> = {
   "the hague": "Netherlands",
   "vatican city": "Vatican City",
   washington: "United States",
+  ravenna: "Italy",
+  moscow: "Russia",
+  dublin: "Ireland",
+  bayeux: "France",
+  padua: "Italy",
 };
 
 const ID_PREFIX: Record<string, string> = {

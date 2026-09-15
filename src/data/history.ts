@@ -19,6 +19,11 @@ export interface HistoryEra {
    * those centuries is assigned to antiquity).
    */
   range?: [number, number];
+  /**
+   * When false, Discover omits Trial of the Age for this period. Default true.
+   * Use for ages we have not authored a quiz for.
+   */
+  quizPrepared?: boolean;
 }
 
 /** Learning timeline for the Discover page, oldest → newest. */
@@ -51,9 +56,16 @@ export const historyEras: HistoryEra[] = [
     years: "400 – 1400",
     description:
       "A thousand years of faith made visible. Gilded Byzantine icons, illuminated manuscripts, and soaring Gothic stone carved a sacred language of light, gold, and devotion across Europe and the Mediterranean.",
-    artworkIds: [],
+    artworkIds: [
+      "justinian-mosaic",
+      "vladimir-icon",
+      "book-of-kells",
+      "bayeux-tapestry",
+      "giotto-lamentation",
+    ],
     keywords: ["medieval", "gothic", "byzantin", "romanesque", "middle ages", "illuminat"],
     range: [400, 1399],
+    quizPrepared: false,
   },
   {
     id: "renaissance",
