@@ -86,6 +86,7 @@ export {
   difficultySpec,
   priorDifficulty,
   isFreeTopic,
+  isTopicQuizPrepared,
   accessTopicQuiz,
   filterTopicTargets,
   buildTopicQuiz,

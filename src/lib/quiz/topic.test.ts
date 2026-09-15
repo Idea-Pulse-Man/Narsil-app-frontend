@@ -9,6 +9,7 @@ import {
   groupBadgesByTopic,
   listBadgeCatalog,
   accessTopicQuiz,
+  isTopicQuizPrepared,
   priorDifficulty,
   QUIZ_DIFFICULTIES,
 } from "./topic";
@@ -338,6 +339,21 @@ describe("topic quizzes", () => {
     });
     expect(targets.every((a) => a.empire === "Roman")).toBe(true);
     expect(targets.length).toBe(romanWorks.length);
+  });
+
+  it("does not offer Medieval & Byzantine trials until authored", () => {
+    const topic = {
+      kind: "age" as const,
+      id: "medieval",
+      title: "Medieval & Byzantine",
+    };
+    expect(isTopicQuizPrepared(topic)).toBe(false);
+    expect(
+      accessTopicQuiz(topic, "apprentice", new Set(), true, true).status,
+    ).toBe("insufficient");
+    expect(
+      listBadgeCatalog().some((b) => b.topicId === "medieval"),
+    ).toBe(false);
   });
 
   it("builds more questions for higher difficulties", () => {

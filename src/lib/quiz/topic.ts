@@ -77,6 +77,17 @@ export const QUIZ_DIFFICULTIES: DifficultySpec[] = [
 
 export const MIN_TOPIC_QUESTIONS = 3;
 
+/**
+ * Ages we have not authored a trial for. Discover hides Apprentice /
+ * Scholar / Master for these periods even if the live catalog happens
+ * to match a few works by year or keyword.
+ */
+const TOPIC_QUIZ_UNPREPARED = new Set<string>(["age:medieval"]);
+
+export function isTopicQuizPrepared(topic: TopicRef): boolean {
+  return !TOPIC_QUIZ_UNPREPARED.has(`${topic.kind}:${topic.id}`);
+}
+
 export function difficultySpec(id: QuizDifficulty): DifficultySpec {
   return QUIZ_DIFFICULTIES.find((d) => d.id === id) ?? QUIZ_DIFFICULTIES[0]!;
 }
@@ -271,6 +282,7 @@ export function accessTopicQuiz(
   isPro: boolean,
   poolReady: boolean,
 ): TopicQuizAccess {
+  if (!isTopicQuizPrepared(topic)) return { status: "insufficient" };
   if (!isPro && !isFreeTopic(topic)) return { status: "need_pro" };
   if (!poolReady) return { status: "insufficient" };
   const prior = priorDifficulty(difficulty);
@@ -322,9 +334,13 @@ export function listBadgeCatalog(
   extraEmpires: string[] = [],
   extraTopics: TopicRef[] = [],
 ): BadgeDef[] {
-  const ages = historyEras.flatMap((era) =>
-    defsForTopic({ kind: "age", id: era.id, title: era.title }),
-  );
+  const ages = historyEras
+    .filter((era) =>
+      isTopicQuizPrepared({ kind: "age", id: era.id, title: era.title }),
+    )
+    .flatMap((era) =>
+      defsForTopic({ kind: "age", id: era.id, title: era.title }),
+    );
   const empires = uniqueEmpires(extraEmpires).flatMap((name) =>
     defsForTopic({ kind: "empire", id: name, title: name }),
   );

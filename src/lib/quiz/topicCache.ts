@@ -15,6 +15,7 @@ import {
   MIN_TOPIC_QUESTIONS,
   buildTopicQuiz,
   filterTopicTargets,
+  isTopicQuizPrepared,
   type QuizDifficulty,
   type TopicKind,
   type TopicRef,
@@ -87,6 +88,7 @@ export function warmTopicQuizCache(
   let changed = false;
 
   for (const topic of topics) {
+    if (!isTopicQuizPrepared(topic)) continue;
     const targets = filterTopicTargets(pool, topic);
     for (const spec of QUIZ_DIFFICULTIES) {
       const key = topicQuizCacheKey(topic.kind, topic.id, spec.id);
