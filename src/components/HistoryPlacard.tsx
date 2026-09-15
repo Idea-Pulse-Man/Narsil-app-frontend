@@ -32,23 +32,25 @@ function museumName(artwork: Artwork): string {
   return "—";
 }
 
-/** Drop redundant "From the …" lines when the museum is already listed above. */
-function placardDescription(artwork: Artwork, artist: Artist): string {
-  let raw = artwork.aiDescription?.trim() || artwork.description;
+/** Build short placard prose from fields when catalog copy is missing. */
+function composeFromFields(artwork: Artwork, artist: Artist): string {
+  const medium = artwork.medium && artwork.medium !== "—" ? artwork.medium : "";
+  const year = artwork.year && artwork.year !== "Date unknown" ? artwork.year : "";
+  const artistName =
+    artist.name && !/^unknown/i.test(artist.name) ? artist.name : "";
+  let lead = medium ? medium.charAt(0).toUpperCase() + medium.slice(1) : "";
+  if (artistName) lead = lead ? `${lead} by ${artistName}` : `A work by ${artistName}`;
+  if (lead && year) lead += `, ${year}`;
+  return lead ? `${lead}.` : "";
+}
 
-  // Legacy ingest fallback rows are a field dump ("Artist · medium · 1858")
-  // that just repeats the metadata grid above. Compose the same facts as a
-  // sentence instead (until the backend backfill replaces them for good).
-  if (!artwork.aiDescription && raw.includes(" · ")) {
-    const medium = artwork.medium && artwork.medium !== "—" ? artwork.medium : "";
-    const year = artwork.year && artwork.year !== "Date unknown" ? artwork.year : "";
-    const artistName =
-      artist.name && !/^unknown/i.test(artist.name) ? artist.name : "";
-    let lead = medium ? medium.charAt(0).toUpperCase() + medium.slice(1) : "";
-    if (artistName) lead = lead ? `${lead} by ${artistName}` : `A work by ${artistName}`;
-    if (lead && year) lead += `, ${year}`;
-    raw = lead ? `${lead}.` : raw;
-  }
+/**
+ * Prefer AI curator copy, then museum description. When those are empty or only
+ * repeat the metadata grid / museum credit, compose readable wall text so the
+ * placard always has an About this work paragraph (AI can replace it later).
+ */
+function placardDescription(artwork: Artwork, artist: Artist): string {
+  let raw = artwork.aiDescription?.trim() || artwork.description?.trim() || "";
 
   const museum = museumName(artwork);
   if (museum !== "—") {
@@ -57,7 +59,17 @@ function placardDescription(artwork: Artwork, artist: Artist): string {
   }
   // Older ingest copy that repeated the default Wellcome credit in prose.
   raw = raw.replace(/\s*From the Wellcome Collection\.?\s*$/i, " ");
-  return raw.replace(/\s+/g, " ").trim();
+  raw = raw.replace(/\s+/g, " ").trim();
+
+  // Empty, credit-only, or legacy field dump ("Artist · medium · 1858").
+  const needsCompose =
+    !artwork.aiDescription?.trim() && (!raw || raw.includes(" · "));
+  if (needsCompose) {
+    const composed = composeFromFields(artwork, artist);
+    if (composed) return composed;
+  }
+
+  return raw || composeFromFields(artwork, artist);
 }
 
 /** Above this length the description clamps to a few lines behind "Read more". */
@@ -237,34 +249,31 @@ export default function HistoryPlacard({
                 </div>
               </dl>
 
-              {displayDescription ? (
-                <>
-                  <h3 className="mt-6 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink/45">
-                    About this work
-                  </h3>
-                  {artwork.aiDescription && (
-                    <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-ink/40">
-                      Curator note
-                    </p>
-                  )}
-                  <p
-                    className={`mt-2 text-[15px] leading-relaxed text-ink/80 ${
-                      descClamps && !descExpanded ? "line-clamp-4" : ""
-                    }`}
-                  >
-                    {displayDescription}
-                  </p>
-                  {descClamps && (
-                    <button
-                      type="button"
-                      onClick={() => setDescExpanded((open) => !open)}
-                      className="mt-1.5 text-[13px] font-medium text-ink/55 underline-offset-2 hover:text-ink/80 hover:underline"
-                    >
-                      {descExpanded ? "Show less" : "Read more"}
-                    </button>
-                  )}
-                </>
+              <h3 className="mt-6 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink/45">
+                About this work
+              </h3>
+              {artwork.aiDescription?.trim() ? (
+                <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-ink/40">
+                  Curator note
+                </p>
               ) : null}
+              <p
+                className={`mt-2 text-[15px] leading-relaxed text-ink/80 ${
+                  descClamps && !descExpanded ? "line-clamp-4" : ""
+                }`}
+              >
+                {displayDescription ||
+                  "No description yet — AI curator copy will appear here."}
+              </p>
+              {descClamps && (
+                <button
+                  type="button"
+                  onClick={() => setDescExpanded((open) => !open)}
+                  className="mt-1.5 text-[13px] font-medium text-ink/55 underline-offset-2 hover:text-ink/80 hover:underline"
+                >
+                  {descExpanded ? "Show less" : "Read more"}
+                </button>
+              )}
 
               {artwork.tags.length > 0 && (
                 <div className="mt-6 flex flex-wrap gap-2">
