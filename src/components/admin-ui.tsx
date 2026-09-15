@@ -144,13 +144,22 @@ export function FilterTabs<T extends string>({
   value,
   options,
   onChange,
+  wrap = false,
 }: {
   value: T;
   options: { id: T; label: string; badge?: number }[];
   onChange: (next: T) => void;
+  /** Wrap onto multiple rows so every tab stays visible (admin shell). */
+  wrap?: boolean;
 }) {
   return (
-    <div className="-mx-5 flex gap-2 overflow-x-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div
+      className={
+        wrap
+          ? "flex flex-wrap gap-2"
+          : "-mx-5 flex gap-2 overflow-x-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      }
+    >
       {options.map((opt) => (
         <button
           key={opt.id}

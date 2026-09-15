@@ -206,7 +206,12 @@ export default function AdminView({ showToast }: AdminViewProps) {
         ) : (
           <>
             <div className="mt-5">
-              <FilterTabs value={tab} options={tabs} onChange={setTab} />
+              <FilterTabs
+                value={tab}
+                options={tabs}
+                onChange={setTab}
+                wrap
+              />
             </div>
 
             {tab === "overview" && <AdminOverview onJumpToOrders={jumpToOrders} />}
