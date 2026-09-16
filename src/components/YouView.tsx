@@ -225,8 +225,8 @@ export default function YouView({
   return (
     <div className={screenScrollClass}>
       <div className={screenContentClass}>
-        {/* Identity */}
-        <div className="flex items-center gap-4">
+        {/* Identity — centered so the avatar ring reads clearly */}
+        <div className="flex flex-col items-center text-center">
           <input
             ref={avatarInputRef}
             type="file"
@@ -234,8 +234,8 @@ export default function YouView({
             onChange={handleAvatarFile}
             className="hidden"
           />
-          <div className="relative h-16 w-16 shrink-0">
-            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-gradient-to-br from-white/20 to-white/5 font-serif text-2xl text-white">
+          <div className="relative h-28 w-28 shrink-0">
+            <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border-2 border-accent/55 bg-gradient-to-br from-white/20 to-white/5 font-serif text-4xl text-white shadow-[0_0_0_1px_rgba(212,175,120,0.25)]">
               {avatarUrl ? (
                 <img
                   src={avatarUrl}
@@ -251,12 +251,12 @@ export default function YouView({
               onClick={handlePickAvatar}
               disabled={avatarBusy}
               aria-label={isGuest ? "Sign in to set avatar" : "Edit avatar"}
-              className="absolute -bottom-0.5 -right-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-accent text-ink shadow-sm disabled:opacity-70"
+              className="absolute bottom-0.5 right-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-accent text-ink shadow-sm disabled:opacity-70"
             >
               <PencilIcon className="h-3.5 w-3.5" />
             </button>
           </div>
-          <div className="min-w-0">
+          <div className="mt-4 min-w-0 max-w-full px-2">
             <h1 className="truncate font-serif text-2xl leading-none text-white">
               {displayName}
             </h1>
