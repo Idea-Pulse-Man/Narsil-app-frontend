@@ -50,8 +50,27 @@ function isAllowlistedMuseumArtwork(artwork: Artwork): boolean {
   return source !== null && SELLABLE_MUSEUM_SOURCES.has(source);
 }
 
+/** Browse categories that are 3D / decorative objects, not flat wall art. */
+const NON_CANVAS_CATEGORIES = new Set(["sculptures", "pottery"]);
+
+/**
+ * Medium / title tokens that mark pots, sculpture, and other objects that
+ * should not be merchandised as stretched canvas — including empire-tagged
+ * antiquities whose category is greek/roman/egyptian rather than pottery.
+ */
+const NON_CANVAS_OBJECT_RE =
+  /\b(sculpture|statue|bust|figurine|terracotta|ceramic|porcelain|earthenware|stoneware|amphora|vase|vessel|pottery|marble|bronze|alabaster|faience|steatite|relief|carved|carving)\b|\b(covered\s+)?(pot|jar|bowl|urn|ewer|kylix|krater)\b/i;
+
+/** True when the work is flat art suitable for a canvas print (not a pot/sculpture). */
+export function isCanvasPrintSuitable(artwork: Artwork): boolean {
+  if (NON_CANVAS_CATEGORIES.has(artwork.category)) return false;
+  const haystack = `${artwork.medium} ${artwork.title}`;
+  return !NON_CANVAS_OBJECT_RE.test(haystack);
+}
+
 /** True when this artwork may be ordered as a canvas print. */
 export function isCanvasSellable(artwork: Artwork): boolean {
+  if (!isCanvasPrintSuitable(artwork)) return false;
   if (artwork.origin === "artist-original") {
     return artwork.forSale === true;
   }

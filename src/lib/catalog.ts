@@ -510,7 +510,9 @@ export async function fetchSellableArtworkCount(
       .from("artworks")
       .select("id", { count: "exact", head: true })
       .not("image_url", "is", null)
-      .or("hidden.is.null,hidden.eq.false");
+      .or("hidden.is.null,hidden.eq.false")
+      // Gallery sells stretched canvas — exclude 3D / vessel categories up front.
+      .not("category", "in", '("sculptures","pottery")');
     query =
       source === "freelance"
         ? query.eq("origin", "artist-original").eq("for_sale", true)
@@ -541,6 +543,8 @@ export async function fetchSellableArtworkBatch(
     .select(ARTWORK_PREVIEW_COLUMNS)
     .not("image_url", "is", null)
     .or("hidden.is.null,hidden.eq.false")
+    // Gallery sells stretched canvas — exclude 3D / vessel categories up front.
+    .not("category", "in", '("sculptures","pottery")')
     .order("featured", { ascending: false, nullsFirst: false })
     .order("like_count", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
