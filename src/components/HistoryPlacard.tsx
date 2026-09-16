@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import type { Artwork, Artist } from "@/data";
+import { ChevronDownIcon } from "./Icons";
 
 interface HistoryPlacardProps {
   artwork: Artwork;
@@ -287,6 +288,15 @@ export default function HistoryPlacard({
                   ))}
                 </div>
               )}
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="mt-8 flex w-full items-center justify-center gap-2 rounded-full bg-ink py-3.5 text-sm font-medium text-canvas transition-transform active:scale-[0.98]"
+              >
+                <ChevronDownIcon className="h-4 w-4" />
+                Close placard
+              </button>
               </motion.div>
             </div>
           </motion.div>
