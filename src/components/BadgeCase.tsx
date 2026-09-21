@@ -23,8 +23,9 @@ interface BadgeCaseProps {
 }
 
 /**
- * Compact seal catalog on the profile. Each age / empire is one summary
- * line (highest earned rank); expand to see Apprentice → Master medals.
+ * Seal catalog on the profile. Only passed ages / empires get a line, each
+ * showing the highest rank earned; the rest stay behind "Browse all trials".
+ * Every line expands to its Apprentice → Master medals.
  */
 export default function BadgeCase({
   badges,
@@ -32,6 +33,7 @@ export default function BadgeCase({
   extraEmpires = [],
 }: BadgeCaseProps) {
   const [openKey, setOpenKey] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
 
   const extraTopics: TopicRef[] = [];
   const seen = new Set(extraEmpires);
@@ -47,9 +49,31 @@ export default function BadgeCase({
   }
   const catalog = listBadgeCatalog(extraEmpires, extraTopics);
   const groups = groupBadgesByTopic(catalog);
-  const ages = groups.filter((g) => g.topic.kind === "age");
-  const empires = groups.filter((g) => g.topic.kind === "empire");
   const earned = catalog.filter((b) => badges[b.id]).length;
+
+  const passed = groups.filter(
+    (g) => highestEarnedDifficulty(g.badges, badges) !== null,
+  );
+  const locked = groups.filter(
+    (g) => highestEarnedDifficulty(g.badges, badges) === null,
+  );
+  const lockedAges = locked.filter((g) => g.topic.kind === "age");
+  const lockedEmpires = locked.filter((g) => g.topic.kind === "empire");
+
+  const renderRow = (group: (typeof groups)[number]) => {
+    const key = `${group.topic.kind}:${group.topic.id}`;
+    return (
+      <TopicAccordion
+        key={key}
+        title={group.topic.title}
+        badges={group.badges}
+        unlocked={badges}
+        scores={scores}
+        open={openKey === key}
+        onToggle={() => setOpenKey((cur) => (cur === key ? null : key))}
+      />
+    );
+  };
 
   return (
     <section className="mt-8">
@@ -60,48 +84,64 @@ export default function BadgeCase({
         </p>
       </div>
       <p className="mt-1 text-xs text-white/45">
-        Highest rank on each line. Expand for every seal and your stars.
+        Trials you have passed, with your highest rank. Expand a line for its
+        seals and stars.
       </p>
 
-      <h3 className="mt-5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">
-        Ages
-      </h3>
-      <div className="mt-1.5 divide-y divide-white/[0.06] rounded-2xl border border-white/10 bg-white/[0.03]">
-        {ages.map((group) => {
-          const key = `${group.topic.kind}:${group.topic.id}`;
-          return (
-            <TopicAccordion
-              key={key}
-              title={group.topic.title}
-              badges={group.badges}
-              unlocked={badges}
-              scores={scores}
-              open={openKey === key}
-              onToggle={() => setOpenKey((cur) => (cur === key ? null : key))}
-            />
-          );
-        })}
+      <div className="mt-3 divide-y divide-white/[0.06] rounded-2xl border border-white/10 bg-white/[0.03]">
+        {passed.length > 0 ? (
+          passed.map(renderRow)
+        ) : (
+          <p className="px-3 py-3 text-xs text-white/45">
+            No seals yet — perfect a trial on Discover to light your first one.
+          </p>
+        )}
       </div>
 
-      <h3 className="mt-6 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">
-        Empires
-      </h3>
-      <div className="mt-1.5 divide-y divide-white/[0.06] rounded-2xl border border-white/10 bg-white/[0.03]">
-        {empires.map((group) => {
-          const key = `${group.topic.kind}:${group.topic.id}`;
-          return (
-            <TopicAccordion
-              key={key}
-              title={group.topic.title}
-              badges={group.badges}
-              unlocked={badges}
-              scores={scores}
-              open={openKey === key}
-              onToggle={() => setOpenKey((cur) => (cur === key ? null : key))}
-            />
-          );
-        })}
-      </div>
+      <button
+        type="button"
+        onClick={() => setShowAll((v) => !v)}
+        aria-expanded={showAll}
+        className="mt-2 flex w-full items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-left transition-colors hover:bg-white/[0.05]"
+      >
+        <span className="min-w-0 flex-1 truncate text-[13px] text-white/70">
+          Browse all trials
+        </span>
+        <span className="shrink-0 text-[11px] tabular-nums text-white/35">
+          {locked.length} locked
+        </span>
+        <ChevronDownIcon
+          className={`h-3.5 w-3.5 shrink-0 text-white/35 transition-transform ${
+            showAll ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+
+      {showAll && (
+        <>
+          {lockedAges.length > 0 && (
+            <>
+              <h3 className="mt-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">
+                Ages
+              </h3>
+              <div className="mt-1.5 divide-y divide-white/[0.06] rounded-2xl border border-white/10 bg-white/[0.03]">
+                {lockedAges.map(renderRow)}
+              </div>
+            </>
+          )}
+
+          {lockedEmpires.length > 0 && (
+            <>
+              <h3 className="mt-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">
+                Empires
+              </h3>
+              <div className="mt-1.5 divide-y divide-white/[0.06] rounded-2xl border border-white/10 bg-white/[0.03]">
+                {lockedEmpires.map(renderRow)}
+              </div>
+            </>
+          )}
+        </>
+      )}
     </section>
   );
 }
