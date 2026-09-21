@@ -4,7 +4,7 @@ import { WORLD } from "@/data/worldCopy";
 import { FEED_MATCH_MODES, FEED_MATCH_COPY } from "@/lib/personalize";
 import { useAppState } from "./AppState";
 import { screenScrollClass, screenContentClass } from "./artwork-layout";
-import { FlameIcon, PencilIcon, SparkleIcon } from "./Icons";
+import { FlameIcon, SparkleIcon } from "./Icons";
 import {
   effectiveStreak,
   hasPlayedToday,
@@ -24,7 +24,7 @@ import NewsSheet from "./NewsSheet";
 import OrdersSheet from "./OrdersSheet";
 import ProStatusSheet from "./ProStatusSheet";
 import BadgeCase from "./BadgeCase";
-import PersonLevelFrame from "./PersonLevelFrame";
+import ProfileAvatar from "./ProfileAvatar";
 import type { ToastState } from "./Toast";
 import type { Screen } from "./navigation";
 
@@ -37,6 +37,8 @@ interface YouViewProps {
   onSignIn: () => void;
   onOpenTerms: () => void;
   onOpenQuiz: () => void;
+  /** Opens Study badge picker to wear a frame on the avatar. */
+  onOpenQuizBadges: () => void;
   /** Bumped when the quiz overlay closes so the streak re-reads. */
   quizRefresh: number;
   /** Called after the quiz streak is reset so entry cards re-read it. */
@@ -53,6 +55,7 @@ export default function YouView({
   onSignIn,
   onOpenTerms,
   onOpenQuiz,
+  onOpenQuizBadges,
   quizRefresh,
   onQuizReset,
   showToast,
@@ -234,28 +237,18 @@ export default function YouView({
             onChange={handleAvatarFile}
             className="hidden"
           />
-          <div className="relative h-28 w-28 shrink-0">
-            <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border-2 border-accent/55 bg-gradient-to-br from-white/20 to-white/5 font-serif text-4xl text-white shadow-[0_0_0_1px_rgba(212,175,120,0.25)]">
-              {avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt=""
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                initial
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={handlePickAvatar}
-              disabled={avatarBusy}
-              aria-label={isGuest ? "Sign in to set avatar" : "Edit avatar"}
-              className="absolute bottom-0.5 right-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-accent text-ink shadow-sm disabled:opacity-70"
-            >
-              <PencilIcon className="h-3.5 w-3.5" />
-            </button>
-          </div>
+          <ProfileAvatar
+            avatarUrl={avatarUrl}
+            initial={initial}
+            levelId={quizProgress.levelId}
+            seals={badges}
+            size={128}
+            busy={avatarBusy}
+            editLabel={isGuest ? "Sign in to set avatar" : "Edit avatar"}
+            onEditPhoto={handlePickAvatar}
+            onChooseBadge={onOpenQuizBadges}
+            refreshKey={quizRefresh}
+          />
           <div className="mt-4 min-w-0 max-w-full px-2">
             <h1 className="truncate font-serif text-2xl leading-none text-white">
               {displayName}
@@ -291,12 +284,13 @@ export default function YouView({
           <Stat label="Following" value={following.length} />
         </div>
 
-        {/* Person level + daily quiz / Royal Assessment */}
-        <div className="mt-6 flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4">
-          <PersonLevelFrame levelId={quizProgress.levelId} size={64} />
+        {/* Daily quiz CTA — hidden once today's assessment is done; the
+            worn badge frame lives on the avatar above. */}
+        {!quizDoneToday && (
           <button
+            type="button"
             onClick={onOpenQuiz}
-            className="flex min-w-0 flex-1 items-center gap-3 text-left transition-colors"
+            className="mt-6 flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 text-left transition-colors hover:bg-white/[0.05]"
           >
             <FlameIcon
               filled={quizStreak > 0}
@@ -317,10 +311,10 @@ export default function YouView({
               </p>
             </div>
             <span className="shrink-0 text-xs font-medium text-emerald-300/90">
-              {quizDoneToday ? "Done today" : "Play ›"}
+              Play ›
             </span>
           </button>
-        </div>
+        )}
 
         <BadgeCase
           badges={badges}

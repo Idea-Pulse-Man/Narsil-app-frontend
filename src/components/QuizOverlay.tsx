@@ -51,13 +51,15 @@ import StudyBadgePage, {
 import { scrollForLevel, scrollPalette } from "@/lib/quiz/scrolls";
 import { ArrowLeftIcon, CloseIcon, FlameIcon, MedalIcon } from "./Icons";
 
+type Stage = "hub" | "badges" | "playing" | "results";
+
 interface QuizOverlayProps {
   open: boolean;
   onClose: () => void;
   onOpenArtwork: (artworkId: string) => void;
+  /** Open straight to the badge picker (e.g. from the profile avatar). */
+  initialStage?: Stage;
 }
-
-type Stage = "hub" | "badges" | "playing" | "results";
 
 /** How the daily quiz should behave from the hub, given saved state. */
 type DailyMode = "new" | "resume" | "review" | "locked";
@@ -94,6 +96,7 @@ export default function QuizOverlay({
   open,
   onClose,
   onOpenArtwork,
+  initialStage = "hub",
 }: QuizOverlayProps) {
   const { pool, artists, loading } = useQuizPool();
   const { user, isGuest, isPro, requestPro } = useAppState();
@@ -108,7 +111,7 @@ export default function QuizOverlay({
   const { badges: seals } = useQuizBadges(user?.id ?? null);
   const { scores } = useQuizScores(user?.id ?? null);
 
-  const [stage, setStage] = useState<Stage>("hub");
+  const [stage, setStage] = useState<Stage>(initialStage);
   const [isDaily, setIsDaily] = useState(true);
   /** Practice is always a mixed run across playable modes (no per-mode drill). */
   const [practicing, setPracticing] = useState(false);
@@ -135,6 +138,7 @@ export default function QuizOverlay({
   // close: reset the transient run state (the session stays in localStorage).
   useEffect(() => {
     if (open) {
+      setStage(initialStage);
       setDailySession(loadDailySession());
       if (!isGuest) {
         void fetchLevelBoard(todayKey()).then((board) => {
@@ -155,7 +159,7 @@ export default function QuizOverlay({
     setPracticing(false);
     setHubBoard(null);
     excludeRef.current = new Set();
-  }, [open, isGuest]);
+  }, [open, isGuest, initialStage]);
 
   useEffect(() => clearTimer, []);
 

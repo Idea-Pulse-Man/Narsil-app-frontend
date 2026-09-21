@@ -13,6 +13,10 @@ export const WORLD = {
 
   /** Profile tab (screen id `you`) */
   member: "Profile",
+  editAvatar: "Edit profile look",
+  editAvatarPhoto: "Change photo",
+  editAvatarBadge: "Choose badge frame",
+  editAvatarCancel: "Cancel",
 
   /** Shop tab (screen id `buy`) */
   gallery: "Gallery",

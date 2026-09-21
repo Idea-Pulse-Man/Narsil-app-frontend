@@ -12,7 +12,7 @@ interface PersonLevelFrameProps {
   /** Show "Lv N · Title" under the frame. */
   showCaption?: boolean;
   className?: string;
-  /** Unearned ranks render pale / white. */
+  /** Unearned ranks render pale white (Study badge picker). */
   unlocked?: boolean;
 }
 
@@ -46,7 +46,9 @@ export default function PersonLevelFrame({
           width={size}
           height={size}
           className={`h-full w-full object-contain ${
-            unlocked ? "" : "opacity-50 brightness-150 grayscale contrast-50"
+            unlocked
+              ? ""
+              : "opacity-70 brightness-[2.2] grayscale contrast-[0.35] saturate-0"
           }`}
           draggable={false}
         />

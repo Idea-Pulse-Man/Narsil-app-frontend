@@ -104,7 +104,8 @@ export default function StudyBadgePage({
         {WORLD.studyBadges}
       </h1>
       <p className={`mt-1 text-sm ${muted}`}>
-        Wear one earned badge. Locked ranks stay white until you earn them.
+        Wear one earned badge as your profile avatar frame. Locked ranks stay
+        white until you earn them.
       </p>
 
       <div className="mt-4 flex gap-1 rounded-full border border-[#5c3d12]/35 bg-[#efe2c4]/80 p-0.5">
@@ -191,7 +192,7 @@ function BadgeDetail({
           <QuizStars stars={stars} size={12} className="mt-1" />
         )}
         <p className="mt-1.5 text-[12px] leading-relaxed text-[#3d2810]">
-          {earned ? (worn ? "This badge is on your Study profile." : WORLD.studyWearBadge) : badge.howTo}
+          {earned ? (worn ? "This badge frames your profile avatar." : WORLD.studyWearBadge) : badge.howTo}
         </p>
         <button
           type="button"

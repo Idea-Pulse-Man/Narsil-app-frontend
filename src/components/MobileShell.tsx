@@ -92,6 +92,10 @@ export default function MobileShell() {
   const [activeEraId, setActiveEraId] = useState<string | null>(null);
   /** Daily quiz overlay (stacked above Discover, like EraScreen). */
   const [quizOpen, setQuizOpen] = useState(false);
+  /** Open quiz hub or straight to badge picker (from profile avatar). */
+  const [quizInitialStage, setQuizInitialStage] = useState<"hub" | "badges">(
+    "hub",
+  );
   /** Age / empire trial launched from Discover. */
   const [topicQuiz, setTopicQuiz] = useState<TopicQuizLaunch | null>(null);
   /** Bumped when the quiz closes so entry cards re-read their streak. */
@@ -511,7 +515,10 @@ export default function MobileShell() {
                   onOpenArtist={openArtist}
                   onOpenArtwork={openArtwork}
                   onOpenEra={setActiveEraId}
-                  onOpenQuiz={() => setQuizOpen(true)}
+                  onOpenQuiz={() => {
+                    setQuizInitialStage("hub");
+                    setQuizOpen(true);
+                  }}
                   onOpenTopicQuiz={setTopicQuiz}
                   quizRefresh={quizRefresh}
                 />
@@ -610,7 +617,14 @@ export default function MobileShell() {
                   onNavigate={navigate}
                   onSignIn={requestSignIn}
                   onOpenTerms={() => setTermsReview(true)}
-                  onOpenQuiz={() => setQuizOpen(true)}
+                  onOpenQuiz={() => {
+                    setQuizInitialStage("hub");
+                    setQuizOpen(true);
+                  }}
+                  onOpenQuizBadges={() => {
+                    setQuizInitialStage("badges");
+                    setQuizOpen(true);
+                  }}
                   quizRefresh={quizRefresh}
                   onQuizReset={() => setQuizRefresh((t) => t + 1)}
                   showToast={showToast}
@@ -633,7 +647,10 @@ export default function MobileShell() {
               <BottomNav
                 active={screen}
                 onChange={navigate}
-                onOpenQuiz={() => setQuizOpen(true)}
+                onOpenQuiz={() => {
+                  setQuizInitialStage("hub");
+                  setQuizOpen(true);
+                }}
               />
             </motion.div>
           )}
@@ -660,8 +677,10 @@ export default function MobileShell() {
           <Suspense fallback={null}>
             <QuizOverlay
               open
+              initialStage={quizInitialStage}
               onClose={() => {
                 setQuizOpen(false);
+                setQuizInitialStage("hub");
                 setQuizRefresh((t) => t + 1);
               }}
               onOpenArtwork={openArtwork}
