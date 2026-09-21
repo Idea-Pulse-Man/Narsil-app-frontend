@@ -81,7 +81,7 @@ export default function AuthView({ onClose }: AuthViewProps) {
 
       {/* Brand */}
       <BrandMark
-        size={36}
+        size={56}
         showWordmark
         wordmarkClassName="text-[11px] font-semibold uppercase tracking-[0.28em] text-white"
       />
