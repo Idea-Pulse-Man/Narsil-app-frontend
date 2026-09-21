@@ -73,6 +73,7 @@ the right env vars — nothing has to be started locally.
    ```bash
    npm run build
    npx cap add ios      # runs pod install; needs Xcode + CocoaPods
+   npm run cap:sync     # also patches Info.plist (Photos save permission)
    npm run cap:ios
    ```
 

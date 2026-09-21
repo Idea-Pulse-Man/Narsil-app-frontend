@@ -10,7 +10,8 @@
     "lint": "oxlint",
     "test": "vitest run --config vitest.config.ts",
     "preview": "vite preview",
-    "cap:sync": "npm run build && npx cap sync",
+    "cap:sync": "npm run build && npx cap sync && node scripts/patch-ios-info-plist.mjs",
+    "patch:ios-plist": "node scripts/patch-ios-info-plist.mjs",
     "cap:android": "npx cap open android",
     "cap:ios": "npx cap open ios"
   },
