@@ -324,7 +324,10 @@ export default function ArtworkCard({
             onClickCapture: handleClickCapture,
           })}
     >
-      <div className="absolute inset-0 touch-pan-y">
+      <div
+        className="absolute inset-0 touch-pan-y artwork-image"
+        onContextMenu={(e) => e.preventDefault()}
+      >
         <BlurImage
           src={artwork.image}
           alt={`${artwork.title} by ${artist.name}`}

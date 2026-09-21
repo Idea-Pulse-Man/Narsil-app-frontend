@@ -123,6 +123,16 @@ body {
   overscroll-behavior: none;
 }
 
+/* Feed artworks own long-press (clean view). Kill iOS/Safari's Share /
+   Save-to-Photos callout so it doesn't steal the gesture in WKWebView. */
+.artwork-image,
+.artwork-image img {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+}
+
 * {
   scrollbar-width: none;
 }

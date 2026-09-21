@@ -308,6 +308,7 @@ export default function MobileShell() {
   const startTutorialAfterOnboarding = useCallback(() => {
     setTutorialStep(0);
     setTutorialActive(true);
+    setClean(false);
     setResetToken((t) => t + 1);
     setScreen("for-you");
   }, []);
@@ -385,7 +386,12 @@ export default function MobileShell() {
           setTimeout(advance, 1000);
           break;
         case "clean":
-          setTimeout(advance, 800);
+          // Exit clean before the actions step so the right rail is visible
+          // immediately — otherwise the user must tap once to unhide chrome.
+          setTimeout(() => {
+            setClean(false);
+            advance();
+          }, 800);
           break;
         case "actions":
           setTimeout(advance, 150);
@@ -597,6 +603,7 @@ export default function MobileShell() {
                     restartTutorial();
                     setTutorialStep(0);
                     setTutorialActive(true);
+                    setClean(false);
                     setScreen("for-you");
                     setResetToken((t) => t + 1);
                   }}
