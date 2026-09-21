@@ -8,7 +8,6 @@ import {
 } from "@/lib/quiz";
 import { WORLD } from "@/data/worldCopy";
 import TopicMedal from "./TopicMedal";
-import QuizStars from "./QuizStars";
 
 interface BadgeCaseProps {
   badges: BadgeMap;
@@ -52,14 +51,14 @@ export default function BadgeCase({
         </p>
       </div>
       <p className="mt-1 text-xs text-white/45">
-        Perfect a trial on Discover to light a seal. Stars show your best
-        score on each rank.
+        Perfect a trial on Discover to light a seal. Numbers are your best
+        star score on each rank.
       </p>
 
       <h3 className="mt-5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">
         Ages
       </h3>
-      <div className="mt-2 space-y-2">
+      <div className="mt-2 space-y-1">
         {ages.map((group) => (
           <BadgeRow
             key={`${group.topic.kind}:${group.topic.id}`}
@@ -71,10 +70,10 @@ export default function BadgeCase({
         ))}
       </div>
 
-      <h3 className="mt-6 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">
+      <h3 className="mt-5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">
         Empires
       </h3>
-      <div className="mt-2 space-y-2">
+      <div className="mt-2 space-y-1">
         {empires.map((group) => (
           <BadgeRow
             key={`${group.topic.kind}:${group.topic.id}`}
@@ -101,18 +100,18 @@ function BadgeRow({
   scores: ScoreMap;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
-      <p className="min-w-0 flex-1 truncate text-[13px] text-white/80">
+    <div className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-1.5">
+      <p className="min-w-0 flex-1 truncate text-[13px] leading-tight text-white/80">
         {title}
       </p>
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex shrink-0 items-center gap-1.5">
         {badges.map((badge) => {
           const on = !!unlocked[badge.id];
           const stars = scores[badge.id]?.stars ?? 0;
           return (
             <span
               key={badge.id}
-              className="flex flex-col items-center gap-0.5"
+              className="flex items-center gap-0.5"
               title={`${badge.label}${on ? " — earned" : " — locked"} · ${stars}/5 stars`}
             >
               <TopicMedal
@@ -120,9 +119,16 @@ function BadgeRow({
                 unlocked={on}
                 gated={!on}
                 mark={title}
-                size={34}
+                size={26}
               />
-              <QuizStars stars={stars} size={7} />
+              <span
+                className={`w-2.5 text-center text-[9px] tabular-nums leading-none ${
+                  stars > 0 ? "text-amber-300" : "text-white/20"
+                }`}
+                aria-hidden
+              >
+                {stars}
+              </span>
               <span className="sr-only">
                 {title} {badge.label}
                 {on ? ", earned" : ", locked"}, {stars} of 5 stars
