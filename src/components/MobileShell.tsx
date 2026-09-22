@@ -13,6 +13,7 @@ import Toast, { type ToastState } from "./Toast";
 import TermsView from "./TermsView";
 import { useAppState } from "./AppState";
 import { SHARE_ART_PARAM } from "@/lib/download";
+import { WORLD } from "@/data/worldCopy";
 import type { TutorialAction } from "./tutorial";
 import type { TopicQuizLaunch } from "@/lib/quiz";
 
@@ -81,6 +82,8 @@ export default function MobileShell() {
 
   const [toast, setToast] = useState<ToastState | null>(null);
   const [screen, setScreen] = useState<Screen>("for-you");
+  /** Guest tapped Discover — keep them off the page and offer the Guild. */
+  const [discoverGate, setDiscoverGate] = useState(false);
   // Keep each tab mounted after first visit so switching (For You ↔ Discover,
   // Gallery, Search, etc.) is instant — no remount, no feed rebuild, scroll kept.
   const [visitedScreens, setVisitedScreens] = useState<ReadonlySet<Screen>>(
@@ -252,11 +255,22 @@ export default function MobileShell() {
   const navigate = useCallback(
     (next: Screen) => {
       if (tutorialActive) return;
+      if (next === "discover" && isGuest) {
+        setDiscoverGate(true);
+        return;
+      }
       setScreen(next);
       setClean(false);
     },
-    [tutorialActive]
+    [tutorialActive, isGuest]
   );
+
+  // A guest must never land on Discover (sign-out while that tab is open).
+  useEffect(() => {
+    if (!isGuest || screen !== "discover") return;
+    setScreen("for-you");
+    setDiscoverGate(true);
+  }, [isGuest, screen]);
 
   // Mark the active screen visited (covers navigate + direct setScreen jumps).
   useEffect(() => {
@@ -658,6 +672,61 @@ export default function MobileShell() {
                   setQuizOpen(true);
                 }}
               />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {showChrome && isGuest && discoverGate && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-[70] flex items-end justify-center bg-black/60 p-5 pb-[calc(env(safe-area-inset-bottom)+5.5rem)] backdrop-blur-sm"
+              onClick={() => setDiscoverGate(false)}
+            >
+              <motion.section
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="discover-guild-title"
+                initial={{ y: 24, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: 24, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-sm rounded-3xl border border-accent/30 bg-ink-soft p-6 text-white shadow-2xl"
+              >
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">
+                  {WORLD.explorersGuild}
+                </p>
+                <h2
+                  id="discover-guild-title"
+                  className="mt-2 font-serif text-xl leading-snug"
+                >
+                  {WORLD.discoverGuildTitle}
+                </h2>
+                <p className="mt-2 text-sm leading-relaxed text-white/60">
+                  {WORLD.discoverGuildLead}
+                </p>
+                <div className="mt-5 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDiscoverGate(false)}
+                    className="flex-1 rounded-full border border-white/15 py-3 text-sm font-medium text-white/70"
+                  >
+                    Not now
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDiscoverGate(false);
+                      requestPro("discover");
+                    }}
+                    className="flex-1 rounded-full bg-accent py-3 text-sm font-semibold text-ink"
+                  >
+                    Join the Guild
+                  </button>
+                </div>
+              </motion.section>
             </motion.div>
           )}
         </AnimatePresence>

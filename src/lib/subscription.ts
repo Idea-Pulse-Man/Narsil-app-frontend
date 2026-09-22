@@ -35,7 +35,9 @@ export type PaywallReason =
   /** Opened deliberately from Settings rather than by hitting a gate. */
   | "settings"
   /** Create tab — only Explorer's Guild members may upload artworks. */
-  | "create-upload";
+  | "create-upload"
+  /** Discover tab — guests are sent through sign-in, then the Guild offer. */
+  | "discover";
 
 /** Apple's subscription management page — the only place a user can cancel. */
 export const APPLE_SUBSCRIPTIONS_URL =

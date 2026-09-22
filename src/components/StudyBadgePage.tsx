@@ -255,11 +255,6 @@ export function DiscoverLevelCard({
   for (const id of Object.keys(seals)) {
     if (parseBadgeId(id)) earned += 1;
   }
-      <p className={`mt-0.5 text-[12px] ${muted}`}>
-        {rankLabel
-          ? `${earned} / ${catalogSize} seals · best Discover trial`
-          : WORLD.studyNoDiscoverRank}
-      </p>
 
   return (
     <button

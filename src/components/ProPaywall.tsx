@@ -39,6 +39,10 @@ const REASON_COPY: Record<PaywallReason, { title: string; lead: string }> = {
     title: "Publish with the Guild",
     lead: `Uploading artwork is part of ${WORLD.explorersGuild}. Subscribe to submit work for review.`,
   },
+  discover: {
+    title: WORLD.discoverGuildTitle,
+    lead: WORLD.discoverGuildLead,
+  },
 };
 
 const PERKS = [

@@ -52,6 +52,9 @@ export const WORLD = {
   studyBadgeLocked: "Earn this badge to wear it",
   studyDiscoverRank: "Discover trials",
   studyNoDiscoverRank: "No Discover seals yet — start with Ancient Egypt.",
+  /** Quiz hub tabs — Hall ranking vs Study options */
+  assessmentHallTab: "Hall",
+  assessmentStudyTab: "Study",
   /** Bottom-nav label — short enough for the pill */
   assessmentNav: "Study",
   appraisal: "Appraisal",
@@ -65,6 +68,11 @@ export const WORLD = {
 
   subscribePitch:
     "Join The Explorer's Guild to access the Uncharted Archives and extract uncompressed Master Files.",
+
+  /** Guest tap on Discover — Guild membership is required. */
+  discoverGuildTitle: "Join the Guild to access",
+  discoverGuildLead:
+    "Discover is part of The Explorer's Guild. Join to browse ages, empires, and artists.",
 } as const;
 
 export interface AppraisalRank {
