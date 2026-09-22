@@ -26,6 +26,20 @@ export interface Profile {
   role?: UserRole;
   terms_accepted_at?: string | null;
   terms_version?: string | null;
+  onboarding_done?: boolean | null;
+  tutorial_done?: boolean | null;
+  auth_seen?: boolean | null;
+  preferences?: ProfilePreferences | null;
+}
+
+/** Taste prefs mirrored on profiles.preferences (jsonb). */
+export interface ProfilePreferences {
+  artTypes?: string[];
+  periods?: string[];
+  empires?: string[];
+  artists?: string[];
+  interests?: string[];
+  completed?: boolean;
 }
 
 /** Load the signed-in user's profile row (name/avatar) from Supabase. */
@@ -37,10 +51,27 @@ export async function fetchProfile(): Promise<Profile | null> {
     if (!uid) return null;
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, full_name, email, avatar_url, role, terms_accepted_at, terms_version")
+      .select(
+        "id, full_name, email, avatar_url, role, terms_accepted_at, terms_version, onboarding_done, tutorial_done, auth_seen, preferences",
+      )
       .eq("id", uid)
       .maybeSingle();
     if (error) {
+      // Older projects may not have run profile-onboarding.sql yet — fall back.
+      if (/column|does not exist|42703/i.test(error.message)) {
+        const { data: basic, error: basicErr } = await supabase
+          .from("profiles")
+          .select(
+            "id, full_name, email, avatar_url, role, terms_accepted_at, terms_version",
+          )
+          .eq("id", uid)
+          .maybeSingle();
+        if (basicErr) {
+          console.warn("Supabase: profile load failed.", basicErr.message);
+          return null;
+        }
+        return (basic as Profile | null) ?? null;
+      }
       console.warn("Supabase: profile load failed.", error.message);
       return null;
     }
@@ -119,6 +150,29 @@ export async function acceptTermsRemote(version: string): Promise<void> {
     })
     .eq("id", uid);
   if (error) console.warn("Supabase: terms acceptance failed.", error.message);
+}
+
+/** Persist onboarding / prefs flags so they survive login on a new device. */
+export async function syncOnboardingRemote(patch: {
+  onboarding_done?: boolean;
+  tutorial_done?: boolean;
+  auth_seen?: boolean;
+  preferences?: ProfilePreferences;
+}): Promise<void> {
+  if (!supabase) return;
+  const { data: auth } = await supabase.auth.getUser();
+  const uid = auth.user?.id;
+  if (!uid) return;
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      ...patch,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", uid);
+  if (error) {
+    console.warn("Supabase: onboarding sync failed.", error.message);
+  }
 }
 
 /**

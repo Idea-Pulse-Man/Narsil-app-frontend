@@ -141,6 +141,7 @@ export default function MobileShell() {
     termsAccepted &&
     authSeen &&
     !onboardingDone &&
+    !preferences.completed &&
     !isAdmin;
   // Hide the museum through Terms / Auth / personalization. The tutorial is
   // learn-by-doing on the live feed, so it must stay visible and interactive
@@ -160,12 +161,17 @@ export default function MobileShell() {
   // Auto-open the onboarding preference flow after auth is done.
   const onboardingPrefsTriggered = useRef(false);
   useEffect(() => {
-    if (firstLaunchOnboarding && !onboardingPrefsTriggered.current && !tutorialActive) {
+    if (
+      firstLaunchOnboarding &&
+      !preferences.completed &&
+      !onboardingPrefsTriggered.current &&
+      !tutorialActive
+    ) {
       onboardingPrefsTriggered.current = true;
       setPrefsManual(false);
       setPrefsOpen(true);
     }
-  }, [firstLaunchOnboarding, tutorialActive]);
+  }, [firstLaunchOnboarding, preferences.completed, tutorialActive]);
 
   // Music prompt after the full onboarding is done (members only).
   useEffect(() => {

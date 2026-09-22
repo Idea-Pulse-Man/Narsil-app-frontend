@@ -23,9 +23,8 @@ interface BadgeCaseProps {
 }
 
 /**
- * Seal catalog on the profile. Only passed ages / empires get a line, each
- * showing the highest rank earned; the rest stay behind "Browse all trials".
- * Every line expands to its Apprentice → Master medals.
+ * Seal catalog on the profile. Trials with a seal or star progress get a
+ * line (highest seal, or best attempt); the rest stay behind "Browse all".
  */
 export default function BadgeCase({
   badges,
@@ -37,7 +36,7 @@ export default function BadgeCase({
 
   const extraTopics: TopicRef[] = [];
   const seen = new Set(extraEmpires);
-  for (const id of Object.keys(badges)) {
+  for (const id of [...Object.keys(badges), ...Object.keys(scores)]) {
     const parsed = parseBadgeId(id);
     if (!parsed || parsed.kind !== "empire" || seen.has(parsed.topicId)) continue;
     seen.add(parsed.topicId);
@@ -51,12 +50,8 @@ export default function BadgeCase({
   const groups = groupBadgesByTopic(catalog);
   const earned = catalog.filter((b) => badges[b.id]).length;
 
-  const passed = groups.filter(
-    (g) => highestEarnedDifficulty(g.badges, badges) !== null,
-  );
-  const locked = groups.filter(
-    (g) => highestEarnedDifficulty(g.badges, badges) === null,
-  );
+  const withProgress = groups.filter((g) => topicHasProgress(g.badges, badges, scores));
+  const locked = groups.filter((g) => !topicHasProgress(g.badges, badges, scores));
   const lockedAges = locked.filter((g) => g.topic.kind === "age");
   const lockedEmpires = locked.filter((g) => g.topic.kind === "empire");
 
@@ -84,16 +79,16 @@ export default function BadgeCase({
         </p>
       </div>
       <p className="mt-1 text-xs text-white/45">
-        Trials you have passed, with your highest rank. Expand a line for its
-        seals and stars.
+        Trials you have played, with your highest seal or best stars. Expand
+        for every rank.
       </p>
 
       <div className="mt-3 divide-y divide-white/[0.06] rounded-2xl border border-white/10 bg-white/[0.03]">
-        {passed.length > 0 ? (
-          passed.map(renderRow)
+        {withProgress.length > 0 ? (
+          withProgress.map(renderRow)
         ) : (
           <p className="px-3 py-3 text-xs text-white/45">
-            No seals yet — perfect a trial on Discover to light your first one.
+            No trials yet — play on Discover to earn stars and light seals.
           </p>
         )}
       </div>
@@ -163,6 +158,38 @@ function highestEarnedDifficulty(
   return best;
 }
 
+/** Best non-zero star attempt across the topic's ranks (even without a seal). */
+function bestAttempt(
+  badges: BadgeDef[],
+  scores: ScoreMap,
+): { difficulty: QuizDifficulty; stars: number } | null {
+  let best: { difficulty: QuizDifficulty; stars: number } | null = null;
+  for (const badge of badges) {
+    const stars = scores[badge.id]?.stars ?? 0;
+    if (stars <= 0) continue;
+    if (
+      !best ||
+      stars > best.stars ||
+      (stars === best.stars &&
+        difficultySpec(badge.difficulty).rank > difficultySpec(best.difficulty).rank)
+    ) {
+      best = { difficulty: badge.difficulty, stars };
+    }
+  }
+  return best;
+}
+
+function topicHasProgress(
+  badges: BadgeDef[],
+  unlocked: BadgeMap,
+  scores: ScoreMap,
+): boolean {
+  return (
+    highestEarnedDifficulty(badges, unlocked) !== null ||
+    bestAttempt(badges, scores) !== null
+  );
+}
+
 function TopicAccordion({
   title,
   badges,
@@ -179,10 +206,24 @@ function TopicAccordion({
   onToggle: () => void;
 }) {
   const highest = highestEarnedDifficulty(badges, unlocked);
-  const summary = highest ? difficultySpec(highest).label : "Not started";
+  const attempt = bestAttempt(badges, scores);
   const summaryBadge = highest
     ? badges.find((b) => b.difficulty === highest)
-    : null;
+    : attempt
+      ? badges.find((b) => b.difficulty === attempt.difficulty)
+      : null;
+
+  let summary = "Not started";
+  let summaryTone = "text-white/35";
+  if (highest) {
+    const label = difficultySpec(highest).label;
+    const stars = scores[summaryBadge?.id ?? ""]?.stars ?? 0;
+    summary = stars > 0 ? `${label} · ${stars}★` : label;
+    summaryTone = "text-amber-200/90";
+  } else if (attempt) {
+    summary = `${difficultySpec(attempt.difficulty).label} · ${attempt.stars}★`;
+    summaryTone = "text-amber-200/70";
+  }
 
   return (
     <div>
@@ -199,18 +240,13 @@ function TopicAccordion({
           {summaryBadge && (
             <TopicMedal
               difficulty={summaryBadge.difficulty}
-              unlocked
+              unlocked={!!highest}
+              gated={!highest}
               mark={title}
               size={22}
             />
           )}
-          <span
-            className={`text-[11px] ${
-              highest ? "text-amber-200/90" : "text-white/35"
-            }`}
-          >
-            {summary}
-          </span>
+          <span className={`text-[11px] ${summaryTone}`}>{summary}</span>
           <ChevronDownIcon
             className={`h-3.5 w-3.5 text-white/35 transition-transform ${
               open ? "rotate-180" : ""

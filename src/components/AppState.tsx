@@ -30,6 +30,7 @@ import {
   setCollection,
   setFollow,
   acceptTermsRemote,
+  syncOnboardingRemote,
   setAvatarRemote,
   type CollectionKind,
   type Profile,
@@ -233,31 +234,62 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     writeJSON(STORAGE_KEYS.following, remote.following);
   }, []);
 
+  /** Restore terms / onboarding / prefs from the signed-in profile. */
+  const applyProfileOnboarding = useCallback((profile: Profile) => {
+    if (profile.terms_version === TERMS_VERSION && profile.terms_accepted_at) {
+      setTermsAccepted(true);
+      writeJSON(STORAGE_KEYS.termsAccepted, true);
+      writeJSON(STORAGE_KEYS.termsVersion, TERMS_VERSION);
+    }
+    if (profile.auth_seen) {
+      setAuthSeen(true);
+      writeJSON(STORAGE_KEYS.authSeen, true);
+    }
+    if (profile.tutorial_done) {
+      setTutorialDone(true);
+      writeJSON(STORAGE_KEYS.tutorialDone, true);
+    }
+    if (profile.onboarding_done) {
+      setOnboardingDone(true);
+      writeJSON(STORAGE_KEYS.onboardingDone, true);
+    }
+    if (profile.preferences && typeof profile.preferences === "object") {
+      const next = normalizePreferences(profile.preferences);
+      // Cloud prefs win when marked completed so a returning member skips the gate.
+      if (next.completed) {
+        setPreferences(next);
+        writeJSON(STORAGE_KEYS.preferences, next);
+        if (!profile.onboarding_done) {
+          // Prefs already finished elsewhere — don't force personalization again.
+          setOnboardingDone(true);
+          writeJSON(STORAGE_KEYS.onboardingDone, true);
+        }
+      }
+    }
+  }, []);
+
   const hydrateFromCloud = useCallback(
     async (userId: string, opts?: { includeProfile?: boolean; user?: User | null }) => {
       if (hydratedUserIdRef.current === userId) return;
       hydratedUserIdRef.current = userId;
       cloudReady.current = true;
-      const user = opts?.user;
       const [remote, remoteSeen, profile] = await Promise.all([
         fetchUserData(),
         fetchSeen(),
-        opts?.includeProfile && user && !user.is_anonymous
-          ? fetchProfile()
-          : Promise.resolve(null),
+        // Always try — signed-in members restore terms/prefs/onboarding;
+        // guests get null or an empty row and we no-op.
+        fetchProfile(),
       ]);
       mergeSeen(remoteSeen);
       applyRemoteUserData(remote);
       if (profile) {
         setProfile(profile);
-        if (profile.terms_version === TERMS_VERSION && profile.terms_accepted_at) {
-          setTermsAccepted(true);
-          writeJSON(STORAGE_KEYS.termsAccepted, true);
-          writeJSON(STORAGE_KEYS.termsVersion, TERMS_VERSION);
-        }
+        applyProfileOnboarding(profile);
+      } else if (opts?.includeProfile && opts.user && !opts.user.is_anonymous) {
+        setProfile(null);
       }
     },
-    [applyRemoteUserData, mergeSeen],
+    [applyRemoteUserData, applyProfileOnboarding, mergeSeen],
   );
 
   // Hydrate from localStorage immediately (instant + offline cache), then, if
@@ -330,11 +362,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           const p = await fetchProfile();
           if (!cancelled) {
             setProfile(p);
-            if (p?.terms_version === TERMS_VERSION && p.terms_accepted_at) {
-              setTermsAccepted(true);
-              writeJSON(STORAGE_KEYS.termsAccepted, true);
-              writeJSON(STORAGE_KEYS.termsVersion, TERMS_VERSION);
-            }
+            if (p) applyProfileOnboarding(p);
           }
         }
       } catch (err) {
@@ -375,7 +403,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
       sub.subscription.unsubscribe();
     };
-  }, [hydrateFromCloud]);
+  }, [hydrateFromCloud, applyProfileOnboarding]);
 
   const requestSignIn = useCallback(() => {
     setAuthPrompt(true);
@@ -414,6 +442,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const markAuthSeen = useCallback(() => {
     setAuthSeen(true);
     writeJSON(STORAGE_KEYS.authSeen, true);
+    if (cloudReady.current) void syncOnboardingRemote({ auth_seen: true });
   }, []);
 
   const acceptTerms = useCallback(() => {
@@ -530,12 +559,38 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     if (!user || user.is_anonymous) return;
     setAuthSeen(true);
     writeJSON(STORAGE_KEYS.authSeen, true);
+    if (cloudReady.current) void syncOnboardingRemote({ auth_seen: true });
     setAuthPrompt(false);
     if (pendingProReason.current) {
       const reason = pendingProReason.current;
       pendingProReason.current = null;
       setProPrompt(reason);
     }
+  }, [user]);
+
+  /**
+   * One-shot backfill: members who finished onboarding on this device before
+   * profiles gained these columns push local flags up so the next login skips
+   * Terms / personalization.
+   */
+  const onboardingBackfilled = useRef<string | null>(null);
+  useEffect(() => {
+    if (!user || user.is_anonymous) return;
+    if (onboardingBackfilled.current === user.id) return;
+    onboardingBackfilled.current = user.id;
+    if (!cloudReady.current) return;
+    const localOnboarding = readJSON<boolean>(STORAGE_KEYS.onboardingDone, false);
+    const localTutorial = readJSON<boolean>(STORAGE_KEYS.tutorialDone, false);
+    const localPrefs = normalizePreferences(
+      readJSON<Partial<Preferences>>(STORAGE_KEYS.preferences, EMPTY_PREFS),
+    );
+    if (!localOnboarding && !localPrefs.completed && !localTutorial) return;
+    void syncOnboardingRemote({
+      onboarding_done: localOnboarding || localPrefs.completed,
+      tutorial_done: localTutorial,
+      auth_seen: true,
+      ...(localPrefs.completed ? { preferences: localPrefs } : {}),
+    });
   }, [user]);
 
   /**
@@ -585,6 +640,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       if (hasTastePreferences(next) && !feedMatchModeManual) {
         applyFeedMatchMode("strong", false);
       }
+      if (cloudReady.current) {
+        void syncOnboardingRemote({ preferences: next });
+      }
     },
     [applyFeedMatchMode, feedMatchModeManual],
   );
@@ -593,6 +651,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setPreferences((prev) => {
       const next = normalizePreferences({ ...prev, completed: true });
       writeJSON(STORAGE_KEYS.preferences, next);
+      if (cloudReady.current) {
+        void syncOnboardingRemote({ preferences: next });
+      }
       return next;
     });
   }, []);
@@ -600,21 +661,27 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const completeTutorial = useCallback(() => {
     setTutorialDone(true);
     writeJSON(STORAGE_KEYS.tutorialDone, true);
+    if (cloudReady.current) void syncOnboardingRemote({ tutorial_done: true });
   }, []);
 
   const restartTutorial = useCallback(() => {
     setTutorialDone(false);
     writeJSON(STORAGE_KEYS.tutorialDone, false);
+    if (cloudReady.current) void syncOnboardingRemote({ tutorial_done: false });
   }, []);
 
   const completeOnboarding = useCallback(() => {
     setOnboardingDone(true);
     writeJSON(STORAGE_KEYS.onboardingDone, true);
+    if (cloudReady.current) {
+      void syncOnboardingRemote({ onboarding_done: true, auth_seen: true });
+    }
   }, []);
 
   const restartOnboarding = useCallback(() => {
     setOnboardingDone(false);
     writeJSON(STORAGE_KEYS.onboardingDone, false);
+    if (cloudReady.current) void syncOnboardingRemote({ onboarding_done: false });
   }, []);
 
   const savedSet = useMemo(() => new Set(saved), [saved]);
