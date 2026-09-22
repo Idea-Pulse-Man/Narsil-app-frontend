@@ -78,6 +78,7 @@ export default function DiscoverView({
     artistMap,
     getArtist,
     getArtistAvatar,
+    getArtworksByArtist,
   } = useCatalog();
   const { user } = useAppState();
   const { badges } = useQuizBadges(user?.id ?? null, quizRefresh);
@@ -148,15 +149,15 @@ export default function DiscoverView({
     : [];
 
   // ── Lens 3: Artists ── every named artist in the catalog, ranked by
-  // popularity. Real engagement on their works (likes + saves from Supabase)
-  // counts heavily — one like ≈ 1k of the mock profile followers — but blends
-  // into a single score with followers so the grid still reads as sorted by
-  // the follower counts it displays. Anonymous/"Unknown" makers and garbled
-  // catalog names ("? a lithograph", "a painting", "[N") are skipped.
+  // real engagement on their works (likes + saves) and how many pieces are
+  // in the loaded collection. Anonymous/"Unknown" makers and garbled catalog
+  // names ("? a lithograph", "a painting", "[N") are skipped.
   // No cap — the grid pages in via infinite scroll.
   const browseArtists = useMemo(() => {
     const engagement = new Map<string, number>();
+    const workCount = new Map<string, number>();
     for (const art of liveArtworks) {
+      workCount.set(art.artistId, (workCount.get(art.artistId) ?? 0) + 1);
       const score = (art.likeCount ?? 0) + (art.saveCount ?? 0);
       if (score > 0) {
         engagement.set(
@@ -166,7 +167,8 @@ export default function DiscoverView({
       }
     }
     const popularity = (artist: Artist) =>
-      artist.followers + 1_000 * (engagement.get(artist.id) ?? 0);
+      (engagement.get(artist.id) ?? 0) * 1_000 +
+      (workCount.get(artist.id) ?? 0);
 
     const list: Artist[] = [];
     const seen = new Set<string>();
@@ -494,9 +496,9 @@ export default function DiscoverView({
                         <span className="line-clamp-2 text-center text-[11px] leading-tight text-white/65">
                           {artist.name}
                         </span>
-                        <span className="mt-0.5 text-[10px] text-white/40">
-                          {formatFollowers(artist.followers)} followers
-                        </span>
+                        <CollectionCount
+                          count={getArtworksByArtist(artist.id).length}
+                        />
                       </span>
                     </button>
                   ))}
@@ -518,10 +520,11 @@ function EmptyNote({ text }: { text: string }) {
   return <p className="mt-10 text-center text-sm text-white/45">{text}</p>;
 }
 
-/** Compact follower count for the ranked artist grid — 2.1M, 184k, 840. */
-function formatFollowers(n: number): string {
-  if (n >= 1_000_000)
-    return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
-  if (n >= 1_000) return `${Math.round(n / 1_000)}k`;
-  return String(n);
+function CollectionCount({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span className="mt-0.5 text-[10px] text-white/40">
+      {count} {count === 1 ? "work" : "works"}
+    </span>
+  );
 }

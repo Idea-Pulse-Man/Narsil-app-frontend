@@ -31,7 +31,10 @@ export interface Artist {
    * a detailed Wikipedia bio. Artist story cards only appear when this is set.
    */
   profileReady?: boolean;
-  /** Mock social proof — rendered on the profile, persisted nowhere in v1. */
+  /**
+   * Seeded at ingest because museum APIs have no social graph. The profile
+   * does not show these — it uses live follows plus likes and saves on works.
+   */
   followers: number;
   likes: number;
   saves: number;

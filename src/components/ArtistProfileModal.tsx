@@ -1,7 +1,11 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { shouldResolvePortrait, type Artist } from "@/data";
 import { useCatalog } from "@/data/catalog";
+import {
+  fetchArtistEngagement,
+  type ArtistEngagement,
+} from "@/lib/catalog";
 import BlurImage from "./BlurImage";
 import ArtistAvatar from "./ArtistAvatar";
 import { CloseIcon, PlusIcon, CheckIcon } from "./Icons";
@@ -21,8 +25,10 @@ export default function ArtistProfileModal({
   onOpenArtwork,
 }: ArtistProfileModalProps) {
   const { isFollowing, toggleFollowing } = useAppState();
-  const { getArtworksByArtist, getArtistAvatar } = useCatalog();
+  const { getArtworksByArtist, getArtistAvatar, getFypArtistCard } =
+    useCatalog();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [engagement, setEngagement] = useState<ArtistEngagement | null>(null);
   const works = artist ? getArtworksByArtist(artist.id) : [];
   const { visible, sentinelRef, hasMore } = useInfiniteScroll(works, {
     pageSize: 24,
@@ -31,6 +37,38 @@ export default function ArtistProfileModal({
   });
   const isFreelance = artist?.profileType === "freelance";
   const following = artist ? isFollowing(artist.id) : false;
+  const artistId = artist?.id ?? null;
+  const story = artistId ? getFypArtistCard(artistId) : undefined;
+
+  useEffect(() => {
+    if (!artistId) {
+      setEngagement(null);
+      return;
+    }
+    const controller = new AbortController();
+    setEngagement(null);
+    fetchArtistEngagement(artistId, controller.signal)
+      .then((next) => {
+        if (!controller.signal.aborted) setEngagement(next);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setEngagement(null);
+      });
+    return () => controller.abort();
+  }, [artistId]);
+
+  const portrait =
+    story?.portraitUrl ||
+    (artist ? getArtistAvatar(artist.id) : undefined) ||
+    engagement?.avatarUrl ||
+    undefined;
+  const description = (
+    story?.bio ||
+    engagement?.bio ||
+    artist?.bio ||
+    ""
+  ).trim();
+  const famousFor = (story?.famousFor ?? "").trim();
 
   // Scale the display name to its length so long historical names (e.g.
   // "Joseph Mallord William Turner") stay balanced against the avatar instead
@@ -48,7 +86,7 @@ export default function ArtistProfileModal({
           exit={{ opacity: 0 }}
           transition={{ duration: 0.25 }}
           ref={scrollRef}
-          className="absolute inset-0 z-[60] overflow-y-auto bg-ink [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="absolute inset-0 z-[75] overflow-y-auto bg-ink [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {/* Hero */}
           <div className="relative w-full overflow-hidden">
@@ -63,7 +101,7 @@ export default function ArtistProfileModal({
             <div className="relative flex min-h-60 items-center px-6 pb-6 pt-[calc(env(safe-area-inset-top)+1.5rem)]">
               <div className="flex w-full items-center gap-4">
                 <ArtistAvatar
-                  src={getArtistAvatar(artist.id)}
+                  src={portrait}
                   name={artist.name}
                   initials={artist.initials}
                   lookup={shouldResolvePortrait(artist)}
@@ -102,13 +140,37 @@ export default function ArtistProfileModal({
 
           {/* Body */}
           <div className="px-6 pb-[calc(env(safe-area-inset-bottom)+6.5rem)]">
-            {/* Social stats + follow */}
+            {/* Live app counts — follows, and likes/saves on collection works. */}
             <div className="mt-5 flex items-center gap-5">
-              <StatInline label="Followers" value={formatCount(artist.followers)} />
-              <StatInline label="Likes" value={formatCount(artist.likes)} />
-              <StatInline label="Saves" value={formatCount(artist.saves)} />
+              <StatInline
+                label="Followers"
+                value={
+                  engagement ? formatCount(engagement.followers) : "—"
+                }
+              />
+              <StatInline
+                label="Likes"
+                value={engagement ? formatCount(engagement.likes) : "—"}
+              />
+              <StatInline
+                label="Saves"
+                value={engagement ? formatCount(engagement.saves) : "—"}
+              />
               <button
-                onClick={() => toggleFollowing(artist.id)}
+                onClick={() => {
+                  toggleFollowing(artist.id);
+                  setEngagement((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          followers: Math.max(
+                            0,
+                            prev.followers + (following ? -1 : 1),
+                          ),
+                        }
+                      : prev,
+                  );
+                }}
                 className={`ml-auto flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
                   following
                     ? "border border-white/20 bg-white/5 text-white"
@@ -126,21 +188,45 @@ export default function ArtistProfileModal({
                 )}
               </button>
             </div>
-
-            <div className="mt-6 grid grid-cols-2 gap-x-4 gap-y-5 border-y border-white/10 py-6">
-              <Stat label="Period" value={artist.period} />
-              <Stat label="Style" value={artist.style} />
-              <div className="col-span-2">
-                <Stat label="Known for" value={artist.knownFor} />
-              </div>
-            </div>
-
-            <h3 className="mt-6 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/45">
-              {isFreelance ? "About" : "Biography"}
-            </h3>
-            <p className="mt-2 text-[15px] leading-relaxed text-white/75">
-              {artist.bio}
+            <p className="mt-2 max-w-[28rem] text-[11px] leading-snug text-white/40">
+              Followers are people in Narsil. Likes and saves are on this
+              artist&apos;s works in the collection.
             </p>
+
+            {description ? (
+              <div className="mt-6 border-y border-white/10 py-6">
+                {famousFor ? (
+                  <p className="text-[13px] leading-snug text-accent/90">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45">
+                      Famous for
+                    </span>
+                    <span className="mt-1 block font-serif text-[15px] text-white/90">
+                      {famousFor}
+                    </span>
+                  </p>
+                ) : null}
+                <h3
+                  className={`text-[11px] font-semibold uppercase tracking-[0.16em] text-white/45 ${
+                    famousFor ? "mt-5" : ""
+                  }`}
+                >
+                  Description
+                </h3>
+                <p className="mt-2 text-[15px] leading-relaxed text-white/75">
+                  {description}
+                </p>
+              </div>
+            ) : (
+              <div className="mt-6 grid grid-cols-2 gap-x-4 gap-y-5 border-y border-white/10 py-6">
+                <Stat label="Period" value={artist.period} />
+                <Stat label="Style" value={artist.style} />
+                {artist.knownFor ? (
+                  <div className="col-span-2">
+                    <Stat label="Known for" value={artist.knownFor} />
+                  </div>
+                ) : null}
+              </div>
+            )}
 
             <div className="mt-8 flex items-baseline justify-between">
               <h3 className="font-serif text-xl text-white">

@@ -745,3 +745,67 @@ export async function fetchSupabaseCatalog(
     fypArtistCards,
   };
 }
+
+/** Live profile counts: Narsil follows, plus likes and saves on collection works. */
+export interface ArtistEngagement {
+  followers: number;
+  likes: number;
+  saves: number;
+  /** Biography stored on the artist row, when the For You card has none. */
+  bio: string;
+  avatarUrl: string | null;
+}
+
+/**
+ * Real engagement for one artist. `followers` is `artists.follower_count`
+ * (people who follow them in the app). Likes and saves are summed from their
+ * works in the museum catalog — not the seeded `artists.likes` / `artists.saves`.
+ */
+export async function fetchArtistEngagement(
+  artistId: string,
+  signal?: AbortSignal,
+): Promise<ArtistEngagement | null> {
+  if (!supabase || !artistId) return null;
+
+  let artistQuery = supabase
+    .from("artists")
+    .select("follower_count, bio, avatar_url")
+    .eq("id", artistId)
+    .maybeSingle();
+  let worksQuery = supabase
+    .from("artworks")
+    .select("like_count, save_count")
+    .eq("artist_id", artistId)
+    .limit(1000);
+  if (signal) {
+    artistQuery = artistQuery.abortSignal(signal);
+    worksQuery = worksQuery.abortSignal(signal);
+  }
+
+  const [artistRes, worksRes] = await Promise.all([artistQuery, worksQuery]);
+  if (artistRes.error) throw artistRes.error;
+  if (worksRes.error) throw worksRes.error;
+
+  const row = artistRes.data as {
+    follower_count?: number | null;
+    bio?: string | null;
+    avatar_url?: string | null;
+  } | null;
+  let likes = 0;
+  let saves = 0;
+  for (const work of (worksRes.data ?? []) as {
+    like_count?: number | null;
+    save_count?: number | null;
+  }[]) {
+    likes += work.like_count ?? 0;
+    saves += work.save_count ?? 0;
+  }
+
+  return {
+    followers: row?.follower_count ?? 0,
+    likes,
+    saves,
+    bio: (row?.bio ?? "").trim(),
+    avatarUrl: row?.avatar_url?.trim() || null,
+  };
+}

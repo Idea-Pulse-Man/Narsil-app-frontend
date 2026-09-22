@@ -659,7 +659,9 @@ export function CatalogProvider({
       getArtistAvatar: (artistId) => {
         const artist = artistMap[artistId];
         if (!artist || isGenericMakerName(artist.name)) return undefined;
-        return artist.avatar;
+        // For You cards store the curated portrait. Prefer that over a missing
+        // or stale `artists.avatar_url` so the profile matches the feed.
+        return fypArtistCardMap[artistId]?.portraitUrl || artist.avatar;
       },
       getArtworksByCategory: (id) =>
         browseArtworks.filter((a) => artworkMatchesCategory(a, id)),
