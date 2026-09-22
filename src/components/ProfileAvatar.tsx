@@ -72,7 +72,9 @@ export default function ProfileAvatar({
   const frameLevelId =
     worn?.kind === "assessment" ? (worn.levelId ?? levelId) : levelId;
   const seal = worn?.kind === "discover" ? worn : null;
-  const photoSize = Math.round(size * 0.58);
+  // Largest circle that stays inside the wreath opening (the ring's
+  // thinnest outer edge is about 52% of the frame art).
+  const photoSize = Math.round(size * 0.5);
 
   const openMenu = () => {
     if (busy) return;
@@ -98,7 +100,7 @@ export default function ProfileAvatar({
             style={{
               width: photoSize,
               height: photoSize,
-              fontSize: Math.round(photoSize * 0.42),
+              fontSize: Math.round(photoSize * 0.6),
             }}
           >
             {avatarUrl ? (
