@@ -53,6 +53,27 @@ describe("isCanvasPrintSuitable", () => {
     ).toBe(true);
   });
 
+  it("allows still-life paintings of objects", () => {
+    expect(
+      isCanvasPrintSuitable(
+        art({ title: "Basket of Apples", medium: "Oil on canvas" }),
+      ),
+    ).toBe(true);
+    expect(
+      isCanvasPrintSuitable(
+        art({ title: "Van Gogh's Chair", medium: "Oil on canvas" }),
+      ),
+    ).toBe(true);
+    expect(
+      isCanvasPrintSuitable(
+        art({
+          title: "Judith with a sword holding the head of Holofernes",
+          medium: "Oil on canvas",
+        }),
+      ),
+    ).toBe(true);
+  });
+
   it("rejects sculpture and pottery categories", () => {
     expect(
       isCanvasPrintSuitable(art({ category: "sculptures", medium: "Marble" })),
@@ -78,6 +99,63 @@ describe("isCanvasPrintSuitable", () => {
           category: "roman",
           medium: "Marble",
           title: "Portrait Bust",
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it("rejects crafts and 3D museum pieces that cannot ship as canvas", () => {
+    expect(
+      isCanvasPrintSuitable(
+        art({
+          title: "Sifting Basket",
+          medium: "Black ash and oak",
+          tags: ["Basketry", "Basket"],
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      isCanvasPrintSuitable(
+        art({
+          title: "Armchair",
+          medium: "Mahogany",
+          tags: ["Furniture"],
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      isCanvasPrintSuitable(
+        art({
+          title: "Necklace",
+          medium: "Gold",
+          tags: ["Jewelry"],
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      isCanvasPrintSuitable(
+        art({
+          title: "Furisode",
+          medium: "Silk, metallic thread",
+          tags: ["Costumes", "Kimono"],
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      isCanvasPrintSuitable(
+        art({
+          title: "Decorative Plaque: Ram-Headed Sphinxes",
+          medium: "Ivory",
+          tags: ["Ivories"],
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      isCanvasPrintSuitable(
+        art({
+          title: "Vajrapani Embroidered Mount with Garuda",
+          medium: "Silk embroidery",
+          tags: ["Textiles"],
         }),
       ),
     ).toBe(false);

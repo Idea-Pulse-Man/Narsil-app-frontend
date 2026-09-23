@@ -54,18 +54,50 @@ function isAllowlistedMuseumArtwork(artwork: Artwork): boolean {
 const NON_CANVAS_CATEGORIES = new Set(["sculptures", "pottery"]);
 
 /**
- * Medium / title tokens that mark pots, sculpture, and other objects that
- * should not be merchandised as stretched canvas — including empire-tagged
- * antiquities whose category is greek/roman/egyptian rather than pottery.
+ * Painting / drawing supports. Used to keep still lifes ("Basket of Fruit")
+ * when the title names an object.
  */
-const NON_CANVAS_OBJECT_RE =
-  /\b(sculpture|statue|bust|figurine|terracotta|ceramic|porcelain|earthenware|stoneware|amphora|vase|vessel|pottery|marble|bronze|alabaster|faience|steatite|relief|carved|carving)\b|\b(covered\s+)?(pot|jar|bowl|urn|ewer|kylix|krater)\b/i;
+const PAINTING_MEDIUM_RE =
+  /\b(oil(?:\s+painting)?|acrylic|tempera|gouache|watercolou?r|fresco|encaustic|pastel)s?\b|\b(charcoal|graphite|pencil|crayon|chalk|ink|wash|distemper|collage|drawing|sketch)\b.{0,32}\bon\b|\bon (canvas|panel|paper|board|cardboard|linen|silk|wood|copper|vellum|parchment|masonite)\b|\b(ukiyo-?e|hanging scroll|handscroll|album leaf)\b/i;
 
-/** True when the work is flat art suitable for a canvas print (not a pot/sculpture). */
-export function isCanvasPrintSuitable(artwork: Artwork): boolean {
-  if (NON_CANVAS_CATEGORIES.has(artwork.category)) return false;
-  const haystack = `${artwork.medium} ${artwork.title}`;
-  return !NON_CANVAS_OBJECT_RE.test(haystack);
+/**
+ * Physical crafts / museum pieces — never sold as canvas, even if the medium
+ * mentions silk or ink (kimonos, embroidered mounts, furniture).
+ */
+const CRAFT_OBJECT_RE =
+  /\b(furniture|armchair|necklace|earring|bracelet|brooch|pendant|locket|tiara|diadem|jewel(?:le)?ry|buckle|costumes?|kimono|garment|musical instruments?|arms and armou?r|candlestick|chandelier|andiron|snuffbox|netsuke|inr[oō]|tsuba|casket|sarcophagus|teapot|pitcher|platter|tureen|tankard|parasol|saddle|bridle|stirrup|quilt|embroid(?:ery|ed)|tapestry|carpet|rug|sampler|basketry|wicker|rattan|textiles?|plant fibres?|plant fibers?|ash splints?|plaque|stele|censer|incense burner|coins?|medals?)\b/i;
+
+/**
+ * Words that appear both on 3D objects and in still-life / history paintings.
+ * Keep only when the medium is clearly paint or drawing.
+ */
+const DEPICTED_OBJECT_RE =
+  /\b(sculpture|statue|bust|figurine|terracotta|ceramic|porcelain|earthenware|stoneware|amphora|vase|vessel|pottery|marble|bronze|alabaster|faience|steatite|relief|carved|carving|basket|fan|mask|bottle|chair|stool|armor|armour|helmet|sword|clock|goblet|chalice|mummy|coffin|mirror)\b|\b(covered\s+)?(pot|jar|bowl|urn|ewer|kylix|krater)\b/i;
+
+type CanvasSuitabilityFields = {
+  category: string | null;
+  medium: string | null;
+  title: string | null;
+  period?: string | null;
+  tags?: string[] | null;
+};
+
+/** True when the work is flat art suitable for a canvas print (not a craft/object). */
+export function isCanvasPrintSuitable(artwork: CanvasSuitabilityFields): boolean {
+  if (artwork.category && NON_CANVAS_CATEGORIES.has(artwork.category)) {
+    return false;
+  }
+  const medium = artwork.medium ?? "";
+  const identity = [artwork.title ?? "", artwork.period ?? "", ...(artwork.tags ?? [])].join(
+    " ",
+  );
+  if (CRAFT_OBJECT_RE.test(identity) || CRAFT_OBJECT_RE.test(medium)) {
+    return false;
+  }
+  if (DEPICTED_OBJECT_RE.test(identity)) {
+    return PAINTING_MEDIUM_RE.test(medium);
+  }
+  return !DEPICTED_OBJECT_RE.test(medium);
 }
 
 /** True when this artwork may be ordered as a canvas print. */

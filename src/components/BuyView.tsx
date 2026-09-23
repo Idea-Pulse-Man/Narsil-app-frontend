@@ -93,25 +93,39 @@ export default function BuyView({ showToast, active = true }: BuyViewProps) {
       if (offsetRef.current[src] === 0) setShopLoading(true);
       else setLoadingMore(true);
       try {
-        const page = await fetchSellableArtworkBatch(
-          offsetRef.current[src],
-          CATALOG_BATCH_SIZE,
-          src,
-          signal,
-        );
-        if (signal?.aborted) return;
-        rememberSearchHits(page);
-        const sellable = page.artworks.filter(
-          (art) => isCanvasSellable(art) && matchesSource(art, src),
-        );
-        offsetRef.current[src] += page.artworks.length;
-        const more = page.artworks.length >= CATALOG_BATCH_SIZE;
-        serverHasMoreRef.current[src] = more;
-        setShop((prev) => ({
-          ...prev,
-          [src]: mergeById(prev[src], sellable),
-        }));
-        setServerHasMore((prev) => ({ ...prev, [src]: more }));
+        // Crafts/objects are dropped after fetch. Keep pulling until a page
+        // actually yields canvases, otherwise the grid can look empty while
+        // more museum paintings sit further down the catalogue.
+        const MAX_EMPTY_PULLS = 8;
+        let pulls = 0;
+        let added = 0;
+        let more = serverHasMoreRef.current[src];
+        while (pulls < MAX_EMPTY_PULLS && more) {
+          const page = await fetchSellableArtworkBatch(
+            offsetRef.current[src],
+            CATALOG_BATCH_SIZE,
+            src,
+            signal,
+          );
+          if (signal?.aborted) return;
+          pulls += 1;
+          rememberSearchHits(page);
+          const sellable = page.artworks.filter(
+            (art) => isCanvasSellable(art) && matchesSource(art, src),
+          );
+          offsetRef.current[src] += page.artworks.length;
+          more = page.artworks.length >= CATALOG_BATCH_SIZE;
+          serverHasMoreRef.current[src] = more;
+          if (sellable.length) {
+            added += sellable.length;
+            setShop((prev) => ({
+              ...prev,
+              [src]: mergeById(prev[src], sellable),
+            }));
+          }
+          setServerHasMore((prev) => ({ ...prev, [src]: more }));
+          if (added > 0) break;
+        }
       } catch (err) {
         if (!signal?.aborted) {
           console.warn("Gallery: canvas page failed.", err);
