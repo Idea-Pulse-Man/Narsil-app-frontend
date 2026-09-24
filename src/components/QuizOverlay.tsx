@@ -33,6 +33,8 @@ import {
   type BadgeMap,
 } from "@/lib/quiz";
 import { useCatalog } from "@/data/catalog";
+import { displayImageUrl } from "@/lib/imageUrl";
+import { fetchDailyQuizQuestions } from "@/lib/dailyQuiz";
 import {
   submitDailyQuizResult,
   fetchLevelBoard,
@@ -308,26 +310,25 @@ export default function QuizOverlay({
       return;
     }
 
-    // New session for today — salted per user (signed-in id, else per-install)
-    // so every user gets their own daily set from the shared catalog, and a
-    // signed-in account sees the same daily across devices.
-    const built = buildDailyQuiz(
-      pool,
-      todayKey(),
-      DAILY_COUNT,
-      quizSalt(user),
-      artists,
-    );
-    if (built.length === 0) return;
-    const session = newDailySession(built);
-    saveDailySession(session);
-    setDailySession(session);
-    setQuestions(built);
-    setCorrect([]);
-    setQIndex(0);
-    setSelected(null);
-    questionShownAt.current = Date.now();
-    setStage("playing");
+    // Prefer the shared Supabase edition (cron + admin specials). If that day
+    // has no rows yet, build one on device so the assessment is never blank.
+    void (async () => {
+      const remote = await fetchDailyQuizQuestions();
+      const built =
+        remote.length > 0
+          ? remote
+          : buildDailyQuiz(pool, todayKey(), DAILY_COUNT, quizSalt(user), artists);
+      if (built.length === 0) return;
+      const session = newDailySession(built);
+      saveDailySession(session);
+      setDailySession(session);
+      setQuestions(built);
+      setCorrect([]);
+      setQIndex(0);
+      setSelected(null);
+      questionShownAt.current = Date.now();
+      setStage("playing");
+    })();
   }, [dailyMode, dailySession, openReview, pool, artists, user]);
 
   const startPractice = useCallback(() => {
@@ -470,6 +471,19 @@ export default function QuizOverlay({
 
   const current = questions[qIndex];
   const practiceScore = !isDaily ? correct.filter(Boolean).length : 0;
+
+  // The card is ~340px. Warm this question and the next two at that size so
+  // advancing doesn't wait on another Wikimedia fetch.
+  useEffect(() => {
+    if (stage !== "playing") return;
+    for (const q of questions.slice(qIndex, qIndex + 3)) {
+      const url = q.artwork.image;
+      if (!url) continue;
+      const img = new Image();
+      img.decoding = "async";
+      img.src = displayImageUrl(url, 340);
+    }
+  }, [stage, questions, qIndex]);
 
   return (
     <AnimatePresence>

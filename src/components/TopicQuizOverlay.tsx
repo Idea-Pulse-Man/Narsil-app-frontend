@@ -20,6 +20,7 @@ import {
   type QuizQuestion,
   type TopicQuizLaunch,
 } from "@/lib/quiz";
+import { displayImageUrl } from "@/lib/imageUrl";
 import { loadBankQuizQuestions } from "@/lib/quizBank";
 import { WORLD } from "@/data/worldCopy";
 import { useAppState } from "./AppState";
@@ -246,6 +247,17 @@ export default function TopicQuizOverlay({
   );
 
   const current = questions[qIndex];
+
+  useEffect(() => {
+    if (stage !== "playing") return;
+    for (const q of questions.slice(qIndex, qIndex + 3)) {
+      const url = q.artwork.image;
+      if (!url) continue;
+      const img = new Image();
+      img.decoding = "async";
+      img.src = displayImageUrl(url, 340);
+    }
+  }, [stage, questions, qIndex]);
   const score = correct.filter(Boolean).length;
   const total = questions.length;
   const perfect = total > 0 && score === total;

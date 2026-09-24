@@ -12,7 +12,7 @@
  * `fetch` would spam the console even when caught.
  */
 
-import { corsFetchImageUrl } from "./imageUrl";
+import { corsFetchImageUrl, displayImageUrl } from "./imageUrl";
 
 const CACHE_NAME = "narsil-feed-images-v1";
 const MAX_CACHED = 4;
@@ -53,7 +53,7 @@ function warmHttpCache(url: string): void {
   const img = new Image();
   img.decoding = "async";
   img.onload = () => markImageWarmed(url);
-  img.src = url;
+  img.src = displayImageUrl(url);
 }
 
 /** Download and remember the first feed images. Safe to call repeatedly. */

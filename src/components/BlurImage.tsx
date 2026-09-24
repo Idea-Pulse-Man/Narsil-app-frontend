@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type Ref } from "react";
-import { sizedImageUrl, previewImageUrl, corsFetchImageUrl, isS3Url } from "@/lib/imageUrl";
+import { sizedImageUrl, previewImageUrl, displayImageUrl, corsFetchImageUrl, isS3Url } from "@/lib/imageUrl";
 import { resolveCachedImage, isImageWarmed, markImageWarmed } from "@/lib/imageCache";
 import { isNgrokUrl, resolveNgrokImageSrc } from "@/lib/ngrok";
 import { useInView } from "@/hooks/useInView";
@@ -27,6 +27,12 @@ interface BlurImageProps {
   syncToken?: number;
   /** When set, requests a smaller source image for grids and thumbnails. */
   thumbWidth?: number;
+  /**
+   * Cap a full-bleed Wikimedia image to this CSS size (2×). Used by the quiz
+   * card, which is only ~340px — the stored URL asks for 1000px via a slow
+   * redirect.
+   */
+  maxWidth?: number;
   /** When false, do not attach a src (pause downloads on a hidden tab). */
   load?: boolean;
 }
@@ -64,6 +70,7 @@ export default function BlurImage({
   zoomable = false,
   syncToken,
   thumbWidth,
+  maxWidth,
   load = true,
 }: BlurImageProps) {
   const [displaySrc, setDisplaySrc] = useState(src);
@@ -82,10 +89,11 @@ export default function BlurImage({
     rootMargin: "160px",
   });
   const shouldLoad = load && (priority || !isThumb || inView);
-  const renderSrc =
-    isThumb && !displaySrc.startsWith("blob:")
+  const renderSrc = displaySrc.startsWith("blob:")
+    ? displaySrc
+    : isThumb
       ? sizedImageUrl(displaySrc, thumbWidth)
-      : displaySrc;
+      : displayImageUrl(displaySrc, maxWidth);
   const previewSrc = isThumb ? null : previewImageUrl(src);
 
   // Retry a timed-out S3/CDN request instead of leaving the card black:

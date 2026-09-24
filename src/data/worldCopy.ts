@@ -80,7 +80,7 @@ export interface AppraisalRank {
   message: string;
 }
 
-/** Daily Royal Assessment ranks — keyed by score out of 7. */
+/** Daily Royal Assessment ranks. Index 0–7 is a ratio of the day's length (10 by default). */
 export const APPRAISAL_RANKS: Record<number, AppraisalRank> = {
   0: {
     title: "Exiled to the Wastelands",
@@ -138,9 +138,10 @@ export function appraisalFor(
   total: number,
   isDaily: boolean
 ): { title: string | null; message: string } {
-  if (isDaily && total === 7 && APPRAISAL_RANKS[score]) {
-    const rank = APPRAISAL_RANKS[score];
-    return { title: rank.title, message: rank.message };
+  if (isDaily && total > 0) {
+    const bucket = Math.max(0, Math.min(7, Math.round((score / total) * 7)));
+    const rank = APPRAISAL_RANKS[bucket];
+    if (rank) return { title: rank.title, message: rank.message };
   }
   return { title: null, message: practiceVerdict(score, total) };
 }

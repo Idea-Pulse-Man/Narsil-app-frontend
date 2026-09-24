@@ -1,7 +1,7 @@
 /**
  * The daily quiz.
  *
- * Seven questions with a randomized mix of playable modes (title, artist,
+ * Ten questions with a randomized mix of playable modes (title, artist,
  * date, origin, medium, period, collection, subject), selected
  * deterministically from the day's date seed so it reads as a shared "daily
  * challenge". The pool can still grow as the backend loads — we accept that
@@ -15,7 +15,8 @@ import { buildQuestion, pickRandomMode } from "./generator";
 import { eligibleFor, type ArtistIndex } from "./pool";
 import { hashString, mulberry32, shuffle } from "./random";
 
-export const DAILY_COUNT = 7;
+/** Generated size of the shared daily. A stored edition may be shorter or longer. */
+export const DAILY_COUNT = 10;
 
 /** Local calendar day as "YYYY-MM-DD". */
 export function dateKey(date: Date): string {

@@ -63,6 +63,7 @@ export default function QuizQuestion({
             alt="Artwork to identify"
             accent={question.artwork.accent}
             fit="contain"
+            maxWidth={340}
             priority
           />
           <span className="absolute left-3 top-3 rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/80 backdrop-blur-md">

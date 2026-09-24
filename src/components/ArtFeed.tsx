@@ -6,6 +6,7 @@ import { orderSessionFeed, interleaveStorySlides, shufflePreRankedBatches, diver
 import { prioritizeByTaste, hasTastePreferences } from "@/lib/personalize";
 import { isRenderableFeedItem } from "@/lib/feedItemGuards";
 import { markImageWarmed } from "@/lib/imageCache";
+import { displayImageUrl } from "@/lib/imageUrl";
 import { useAppState } from "./AppState";
 import ArtworkCard from "./ArtworkCard";
 import StoryCard from "./StoryCard";
@@ -181,7 +182,7 @@ export default function ArtFeed({
       const img = new Image();
       img.decoding = "async";
       img.onload = () => markImageWarmed(art.image);
-      img.src = art.image;
+      img.src = displayImageUrl(art.image);
     },
     [getArtwork, active],
   );

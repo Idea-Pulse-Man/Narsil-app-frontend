@@ -21,6 +21,7 @@ import {
   insertQuizQuestion,
   type QuizBankRow,
 } from "@/lib/quizBank";
+import DailyQuizAdmin from "./DailyQuizAdmin";
 import {
   AdminListCard,
   AdminState,
@@ -120,6 +121,7 @@ export default function AdminQuiz({ showToast }: AdminQuizProps) {
 
   return (
     <div className="mt-5">
+      <DailyQuizAdmin showToast={showToast} />
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
