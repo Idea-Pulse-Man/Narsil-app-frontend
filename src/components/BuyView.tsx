@@ -99,7 +99,7 @@ export default function BuyView({ showToast, active = true }: BuyViewProps) {
         const MAX_EMPTY_PULLS = 8;
         let pulls = 0;
         let added = 0;
-        let more = serverHasMoreRef.current[src];
+        let more: boolean = true;
         while (pulls < MAX_EMPTY_PULLS && more) {
           const page = await fetchSellableArtworkBatch(
             offsetRef.current[src],

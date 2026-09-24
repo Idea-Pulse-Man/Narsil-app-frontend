@@ -770,19 +770,20 @@ export async function fetchArtistEngagement(
   let artistQuery = supabase
     .from("artists")
     .select("follower_count, bio, avatar_url")
-    .eq("id", artistId)
-    .maybeSingle();
+    .eq("id", artistId);
   let worksQuery = supabase
     .from("artworks")
     .select("like_count, save_count")
-    .eq("artist_id", artistId)
-    .limit(1000);
+    .eq("artist_id", artistId);
   if (signal) {
     artistQuery = artistQuery.abortSignal(signal);
     worksQuery = worksQuery.abortSignal(signal);
   }
 
-  const [artistRes, worksRes] = await Promise.all([artistQuery, worksQuery]);
+  const [artistRes, worksRes] = await Promise.all([
+    artistQuery.maybeSingle(),
+    worksQuery.limit(1000),
+  ]);
   if (artistRes.error) throw artistRes.error;
   if (worksRes.error) throw worksRes.error;
 
