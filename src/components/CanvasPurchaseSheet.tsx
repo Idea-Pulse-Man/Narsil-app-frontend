@@ -19,7 +19,7 @@ import { useCatalog } from "@/data/catalog";
 import { useAppState } from "./AppState";
 import { fetchAddresses, createAddress, type Address } from "@/lib/orders";
 import { addressProblem, normalizeAddress } from "@/lib/address";
-import { COUNTRIES, subdivisionsFor } from "@/lib/countries";
+import { SHIPPING_COUNTRIES, SHIPPING_COUNTRY, subdivisionsFor } from "@/lib/countries";
 import {
   PAYMENTS_ENABLED,
   IS_NATIVE,
@@ -42,7 +42,7 @@ const EMPTY_FORM = {
   city: "",
   region: "",
   postal_code: "",
-  country: "",
+  country: SHIPPING_COUNTRY,
 };
 
 /** Dark PaymentElement styling to match the sheet. */
@@ -335,7 +335,7 @@ export default function CanvasPurchaseSheet({
                   <div className="mt-3 space-y-2">
                     {addresses.map((addr) => {
                       const selected = selectedAddressId === addr.id;
-                      const incomplete = addressProblem(addr) !== null;
+                      const problem = addressProblem(addr);
                       return (
                         <button
                           key={addr.id}
@@ -361,11 +361,10 @@ export default function CanvasPurchaseSheet({
                                 .filter(Boolean)
                                 .join(", ")}
                             </span>
-                            {incomplete && (
+                            {problem && (
                               <span className="mt-1 block text-xs text-amber-300/80">
-                                Incomplete — add the state and country under{" "}
-                                {WORLD.member}
-                                → Delivery addresses
+                                {problem} Edit it under {WORLD.member}
+                                → Delivery addresses.
                               </span>
                             )}
                           </span>
@@ -410,7 +409,7 @@ export default function CanvasPurchaseSheet({
                     <AddressSelect
                       label="Country"
                       value={form.country}
-                      options={COUNTRIES}
+                      options={SHIPPING_COUNTRIES}
                       onChange={(v) => {
                         setField("country", v);
                         // The old region belongs to the old country's list.

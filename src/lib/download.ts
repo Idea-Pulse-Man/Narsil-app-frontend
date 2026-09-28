@@ -451,6 +451,10 @@ export async function downloadArtwork(
   if (res.status === 402) {
     throw new ProRequiredError();
   }
+  if (res.status === 429) {
+    showToast("Download limit reached — try again in a few minutes");
+    return;
+  }
   if (!res.ok) {
     showToast(`Extract failed (${res.status})`);
     return;

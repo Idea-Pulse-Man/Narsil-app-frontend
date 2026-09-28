@@ -13,6 +13,7 @@
 
 import {
   COUNTRIES,
+  SHIPPING_COUNTRY,
   SUBDIVISIONS,
   isCountryCode,
   subdivisionsFor,
@@ -102,6 +103,9 @@ export function addressProblem(address: AddressFields): string | null {
 
   const countryCode = toCountryCode(address.country ?? "");
   if (!countryCode) return "Pick a delivery country from the list.";
+  if (countryCode !== SHIPPING_COUNTRY) {
+    return "Canvas prints ship to US addresses only.";
+  }
 
   if (countryCode in SUBDIVISIONS && !toStateCode(address.region ?? "", countryCode)) {
     return "Pick a state/province from the list.";

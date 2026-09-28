@@ -365,3 +365,11 @@ export const SUBDIVISIONS: Record<string, Country[]> = {
 /** The subdivision options for a country, or null when none are required. */
 export const subdivisionsFor = (countryCode: string): Country[] | null =>
   SUBDIVISIONS[countryCode.trim().toUpperCase()] ?? null;
+
+/** Canvas prints ship inside the United States only. */
+export const SHIPPING_COUNTRY = "US";
+
+/** The country picker options for delivery addresses. */
+export const SHIPPING_COUNTRIES: Country[] = COUNTRIES.filter(
+  (c) => c.code === SHIPPING_COUNTRY,
+);

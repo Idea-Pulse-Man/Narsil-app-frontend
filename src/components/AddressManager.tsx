@@ -9,7 +9,7 @@ import {
   type Address,
 } from "@/lib/orders";
 import { addressProblem, normalizeAddress } from "@/lib/address";
-import { COUNTRIES, subdivisionsFor } from "@/lib/countries";
+import { SHIPPING_COUNTRIES, SHIPPING_COUNTRY, subdivisionsFor } from "@/lib/countries";
 import { CloseIcon, CheckIcon } from "./Icons";
 import type { ToastState } from "./Toast";
 
@@ -27,7 +27,7 @@ const EMPTY_FORM = {
   city: "",
   region: "",
   postal_code: "",
-  country: "",
+  country: SHIPPING_COUNTRY,
 };
 
 type FormState = typeof EMPTY_FORM;
@@ -289,7 +289,7 @@ export default function AddressManager({
                   <Select
                     label="Country"
                     value={form.country}
-                    options={COUNTRIES}
+                    options={SHIPPING_COUNTRIES}
                     onChange={(v) => {
                       setField("country", v);
                       // The old region belongs to the old country's list.
