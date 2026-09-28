@@ -15,15 +15,16 @@ function MemberAvatar({
   levelId,
   highlight,
   ink,
+  size = 44,
 }: {
   name: string;
   avatarUrl: string | null;
   levelId: number;
   highlight?: boolean;
   ink: ScrollInk;
+  size?: number;
 }) {
   const initial = (name.charAt(0) || "?").toUpperCase();
-  const size = 44;
   const photoSize = Math.round(size * 0.5);
   const photoTone =
     ink === "dark"
@@ -61,17 +62,20 @@ function MemberAvatar({
   );
 }
 
-function BoardRows({
+export function BoardRows({
   rows,
   ink,
   levelId,
   scrollable,
+  dense,
 }: {
   rows: BoardRow[];
   ink: ScrollInk;
   levelId: number;
   /** Cap height so a long Hall cannot bury the rest of the hub. */
   scrollable?: boolean;
+  /** Tighter rows for the narrow opening of the full-screen Hall frame. */
+  dense?: boolean;
 }) {
   const nodes: ReactNode[] = [];
   const { muted, strong, youRow, peerRow } = scrollPalette(ink);
@@ -92,12 +96,13 @@ function BoardRows({
     nodes.push(
       <div
         key={`${row.rank}-${row.userId}`}
-        className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${
-          row.isYou ? youRow : peerRow
-        }`}
+        data-you={row.isYou || undefined}
+        className={`flex items-center rounded-xl border ${
+          dense ? "gap-1.5 px-1.5 py-1" : "gap-3 px-3 py-2.5"
+        } ${row.isYou ? youRow : peerRow}`}
       >
         <span
-          className={`w-6 shrink-0 text-center text-xs font-semibold tabular-nums ${muted}`}
+          className={`${dense ? "w-5" : "w-6"} shrink-0 text-center text-xs font-semibold tabular-nums ${muted}`}
         >
           {row.rank}
         </span>
@@ -107,20 +112,24 @@ function BoardRows({
           levelId={levelId}
           highlight={row.isYou}
           ink={ink}
+          size={dense ? 34 : 44}
         />
         <div className="min-w-0 flex-1">
-          <p className={`truncate text-sm font-medium ${strong}`}>
+          <p className={`truncate ${dense ? "text-[13px]" : "text-sm"} font-medium ${strong}`}>
             {row.isYou ? "You" : row.displayName}
           </p>
         </div>
-        <span className={`shrink-0 text-sm font-semibold tabular-nums ${strong}`}>
+        <span
+          className={`shrink-0 ${dense ? "text-[13px]" : "text-sm"} font-semibold tabular-nums ${strong}`}
+        >
           {row.points.toLocaleString()}
         </span>
       </div>,
     );
   }
 
-  const list = <div className="space-y-2">{nodes}</div>;
+  const list = <div className={dense ? "space-y-1.5" : "space-y-2"}>{nodes}</div>;
+  if (dense) return list;
   if (!scrollable || rows.length <= HALL_VISIBLE_ROWS) {
     return <div className="mt-3">{list}</div>;
   }
@@ -144,6 +153,8 @@ interface QuizRankingProps {
   compact?: boolean;
   /** Hub only — keep the Hall from pushing Study options off-screen. */
   scrollable?: boolean;
+  /** Show an "Enter the Hall" button instead of rows; rows live in HallScreen. */
+  onEnterHall?: () => void;
 }
 
 export default function QuizRanking({
@@ -153,9 +164,10 @@ export default function QuizRanking({
   ink,
   compact,
   scrollable = false,
+  onEnterHall,
 }: QuizRankingProps) {
   const title = levelTitle(levelId);
-  const { label, body, box } = scrollPalette(ink);
+  const { label, body, box, heading, muted } = scrollPalette(ink);
   const { requestSignIn } = useAppState();
 
   return (
@@ -177,6 +189,24 @@ export default function QuizRanking({
           className={`mt-3 w-full rounded-xl border px-4 py-3 text-left text-sm ${box} ${body}`}
         >
           Sign in to join the Hall and appear on the rankings.
+        </button>
+      ) : onEnterHall ? (
+        <button
+          type="button"
+          onClick={onEnterHall}
+          className={`mt-3 flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left ${box}`}
+        >
+          <span className="min-w-0">
+            <span className={`block font-serif text-base ${heading}`}>
+              Enter the Hall
+            </span>
+            <span className={`mt-0.5 block text-[12px] ${muted}`}>
+              {board?.rank != null
+                ? `You stand #${board.rank} among ${title}s today`
+                : `See today’s ${title}s`}
+            </span>
+          </span>
+          <span className={muted}>›</span>
         </button>
       ) : board && board.rows.length > 0 ? (
         <BoardRows

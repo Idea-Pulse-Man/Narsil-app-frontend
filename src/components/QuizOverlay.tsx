@@ -46,6 +46,7 @@ import QuizQuestionView from "./QuizQuestion";
 import QuizResults from "./QuizResults";
 import QuizRanking from "./QuizRanking";
 import QuizScrollFrame from "./QuizScrollFrame";
+import HallScreen from "./HallScreen";
 import StudyBadgePage, {
   DiscoverLevelCard,
 } from "./StudyBadgePage";
@@ -635,6 +636,7 @@ function QuizHub({
     catalog,
   );
   const [hubTab, setHubTab] = useState<"hall" | "study">("hall");
+  const [hallOpen, setHallOpen] = useState(false);
 
   const done = dailyMode === "review" || dailyMode === "locked";
   const dailyCta =
@@ -661,177 +663,185 @@ function QuizHub({
     : "border-amber-200/30 bg-[#f6ead0] text-[#2a1c0c]";
 
   return (
-    <QuizScrollFrame
-      levelId={levelId}
-      footer={
-        <div className="relative px-[13%] pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-1">
-          <button
-            type="button"
-            disabled={
-              loading || dailyMode === "locked" || (!dailyReady && dailyMode === "new")
-            }
-            onClick={onDaily}
-            className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3.5 text-left disabled:opacity-55 ${cta}`}
-          >
-            <span>
-              <span className="block font-serif text-lg">
-                {dailyMode === "resume"
-                  ? `${WORLD.royalAssessment} — in progress`
-                  : done
-                    ? `${WORLD.royalAssessment} complete`
-                    : WORLD.royalAssessment}
+    <>
+      <QuizScrollFrame
+        levelId={levelId}
+        footer={
+          <div className="relative px-[13%] pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-1">
+            <button
+              type="button"
+              disabled={
+                loading || dailyMode === "locked" || (!dailyReady && dailyMode === "new")
+              }
+              onClick={onDaily}
+              className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3.5 text-left disabled:opacity-55 ${cta}`}
+            >
+              <span>
+                <span className="block font-serif text-lg">
+                  {dailyMode === "resume"
+                    ? `${WORLD.royalAssessment} — in progress`
+                    : done
+                      ? `${WORLD.royalAssessment} complete`
+                      : WORLD.royalAssessment}
+                </span>
+                <span className="mt-0.5 block text-[12px] opacity-90">
+                  {dailySubtitle}
+                </span>
               </span>
-              <span className="mt-0.5 block text-[12px] opacity-90">
-                {dailySubtitle}
-              </span>
-            </span>
-            {dailyMode !== "locked" && (
-              <span
-                className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${
-                  dark ? "bg-[#f6ead0] text-[#2a1c0c]" : "bg-[#2a1c0c] text-[#f6ead0]"
-                }`}
-              >
-                {dailyCta}
-              </span>
-            )}
-          </button>
-        </div>
-      }
-    >
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="Close quiz"
-        className={`mb-3 flex h-9 w-9 items-center justify-center rounded-full border ${box} ${heading}`}
-      >
-        <CloseIcon className="h-4 w-4" />
-      </button>
-
-      <h1 className={`font-serif text-[28px] leading-tight ${heading}`}>
-        {WORLD.royalAssessment}
-      </h1>
-      <p className={`mt-1 text-sm ${muted}`}>
-        {levelTitle(levelId)} · {totalPoints.toLocaleString()} pts
-      </p>
-
-      <div className="mt-4 flex gap-1 rounded-full border border-[#5c3d12]/35 bg-[#efe2c4]/80 p-0.5">
-        {(
-          [
-            { id: "hall", label: WORLD.assessmentHallTab },
-            { id: "study", label: WORLD.assessmentStudyTab },
-          ] as { id: "hall" | "study"; label: string }[]
-        ).map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setHubTab(tab.id)}
-            className={`flex-1 rounded-full px-3 py-1.5 text-[12px] font-semibold ${
-              hubTab === tab.id
-                ? "bg-[#2a1c0c] text-[#f6ead0]"
-                : "text-[#4a3014]"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {hubTab === "hall" ? (
-        <div className="mt-5">
-          <QuizRanking
-            levelId={levelId}
-            board={board}
-            boardLocked={boardLocked}
-            ink={ink}
-            compact
-            scrollable
-          />
-        </div>
-      ) : (
-        <div className="mt-1">
-          <DiscoverLevelCard
-            seals={seals}
-            catalogSize={discoverCatalog.length}
-            ink={ink}
-            onOpenBadges={onOpenBadges}
-          />
-
-          <button
-            type="button"
-            onClick={onOpenBadges}
-            className={`mt-3 flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left ${box}`}
-          >
-            <MedalIcon className={`h-5 w-5 shrink-0 ${heading}`} />
-            <div className="min-w-0 flex-1">
-              <p
-                className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${label}`}
-              >
-                {WORLD.studyBadges}
-              </p>
-              <p className={`mt-0.5 text-sm ${heading}`}>
-                {worn
-                  ? `Wearing ${worn.title}${worn.kind === "discover" ? ` · ${worn.label}` : ""}`
-                  : "Assessment ranks and Discover seals"}
-              </p>
-            </div>
-            <span className={muted}>›</span>
-          </button>
-
-          <div
-            className={`mt-3 flex items-center gap-3 rounded-xl border px-3 py-3 ${box}`}
-          >
-            <FlameIcon
-              filled={streak > 0}
-              className={`h-5 w-5 ${streak > 0 ? "text-amber-700" : muted}`}
-            />
-            <div className="min-w-0 flex-1">
-              <p className={`text-sm font-semibold ${heading}`}>
-                {streak > 0 ? `${streak} day streak` : "No streak yet"}
-              </p>
-              <p className={`text-[12px] ${muted}`}>
-                {done
-                  ? "Today's assessment is done — see you tomorrow."
-                  : "Play to keep your streak and climb the Hall."}
-              </p>
-            </div>
+              {dailyMode !== "locked" && (
+                <span
+                  className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${
+                    dark ? "bg-[#f6ead0] text-[#2a1c0c]" : "bg-[#2a1c0c] text-[#f6ead0]"
+                  }`}
+                >
+                  {dailyCta}
+                </span>
+              )}
+            </button>
           </div>
+        }
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close quiz"
+          className={`mb-3 flex h-9 w-9 items-center justify-center rounded-full border ${box} ${heading}`}
+        >
+          <CloseIcon className="h-4 w-4" />
+        </button>
 
-          <h2 className={`mt-5 font-serif text-lg ${heading}`}>
-            {WORLD.unchartedArchives}
-            {!isPro && (
-              <span
-                className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${box}`}
-              >
-                Guild
-              </span>
-            )}
-          </h2>
-          <p className={`mt-1 text-[12px] ${muted}`}>
-            {isPro
-              ? "Endless mixed questions — doesn't affect your streak."
-              : `${FREE_PRACTICE_QUESTIONS} free questions per round · ${WORLD.explorersGuild} plays endless.`}
-          </p>
-          <button
-            type="button"
-            disabled={loading || !practiceReady}
-            onClick={onStartPractice}
-            className={`mt-2 flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left disabled:opacity-50 ${box}`}
-          >
-            <span>
-              <span className={`block text-sm font-medium ${heading}`}>
-                Mixed practice
-              </span>
-              <span className={`mt-0.5 block text-[12px] ${muted}`}>
-                {practiceReady
-                  ? "Title, artist, date, and more — about the piece on screen"
-                  : "Not enough artworks yet"}
-              </span>
-            </span>
-            <span className={muted}>›</span>
-          </button>
+        <h1 className={`font-serif text-[28px] leading-tight ${heading}`}>
+          {WORLD.royalAssessment}
+        </h1>
+        <p className={`mt-1 text-sm ${muted}`}>
+          {levelTitle(levelId)} · {totalPoints.toLocaleString()} pts
+        </p>
+
+        <div className="mt-4 flex gap-1 rounded-full border border-[#5c3d12]/35 bg-[#efe2c4]/80 p-0.5">
+          {(
+            [
+              { id: "hall", label: WORLD.assessmentHallTab },
+              { id: "study", label: WORLD.assessmentStudyTab },
+            ] as { id: "hall" | "study"; label: string }[]
+          ).map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setHubTab(tab.id)}
+              className={`flex-1 rounded-full px-3 py-1.5 text-[12px] font-semibold ${
+                hubTab === tab.id
+                  ? "bg-[#2a1c0c] text-[#f6ead0]"
+                  : "text-[#4a3014]"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
-      )}
-    </QuizScrollFrame>
+
+        {hubTab === "hall" ? (
+          <div className="mt-5">
+            <QuizRanking
+              levelId={levelId}
+              board={board}
+              boardLocked={boardLocked}
+              ink={ink}
+              compact
+              onEnterHall={() => setHallOpen(true)}
+            />
+          </div>
+        ) : (
+          <div className="mt-1">
+            <DiscoverLevelCard
+              seals={seals}
+              catalogSize={discoverCatalog.length}
+              ink={ink}
+              onOpenBadges={onOpenBadges}
+            />
+
+            <button
+              type="button"
+              onClick={onOpenBadges}
+              className={`mt-3 flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left ${box}`}
+            >
+              <MedalIcon className={`h-5 w-5 shrink-0 ${heading}`} />
+              <div className="min-w-0 flex-1">
+                <p
+                  className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${label}`}
+                >
+                  {WORLD.studyBadges}
+                </p>
+                <p className={`mt-0.5 text-sm ${heading}`}>
+                  {worn
+                    ? `Wearing ${worn.title}${worn.kind === "discover" ? ` · ${worn.label}` : ""}`
+                    : "Assessment ranks and Discover seals"}
+                </p>
+              </div>
+              <span className={muted}>›</span>
+            </button>
+
+            <div
+              className={`mt-3 flex items-center gap-3 rounded-xl border px-3 py-3 ${box}`}
+            >
+              <FlameIcon
+                filled={streak > 0}
+                className={`h-5 w-5 ${streak > 0 ? "text-amber-700" : muted}`}
+              />
+              <div className="min-w-0 flex-1">
+                <p className={`text-sm font-semibold ${heading}`}>
+                  {streak > 0 ? `${streak} day streak` : "No streak yet"}
+                </p>
+                <p className={`text-[12px] ${muted}`}>
+                  {done
+                    ? "Today's assessment is done — see you tomorrow."
+                    : "Play to keep your streak and climb the Hall."}
+                </p>
+              </div>
+            </div>
+
+            <h2 className={`mt-5 font-serif text-lg ${heading}`}>
+              {WORLD.unchartedArchives}
+              {!isPro && (
+                <span
+                  className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${box}`}
+                >
+                  Guild
+                </span>
+              )}
+            </h2>
+            <p className={`mt-1 text-[12px] ${muted}`}>
+              {isPro
+                ? "Endless mixed questions — doesn't affect your streak."
+                : `${FREE_PRACTICE_QUESTIONS} free questions per round · ${WORLD.explorersGuild} plays endless.`}
+            </p>
+            <button
+              type="button"
+              disabled={loading || !practiceReady}
+              onClick={onStartPractice}
+              className={`mt-2 flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left disabled:opacity-50 ${box}`}
+            >
+              <span>
+                <span className={`block text-sm font-medium ${heading}`}>
+                  Mixed practice
+                </span>
+                <span className={`mt-0.5 block text-[12px] ${muted}`}>
+                  {practiceReady
+                    ? "Title, artist, date, and more — about the piece on screen"
+                    : "Not enough artworks yet"}
+                </span>
+              </span>
+              <span className={muted}>›</span>
+            </button>
+          </div>
+        )}
+      </QuizScrollFrame>
+      <HallScreen
+        open={hallOpen}
+        levelId={levelId}
+        board={board}
+        onClose={() => setHallOpen(false)}
+      />
+    </>
   );
 }
 
