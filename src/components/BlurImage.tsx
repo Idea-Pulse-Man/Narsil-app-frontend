@@ -101,8 +101,14 @@ export default function BlurImage({
   //  • attempt ≥1 — wsrv.nl proxy for S3 (cache-busted)
   const [attempt, setAttempt] = useState(0);
   const errorAttempt = useRef(-1);
+  const attemptRef = useRef(0);
+  attemptRef.current = attempt;
+  // Every retry failed — hide the <img> so WebKit's "?" broken-image icon
+  // never shows; the accent-coloured tile stands in instead.
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
     setAttempt(0);
+    setFailed(false);
     errorAttempt.current = -1;
   }, [renderSrc]);
   const attemptSrc = (() => {
@@ -117,6 +123,7 @@ export default function BlurImage({
   })();
   const handleError = useCallback(() => {
     setLoaded(false);
+    if (attemptRef.current >= MAX_IMAGE_ATTEMPTS) setFailed(true);
     setAttempt((a) => {
       if (a >= MAX_IMAGE_ATTEMPTS) return a;
       if (errorAttempt.current === a) return a;
@@ -239,7 +246,7 @@ export default function BlurImage({
         className={`relative h-full w-full overflow-hidden ${className}`}
         style={{ backgroundColor: accent }}
       >
-        {!loaded && <Shimmer />}
+        {!loaded && !failed && <Shimmer />}
         {previewSrc ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
@@ -266,7 +273,7 @@ export default function BlurImage({
             onError={handleError}
             className={`relative h-full w-full ${
               isContain ? "object-contain" : "object-cover"
-            }`}
+            } ${failed ? "invisible" : ""}`}
           />
         ) : null}
       </div>
@@ -279,7 +286,7 @@ export default function BlurImage({
       className={`relative h-full w-full overflow-hidden ${className}`}
       style={{ backgroundColor: accent }}
     >
-      {!loaded && <Shimmer />}
+      {!loaded && !failed && <Shimmer />}
 
       {previewSrc ? (
         /* eslint-disable-next-line @next/next/no-img-element */
@@ -309,7 +316,7 @@ export default function BlurImage({
         onError={handleError}
         className="absolute inset-0 z-[1] h-full w-full object-contain"
         style={{
-          opacity: isContain ? 1 : 0,
+          opacity: isContain && !failed ? 1 : 0,
           transform: `scale(${isContain ? 1 : coverRatio})`,
           transition: `opacity ${ZOOM_MS}ms cubic-bezier(0.22, 1, 0.36, 1), transform ${ZOOM_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`,
         }}
@@ -328,7 +335,7 @@ export default function BlurImage({
         onError={handleError}
         className="absolute inset-0 z-[1] h-full w-full object-cover"
         style={{
-          opacity: isContain ? 0 : 1,
+          opacity: isContain || failed ? 0 : 1,
           transition: `opacity ${ZOOM_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`,
         }}
       />

@@ -69,6 +69,10 @@ export default function ArtistProfileModal({
     ""
   ).trim();
   const famousFor = (story?.famousFor ?? "").trim();
+  const originLine = [
+    factOrEmpty(story?.nationality) || factOrEmpty(artist?.nationality),
+    factOrEmpty(story?.lifespan) || factOrEmpty(artist?.lifespan),
+  ].filter((part): part is string => Boolean(part));
 
   // Scale the display name to its length so long historical names (e.g.
   // "Joseph Mallord William Turner") stay balanced against the avatar instead
@@ -121,9 +125,11 @@ export default function ArtistProfileModal({
                   >
                     {artist.name}
                   </h2>
-                  <p className="mt-2 text-sm text-white/60">
-                    {artist.nationality} · {artist.lifespan}
-                  </p>
+                  {originLine.length > 0 ? (
+                    <p className="mt-2 text-sm text-white/60">
+                      {originLine.join(" · ")}
+                    </p>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -270,6 +276,13 @@ export default function ArtistProfileModal({
       )}
     </AnimatePresence>
   );
+}
+
+/** Drop ingest placeholders ("—") so the name line is not "— · —". */
+function factOrEmpty(value?: string | null): string {
+  const text = (value ?? "").trim();
+  if (!text || /^[-—–]+$/.test(text) || /^unknown$/i.test(text)) return "";
+  return text;
 }
 
 function Stat({ label, value }: { label: string; value: string }) {

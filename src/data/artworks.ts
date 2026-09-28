@@ -299,7 +299,7 @@ export const artworks: Artwork[] = [
     medium: "Fresco",
     source: "Scrovegni Chapel, Padua",
     image: wm(
-      "Giotto - Scrovegni - -36- - Lamentation (The Mourning of Christ).jpg"
+      "Giotto - Scrovegni - -36- - Lamentation (The Mourning of Christ) adj.jpg"
     ),
     accent: "#2a241c",
     description:
