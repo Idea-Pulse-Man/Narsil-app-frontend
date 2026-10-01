@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { originLabel, priceFromId, WORLD, type Artwork } from "@/data";
+import { originLabel, priceFromId, useCanvasPrices, WORLD, type Artwork } from "@/data";
 import { isCanvasSellable } from "@/lib/sellability";
 import { useCatalog } from "@/data/catalog";
 import {
@@ -160,6 +160,7 @@ export default function BuyView({ showToast, active = true }: BuyViewProps) {
     void loadPage(source);
   }, [active, source, loadPage]);
 
+  const priceVersion = useCanvasPrices();
   const products = useMemo(
     () =>
       shop[source].map((artwork) => ({
@@ -167,7 +168,9 @@ export default function BuyView({ showToast, active = true }: BuyViewProps) {
         artwork,
         priceFrom: priceFromId(artwork.id),
       })),
-    [shop, source],
+    // priceVersion: recompute when the live price table replaces the fallback.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [shop, source, priceVersion],
   );
 
   const counts = useMemo(

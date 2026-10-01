@@ -7,6 +7,7 @@ import {
   CANVAS_SIZES,
   priceForSize,
   priceFromId,
+  useCanvasPrices,
 } from "./shop";
 import type {
   Artwork,
@@ -43,6 +44,7 @@ export {
   CANVAS_SIZES,
   priceForSize,
   priceFromId,
+  useCanvasPrices,
   feedItemKey,
   artworkFromFeedItem,
   feedItemStableId,

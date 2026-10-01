@@ -227,7 +227,9 @@ export default function MobileShell() {
 
   // Deep link: `?art=<id>` (from a shared link) opens straight into that
   // artwork's viewer. We consume the param once, then strip it from the URL so
-  // a refresh or back-navigation doesn't reopen it.
+  // a refresh or back-navigation doesn't reopen it. The catalog streams in
+  // batches, so a work outside the loaded pages is fetched by id before we
+  // give up on it.
   const deepLinkConsumed = useRef(false);
   useEffect(() => {
     if (deepLinkConsumed.current || typeof window === "undefined") return;
@@ -237,20 +239,26 @@ export default function MobileShell() {
       deepLinkConsumed.current = true;
       return;
     }
-    // Wait for the catalog before deciding the id is unknown.
-    if (getArtwork(id)) {
-      deepLinkConsumed.current = true;
-      if (!isAdmin) openArtwork(id);
-    } else if (catalogLoading) {
-      return;
-    } else {
-      deepLinkConsumed.current = true;
-    }
+    // Wait for the first catalog page before looking the id up.
+    if (!getArtwork(id) && catalogLoading) return;
+    deepLinkConsumed.current = true;
+
     params.delete(SHARE_ART_PARAM);
     const query = params.toString();
     const cleaned = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`;
     window.history.replaceState({}, "", cleaned);
-  }, [getArtwork, catalogLoading, openArtwork, isAdmin]);
+
+    if (isAdmin) return;
+    if (getArtwork(id)) {
+      openArtwork(id);
+      return;
+    }
+    void ensureArtworks([id]).then((result) => {
+      if (!result) showToast("Couldn't open the shared artwork — try again");
+      else if (result.notFound.length === 0) openArtwork(id);
+      else showToast("This artwork is no longer in the collection");
+    });
+  }, [getArtwork, catalogLoading, openArtwork, isAdmin, ensureArtworks, showToast]);
 
   const navigate = useCallback(
     (next: Screen) => {

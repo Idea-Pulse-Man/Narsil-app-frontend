@@ -11,6 +11,7 @@ import {
   CANVAS_SIZES,
   priceForSize,
   priceFromId,
+  useCanvasPrices,
   WORLD,
   type CanvasSize,
   type Artwork,
@@ -80,6 +81,7 @@ export default function CanvasPurchaseSheet({
   showToast,
 }: CanvasPurchaseSheetProps) {
   const dragControls = useDragControls();
+  useCanvasPrices(); // re-render with the server's prices once they load
   const { getArtist } = useCatalog();
   const { isGuest, requestSignIn } = useAppState();
   const [size, setSize] = useState<CanvasSize>("Medium");
