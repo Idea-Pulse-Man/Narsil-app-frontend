@@ -50,7 +50,14 @@ export {
   feedItemStableId,
 };
 
-export { placeOfArtwork, placeTreeOf, uniquePlaceFacets } from "./places";
+export {
+  placeOfArtwork,
+  placeOfSource,
+  placeTreeOf,
+  sourcesForPlaces,
+  uniquePlaceFacets,
+} from "./places";
+export { categoryServerFilters } from "./categories";
 export type {
   ArtworkPlace,
   PlaceCityNode,

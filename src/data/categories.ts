@@ -82,3 +82,44 @@ export function artworkMatchesCategory(art: Artwork, id: CategoryId): boolean {
       return haystack.includes(label);
   }
 }
+
+/** Quote a PostgREST filter value (spaces, commas, parentheses). */
+function ilikeAny(column: string, words: string[]): string[] {
+  return words.map((w) => `${column}.ilike."*${w.replace(/["\\]/g, "")}*"`);
+}
+
+/**
+ * The server-side half of `artworkMatchesCategory`, as PostgREST `or` filter
+ * clauses over the stored columns (category, empire, period). Search runs it
+ * across the whole archive, then applies `artworkMatchesCategory` to what
+ * comes back — so results stay exact. Tag-only matches aren't reachable
+ * here (PostgREST can't substring-match inside a text[]).
+ */
+export function categoryServerFilters(id: CategoryId): string[] {
+  const label = categoryMap[id]?.label.toLowerCase() ?? id;
+  const own = `category.eq.${id}`;
+  switch (id) {
+    case "roman":
+      return [own, "empire.eq.Roman"];
+    case "greek":
+      return [own, "empire.eq.Greek"];
+    case "egyptian":
+      return [own, "empire.eq.Egyptian"];
+    case "japanese-art":
+      return [own, "empire.eq.Japanese", ...ilikeAny("period", ["ukiyo"])];
+    case "renaissance":
+      return [own, ...ilikeAny("period", ["renaissance"])];
+    case "medieval":
+      return [
+        own,
+        ...ilikeAny("period", ["medieval", "gothic", "middle ages", "byzantine"]),
+      ];
+    case "modern-art":
+      return [
+        own,
+        ...ilikeAny("period", ["modern", "expressionism", "contemporary"]),
+      ];
+    default:
+      return [own, ...ilikeAny("period", [label])];
+  }
+}

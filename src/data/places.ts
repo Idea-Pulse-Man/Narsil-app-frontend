@@ -232,7 +232,11 @@ function sourceFromId(id: string): string | undefined {
 
 /** Holding museum + city/country for one artwork. */
 export function placeOfArtwork(art: Artwork): ArtworkPlace {
-  const source = art.source?.trim() || sourceFromId(art.id) || "";
+  return placeOfSource(art.source?.trim() || sourceFromId(art.id) || "");
+}
+
+/** Holding museum + city/country for a stored `source` value. */
+export function placeOfSource(source: string): ArtworkPlace {
   const fromKnown = knownPlace(source) ?? (source ? parseTrailingCity(source) : undefined);
   if (fromKnown) {
     return {
@@ -257,16 +261,25 @@ export interface PlaceCountryNode {
   cities: PlaceCityNode[];
 }
 
-/** Country → city → museum tree for the current catalog. */
-export function placeTreeOf(artworks: Artwork[]): {
+/**
+ * Country → city → museum tree for the current catalog, plus any stored
+ * `source` values known from the whole archive (Search's facet list).
+ */
+export function placeTreeOf(
+  artworks: Artwork[],
+  extraSources: string[] = [],
+): {
   countries: PlaceCountryNode[];
   otherMuseums: string[];
 } {
   const byCountry = new Map<string, Map<string, Set<string>>>();
   const other = new Set<string>();
 
-  for (const art of artworks) {
-    const place = placeOfArtwork(art);
+  const places = [
+    ...artworks.map(placeOfArtwork),
+    ...extraSources.map(placeOfSource),
+  ];
+  for (const place of places) {
     if (!place.museum || /^narsil/i.test(place.museum) || place.museum === "Unknown") {
       continue;
     }
@@ -321,4 +334,24 @@ export function uniquePlaceFacets(artworks: Artwork[]): {
     cities: Array.from(cities).sort(byName),
     museums: Array.from(museums).sort(byName),
   };
+}
+
+/**
+ * The stored `source` values whose place matches a Search selection (any
+ * selected museum, city or country). Lets the server filter the whole
+ * archive by `source` instead of only the artworks already loaded.
+ */
+export function sourcesForPlaces(
+  sources: string[],
+  sel: { countries: string[]; cities: string[]; museums: string[] },
+): string[] {
+  return sources.filter((source) => {
+    const place = placeOfSource(source);
+    if (sel.countries.length && !sel.countries.includes(place.country ?? "")) {
+      return false;
+    }
+    if (sel.cities.length && !sel.cities.includes(place.city ?? "")) return false;
+    if (sel.museums.length && !sel.museums.includes(place.museum)) return false;
+    return true;
+  });
 }

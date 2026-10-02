@@ -15,7 +15,6 @@
  * Search queries the server for matches instead of downloading the whole archive.
  */
 import { supabase } from "./supabase";
-import { fetchCommunityTags } from "./tags";
 import { sellableArtworkOrFilter } from "./sellability";
 import type { Artwork, Artist, CategoryId, ArtworkOrigin, FypArtistCard } from "@/data";
 
@@ -26,8 +25,6 @@ export interface RemoteCatalog {
 }
 
 const PAGE_SIZE = 1000;
-/** How many Supabase pages to pull at once during the full catalog fetch. */
-const PAGE_CONCURRENCY = 4;
 /** How many artworks each feed batch request pulls from Supabase. */
 export const CATALOG_BATCH_SIZE = 80;
 /** @deprecated Use `fetchArtworkBatch` — kept for tests and one-shot previews. */
@@ -228,41 +225,6 @@ async function fetchFypArtistCards(
 
 // ── Paginated table fetch ───────────────────────────────────────────────────
 
-async function fetchTablePage<T>(
-  table: string,
-  columns: string,
-  order: { column: string; ascending: boolean },
-  from: number,
-  signal?: AbortSignal,
-): Promise<T[]> {
-  if (!supabase) return [];
-  let query = supabase
-    .from(table)
-    .select(columns)
-    .order(order.column, { ascending: order.ascending })
-    .range(from, from + PAGE_SIZE - 1);
-  if (signal) query = query.abortSignal(signal);
-  const { data, error } = await query;
-  if (error) throw error;
-  return (data ?? []) as unknown as T[];
-}
-
-async function fetchTable<T>(
-  table: string,
-  columns: string,
-  order: { column: string; ascending: boolean },
-  signal?: AbortSignal,
-): Promise<T[]> {
-  if (!supabase) return [];
-  const out: T[] = [];
-  for (let from = 0; ; from += PAGE_SIZE) {
-    const rows = await fetchTablePage<T>(table, columns, order, from, signal);
-    out.push(...rows);
-    if (rows.length < PAGE_SIZE) break;
-  }
-  return out;
-}
-
 async function fetchArtworkTablePage(
   columns: string,
   from: number,
@@ -280,47 +242,6 @@ async function fetchArtworkTablePage(
   const { data, error } = await query;
   if (error) throw error;
   return (data ?? []) as unknown as ArtworkRow[];
-}
-
-async function fetchArtworkTable(
-  columns: string,
-  signal?: AbortSignal,
-): Promise<ArtworkRow[]> {
-  if (!supabase) return [];
-
-  const fetchPage = (from: number) =>
-    fetchArtworkTablePage(columns, from, signal);
-
-  const count = await fetchArtworkCount(signal);
-  if (count == null) {
-    const out: ArtworkRow[] = [];
-    for (let from = 0; ; from += PAGE_SIZE) {
-      const rows = await fetchPage(from);
-      out.push(...rows);
-      if (rows.length < PAGE_SIZE) break;
-    }
-    return out;
-  }
-
-  if (count <= PAGE_SIZE) {
-    return fetchPage(0);
-  }
-
-  const totalPages = Math.ceil(count / PAGE_SIZE);
-  const pages: ArtworkRow[][] = [];
-  for (let start = 0; start < totalPages; start += PAGE_CONCURRENCY) {
-    const batch = Array.from(
-      { length: Math.min(PAGE_CONCURRENCY, totalPages - start) },
-      (_, i) => start + i,
-    );
-    const batchRows = await Promise.all(
-      batch.map((pageIndex) => fetchPage(pageIndex * PAGE_SIZE)),
-    );
-    batch.forEach((pageIndex, i) => {
-      pages[pageIndex] = batchRows[i] ?? [];
-    });
-  }
-  return pages.flat();
 }
 
 async function fetchArtistsByIds(
@@ -635,58 +556,112 @@ function ilikePattern(raw: string): string | null {
 }
 
 /**
- * Find matching artworks on the server (title or artist name). Returns one
- * page of browse rows — never the whole archive, never full-size images.
+ * A Search request the server can run over the whole archive. The caller
+ * resolves UI selections into stored-column terms (see SearchView) and then
+ * applies the exact client rules (`filterArtworks`) to what comes back.
+ */
+export interface CatalogSearchQuery {
+  /** Free text — matched against the title and the artist name. */
+  text?: string;
+  /** PostgREST `or` clauses for the selected collections (any may match). */
+  categoryFilters?: string[];
+  periods?: string[];
+  empires?: string[];
+  artistIds?: string[];
+  /** Stored `source` values for the selected museums / cities / countries. */
+  sources?: string[];
+  /** Only works that can be ordered as a canvas. */
+  sellableOnly?: boolean;
+  /** Only portrait-like works (title or medium mentions a portrait). */
+  portraitsOnly?: boolean;
+}
+
+/**
+ * Find matching artworks on the server — free text (title or artist name)
+ * and/or Search filters, across the whole archive. Returns one page of
+ * browse rows — never the whole archive, never full-size images.
  */
 export async function searchCatalog(
-  text: string,
+  request: string | CatalogSearchQuery,
   signal?: AbortSignal,
   limit: number = CATALOG_BATCH_SIZE,
   offset: number = 0,
 ): Promise<RemoteCatalog> {
   const empty: RemoteCatalog = { artworks: [], artists: [], fypArtistCards: [] };
   if (!supabase) return empty;
-  const pattern = ilikePattern(text);
-  if (!pattern) return empty;
+  const q: CatalogSearchQuery =
+    typeof request === "string" ? { text: request } : request;
 
-  let artistQuery = supabase
-    .from("artists")
-    .select("id")
-    .ilike("name", pattern)
-    .limit(40);
-  if (signal) artistQuery = artistQuery.abortSignal(signal);
-  const { data: artistMatches } = await artistQuery;
-  const matchedArtistIds = ((artistMatches ?? []) as { id: string }[])
-    .map((row) => row.id)
-    .filter(Boolean);
+  const pattern = q.text ? ilikePattern(q.text) : null;
+  const hasFilters = Boolean(
+    q.categoryFilters?.length ||
+      q.periods?.length ||
+      q.empires?.length ||
+      q.artistIds?.length ||
+      q.sources ||
+      q.sellableOnly ||
+      q.portraitsOnly,
+  );
+  if (!pattern && !hasFilters) return empty;
+  // A place selection that matches no stored source can't match anything.
+  if (q.sources && q.sources.length === 0) return empty;
 
-  const fetchPage = async (mode: "title" | "artist"): Promise<ArtworkRow[]> => {
+  let matchedArtistIds: string[] = [];
+  if (pattern) {
+    let artistQuery = supabase
+      .from("artists")
+      .select("id")
+      .ilike("name", pattern)
+      .limit(40);
+    if (signal) artistQuery = artistQuery.abortSignal(signal);
+    const { data: artistMatches } = await artistQuery;
+    matchedArtistIds = ((artistMatches ?? []) as { id: string }[])
+      .map((row) => row.id)
+      .filter(Boolean);
+  }
+
+  // Every OR-group must hold at once, so they are nested in one `and(...)`
+  // (supabase-js would otherwise send several clashing `or` params).
+  const groups = ["or(hidden.is.null,hidden.eq.false)"];
+  if (q.categoryFilters?.length) groups.push(`or(${q.categoryFilters.join(",")})`);
+  if (q.sellableOnly) groups.push(`or(${sellableArtworkOrFilter()})`);
+  if (q.portraitsOnly) {
+    groups.push(
+      'or(title.ilike."*portrait*",medium.ilike."*portrait*",title.ilike."*depicts*")',
+    );
+  }
+
+  const fetchPage = async (
+    mode: "title" | "artist" | "all",
+  ): Promise<ArtworkRow[]> => {
     if (mode === "artist" && matchedArtistIds.length === 0) return [];
     let query = supabase!
       .from("artworks")
       .select(ARTWORK_PREVIEW_COLUMNS)
       .not("image_url", "is", null)
-      .or("hidden.is.null,hidden.eq.false")
+      .or(`and(${groups.join(",")})`)
       .order("like_count", { ascending: false, nullsFirst: false })
+      .order("id", { ascending: true })
       .range(offset, offset + limit - 1);
-    query =
-      mode === "title"
-        ? query.ilike("title", pattern)
-        : query.in("artist_id", matchedArtistIds);
+    if (q.periods?.length) query = query.in("period", q.periods);
+    if (q.empires?.length) query = query.in("empire", q.empires);
+    if (q.sources?.length) query = query.in("source", q.sources);
+    if (q.artistIds?.length) query = query.in("artist_id", q.artistIds);
+    if (mode === "title" && pattern) query = query.ilike("title", pattern);
+    if (mode === "artist") query = query.in("artist_id", matchedArtistIds);
     if (signal) query = query.abortSignal(signal);
     const { data, error } = await query;
     if (error) throw error;
     return ((data ?? []) as unknown as ArtworkRow[]).filter((r) => r.image_url);
   };
 
-  const [titleRows, artistRows] = await Promise.all([
-    fetchPage("title"),
-    fetchPage("artist"),
-  ]);
+  const pages = pattern
+    ? await Promise.all([fetchPage("title"), fetchPage("artist")])
+    : [await fetchPage("all")];
 
   const seen = new Set<string>();
   const artworkRows: ArtworkRow[] = [];
-  for (const row of [...titleRows, ...artistRows]) {
+  for (const row of pages.flat()) {
     if (!row.id || seen.has(row.id)) continue;
     seen.add(row.id);
     artworkRows.push(row);
@@ -713,37 +688,42 @@ export async function searchCatalog(
   };
 }
 
+/** Filter options across the WHOLE archive (supabase/catalog-facets.sql). */
+export interface CatalogFacets {
+  sources: string[];
+  empires: string[];
+  categories: CategoryId[];
+  /** The most common period labels (the column has ~1,500 free-text values). */
+  periods: string[];
+}
+
+let facetsRequest: Promise<CatalogFacets | null> | null = null;
+
 /**
- * Fetch the whole catalog from Supabase. Only artworks that have an image
- * (an S3 URL) are returned, so the feed never renders a broken tile.
+ * Load the archive-wide filter options once per session. Null when the
+ * `catalog_facets` function isn't installed yet — Search then falls back to
+ * options from the artworks it has loaded.
  */
-export async function fetchSupabaseCatalog(
-  signal?: AbortSignal,
-): Promise<RemoteCatalog> {
-  if (!supabase) return { artworks: [], artists: [], fypArtistCards: [] };
-
-  const [artworkRows, artistRows, tagMap, fypArtistCards] = await Promise.all([
-    fetchArtworkTable(ARTWORK_FULL_COLUMNS, signal),
-    fetchTable<ArtistRow>(
-      "artists",
-      ARTIST_FULL_COLUMNS,
-      { column: "name", ascending: true },
-      signal,
-    ),
-    fetchCommunityTags(signal),
-    fetchFypArtistCards(signal),
-  ]);
-
-  return {
-    artworks: artworkRows
-      .filter((r) => r.image_url)
-      .map((r) => mapArtwork(r, tagMap[r.id] ?? []))
-      .filter((art): art is Artwork => art !== null),
-    artists: artistRows
-      .map(mapArtist)
-      .filter((artist): artist is Artist => artist !== null),
-    fypArtistCards,
-  };
+export function fetchCatalogFacets(): Promise<CatalogFacets | null> {
+  if (!supabase) return Promise.resolve(null);
+  facetsRequest ??= (async () => {
+    const { data, error } = await supabase!.rpc("catalog_facets");
+    if (error || !data) {
+      if (error) console.warn("Search: catalog_facets unavailable.", error.message);
+      facetsRequest = null;
+      return null;
+    }
+    const raw = data as Partial<Record<keyof CatalogFacets, unknown>>;
+    const strings = (v: unknown): string[] =>
+      Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.length > 0) : [];
+    return {
+      sources: strings(raw.sources),
+      empires: strings(raw.empires),
+      categories: strings(raw.categories) as CategoryId[],
+      periods: strings(raw.periods),
+    };
+  })();
+  return facetsRequest;
 }
 
 /** Live profile counts: Narsil follows, plus likes and saves on collection works. */

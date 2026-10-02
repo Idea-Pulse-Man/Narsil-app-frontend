@@ -3,13 +3,23 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   categories as allCategories,
   categoryMap,
+  categoryServerFilters,
   WORLD,
   placeTreeOf,
+  sourcesForPlaces,
+  type ArtworkSearchQuery,
   type CategoryGroup,
   type CategoryId,
 } from "@/data";
 import { useCatalog } from "@/data/catalog";
-import { CATALOG_BATCH_SIZE, searchCatalog } from "@/lib/catalog";
+import {
+  CATALOG_BATCH_SIZE,
+  fetchCatalogFacets,
+  searchCatalog,
+  type CatalogFacets,
+  type CatalogSearchQuery,
+} from "@/lib/catalog";
+import { filterArtworks } from "@/lib/searchIndex";
 import { screenScrollClass, screenContentClass } from "./artwork-layout";
 import {
   SearchIcon,
@@ -107,6 +117,7 @@ export default function SearchView({
     searchArtworks,
     searchFacets,
     artworks,
+    artistMap,
     getArtwork,
     rememberSearchHits,
     loadNextBatch,
@@ -128,14 +139,73 @@ export default function SearchView({
   const [remoteHasMore, setRemoteHasMore] = useState(false);
   const [loadingMoreRemote, setLoadingMoreRemote] = useState(false);
 
-  const browsing = deferredText.trim().length < 2;
+  // Filter options across the whole archive (null until loaded, or when the
+  // catalog_facets SQL function isn't installed — then loaded rows only).
+  const [facets, setFacets] = useState<CatalogFacets | null>(null);
+  useEffect(() => {
+    if (!active || facets) return;
+    let cancelled = false;
+    void fetchCatalogFacets().then((f) => {
+      if (!cancelled && f) setFacets(f);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [active, facets]);
 
-  // Ask the server for matches when the user types. Do not download the
-  // 13k-row archive — only one page of preview rows (no full-size images).
+  /** Every stored `source` we know of — archive-wide plus loaded rows. */
+  const allSources = useMemo(() => {
+    const set = new Set(facets?.sources ?? []);
+    for (const art of artworks) if (art.source) set.add(art.source);
+    return [...set];
+  }, [facets, artworks]);
+
+  // The exact client-side query (used on loaded rows and on server hits).
+  const localQuery = useMemo<ArtworkSearchQuery>(
+    () => ({
+      text: deferredText,
+      categories: sel.categories.length ? sel.categories : undefined,
+      periods: sel.periods.length ? sel.periods : undefined,
+      empires: sel.empires.length ? sel.empires : undefined,
+      artistIds: sel.artistIds.length ? sel.artistIds : undefined,
+      countries: sel.countries.length ? sel.countries : undefined,
+      cities: sel.cities.length ? sel.cities : undefined,
+      museums: sel.museums.length ? sel.museums : undefined,
+      portraitsOnly: sel.portraitsOnly || undefined,
+      canvas: sel.canvas,
+    }),
+    [deferredText, sel],
+  );
+
+  // The same request for the server, over the whole archive — or null when
+  // there is nothing to search for (plain browsing of the feed batches).
+  const serverQuery = useMemo<CatalogSearchQuery | null>(() => {
+    const text = deferredText.trim();
+    const hasPlace =
+      sel.countries.length + sel.cities.length + sel.museums.length > 0;
+    const q: CatalogSearchQuery = {
+      ...(text.length >= 2 ? { text } : {}),
+      ...(sel.categories.length
+        ? { categoryFilters: sel.categories.flatMap(categoryServerFilters) }
+        : {}),
+      ...(sel.periods.length ? { periods: sel.periods } : {}),
+      ...(sel.empires.length ? { empires: sel.empires } : {}),
+      ...(sel.artistIds.length ? { artistIds: sel.artistIds } : {}),
+      ...(hasPlace ? { sources: sourcesForPlaces(allSources, sel) } : {}),
+      ...(sel.canvas === "available" ? { sellableOnly: true } : {}),
+      ...(sel.portraitsOnly ? { portraitsOnly: true } : {}),
+    };
+    return Object.keys(q).length > 0 ? q : null;
+  }, [deferredText, sel, allSources]);
+  const serverKey = serverQuery ? JSON.stringify(serverQuery) : "";
+
+  const browsing = serverQuery === null;
+
+  // Ask the server for matches when the user types or picks a filter. Never
+  // download the whole archive — only one page of preview rows at a time.
   useEffect(() => {
     if (!active) return;
-    const query = deferredText.trim();
-    if (query.length < 2) {
+    if (!serverQuery) {
       setRemoteHits([]);
       setRemoteQuery("");
       setRemoteSearching(false);
@@ -145,12 +215,12 @@ export default function SearchView({
     const controller = new AbortController();
     setRemoteSearching(true);
     const timer = globalThis.setTimeout(() => {
-      void searchCatalog(query, controller.signal)
+      void searchCatalog(serverQuery, controller.signal)
         .then((hit) => {
           if (controller.signal.aborted) return;
           rememberSearchHits(hit);
           setRemoteHits(hit.artworks);
-          setRemoteQuery(query);
+          setRemoteQuery(serverKey);
           setRemoteHasMore(hit.artworks.length >= CATALOG_BATCH_SIZE);
         })
         .catch((err) => {
@@ -166,31 +236,29 @@ export default function SearchView({
       controller.abort();
       globalThis.clearTimeout(timer);
     };
-  }, [active, deferredText, rememberSearchHits]);
+    // serverKey stands in for serverQuery (same content, stable identity).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, serverKey, rememberSearchHits]);
 
   const categoryKey = categoryFilterKey(sel);
 
-  const localResults = useMemo(() => {
-    return searchArtworks({
-      text: deferredText,
-      categories: sel.categories.length ? sel.categories : undefined,
-      periods: sel.periods.length ? sel.periods : undefined,
-      empires: sel.empires.length ? sel.empires : undefined,
-      artistIds: sel.artistIds.length ? sel.artistIds : undefined,
-      countries: sel.countries.length ? sel.countries : undefined,
-      cities: sel.cities.length ? sel.cities : undefined,
-      museums: sel.museums.length ? sel.museums : undefined,
-      portraitsOnly: sel.portraitsOnly || undefined,
-      canvas: sel.canvas,
-    });
-  }, [deferredText, sel, searchArtworks]);
+  const localResults = useMemo(
+    () => searchArtworks(localQuery),
+    [localQuery, searchArtworks],
+  );
 
+  // Server hits pass through the same exact rules as loaded rows, so a typed
+  // word plus a filter never shows works outside the filter.
   const results = useMemo(() => {
     if (remoteHits.length === 0) return localResults;
     const seen = new Set(localResults.map((art) => art.id));
-    const extra = remoteHits.filter((art) => !seen.has(art.id));
+    const extra = filterArtworks(
+      remoteHits.filter((art) => !seen.has(art.id)),
+      localQuery,
+      artistMap,
+    );
     return [...localResults, ...extra];
-  }, [localResults, remoteHits]);
+  }, [localResults, remoteHits, localQuery, artistMap]);
 
   const { visible, sentinelRef, hasMore } = useInfiniteScroll(results, {
     pageSize: 8,
@@ -224,10 +292,7 @@ export default function SearchView({
     if (!active || !browsing || loading || loadingBatch || !hasMoreBatches) {
       return;
     }
-    if (results.length === 0) {
-      if (hasFilters) void loadNextBatch();
-      return;
-    }
+    if (results.length === 0) return;
     const halfway = Math.max(1, Math.floor(results.length / 2));
     if (visible.length >= halfway && !batchRequested.current) {
       batchRequested.current = true;
@@ -242,7 +307,6 @@ export default function SearchView({
     results.length,
     visible.length,
     loadNextBatch,
-    hasFilters,
   ]);
 
   const remotePageRequested = useRef(false);
@@ -251,18 +315,17 @@ export default function SearchView({
     remotePageRequested.current = false;
     moreSearchRef.current?.abort();
     moreSearchRef.current = null;
-  }, [deferredText]);
+  }, [serverKey]);
 
   useEffect(() => {
     remotePageRequested.current = false;
   }, [remoteHits.length]);
 
-  // Next page of typed server matches once the user has seen half of this page.
+  // Next page of server matches once the user has seen half of this page.
   useEffect(() => {
-    if (!active || browsing || remoteSearching) return;
+    if (!active || !serverQuery || remoteSearching) return;
     if (!remoteHasMore || remotePageRequested.current) return;
-    const query = deferredText.trim();
-    if (query.length < 2 || query !== remoteQuery) return;
+    if (serverKey !== remoteQuery) return;
     const halfway = Math.max(1, Math.floor(results.length / 2));
     if (visible.length < halfway) return;
 
@@ -271,7 +334,7 @@ export default function SearchView({
     remotePageRequested.current = true;
     setLoadingMoreRemote(true);
     void searchCatalog(
-      query,
+      serverQuery,
       controller.signal,
       CATALOG_BATCH_SIZE,
       remoteHits.length,
@@ -294,12 +357,13 @@ export default function SearchView({
       .finally(() => {
         if (!controller.signal.aborted) setLoadingMoreRemote(false);
       });
+    // serverKey stands in for serverQuery (same content, stable identity).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     active,
-    browsing,
+    serverKey,
     remoteSearching,
     remoteHasMore,
-    deferredText,
     results.length,
     visible.length,
     remoteHits.length,
@@ -341,8 +405,19 @@ export default function SearchView({
     [artistsByLetter],
   );
 
+  // Filter lists: archive-wide options (catalog_facets) merged with what the
+  // loaded rows hold, and anything already selected so it can be unticked.
+  const facetLists = useMemo(() => {
+    const merge = (...lists: string[][]): string[] => [...new Set(lists.flat())];
+    return {
+      categories: merge(facets?.categories ?? [], searchFacets.categories),
+      periods: merge(sel.periods, facets?.periods ?? [], searchFacets.periods),
+      empires: merge(sel.empires, facets?.empires ?? [], searchFacets.empires),
+    };
+  }, [facets, searchFacets, sel.periods, sel.empires]);
+
   const collectionGroups = useMemo(() => {
-    const available = new Set(searchFacets.categories);
+    const available = new Set(facetLists.categories);
     const groups: CategoryGroup[] = ["medium", "empire", "movement"];
     return groups
       .map((group) => ({
@@ -352,15 +427,24 @@ export default function SearchView({
         ),
       }))
       .filter((g) => g.items.length > 0);
-  }, [searchFacets.categories]);
+  }, [facetLists.categories]);
 
   const placeTreeRef = useRef(placeTreeOf([]));
   const placeTree = useMemo(() => {
     if (!active) return placeTreeRef.current;
-    const next = placeTreeOf(artworks);
+    const next = placeTreeOf(artworks, facets?.sources ?? []);
     placeTreeRef.current = next;
     return next;
-  }, [active, artworks]);
+  }, [active, artworks, facets]);
+  const museumCount = useMemo(
+    () =>
+      placeTree.otherMuseums.length +
+      placeTree.countries.reduce(
+        (n, c) => n + c.cities.reduce((m, city) => m + city.museums.length, 0),
+        0,
+      ),
+    [placeTree],
+  );
 
   const activeArtwork = canvasId ? getArtwork(canvasId) ?? null : null;
 
@@ -591,13 +675,13 @@ export default function SearchView({
                         />
                         <BranchRow
                           label="Period"
-                          detail={`${searchFacets.periods.length} options`}
+                          detail={`${facetLists.periods.length} options`}
                           count={sel.periods.length}
                           onClick={() => setNode({ kind: "period" })}
                         />
                         <BranchRow
                           label="Empire"
-                          detail={`${searchFacets.empires.length} options`}
+                          detail={`${facetLists.empires.length} options`}
                           count={sel.empires.length}
                           onClick={() => setNode({ kind: "empire" })}
                         />
@@ -607,8 +691,8 @@ export default function SearchView({
                             label="Place"
                             detail={
                               placeTree.countries.length
-                                ? `${placeTree.countries.length} countries · ${searchFacets.museums.length} museums`
-                                : `${searchFacets.museums.length} museums`
+                                ? `${placeTree.countries.length} countries · ${museumCount} museums`
+                                : `${museumCount} museums`
                             }
                             count={
                               sel.countries.length +
@@ -673,7 +757,7 @@ export default function SearchView({
                           .filter(
                             (c) =>
                               c.group === node.group &&
-                              searchFacets.categories.includes(c.id),
+                              facetLists.categories.includes(c.id),
                           )
                           .map((c) => (
                             <OptionRow
@@ -689,7 +773,7 @@ export default function SearchView({
 
                     {node.kind === "period" && (
                       <OptionList>
-                        {searchFacets.periods.map((p) => (
+                        {facetLists.periods.map((p) => (
                           <OptionRow
                             key={p}
                             active={sel.periods.includes(p)}
@@ -703,7 +787,7 @@ export default function SearchView({
 
                     {node.kind === "empire" && (
                       <OptionList>
-                        {searchFacets.empires.map((e) => (
+                        {facetLists.empires.map((e) => (
                           <OptionRow
                             key={e}
                             active={sel.empires.includes(e)}
@@ -911,7 +995,7 @@ export default function SearchView({
           </p>
         )}
 
-        {results.length === 0 ? (
+        {results.length === 0 && remoteSearching ? null : results.length === 0 ? (
           <p className="mt-8 text-center text-sm text-white/45">
             No artworks match your search. Try a different term or filter.
           </p>
