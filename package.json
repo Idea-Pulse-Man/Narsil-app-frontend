@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "typecheck": "tsc -b",
     "test": "vitest run --config vitest.config.ts",
     "preview": "vite preview",
     "cap:sync": "npm run build && npx cap sync && node scripts/patch-ios-info-plist.mjs",
