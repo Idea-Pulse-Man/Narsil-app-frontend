@@ -104,10 +104,9 @@ body,
   height: 100%;
 }
 
-/* IonApp renders a custom <ion-app> element. Without Ionic's structure CSS
-   (which we drop so it can't reset Tailwind's button utilities) it would
-   default to display:inline, so give it an explicit full-height block. */
-ion-app {
+/* Full-height app container (replaced the 1 MB Ionic <IonApp> wrapper,
+   which only ever provided this box). */
+.app-root {
   display: block;
   width: 100%;
   min-height: 100dvh;

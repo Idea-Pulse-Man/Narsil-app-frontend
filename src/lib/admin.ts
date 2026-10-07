@@ -167,7 +167,8 @@ export async function fetchAdminArtworks(opts: {
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
-  if (search) query = query.ilike("title", `%${search}%`);
+  // Escape LIKE wildcards so a typed % or _ is matched literally.
+  if (search) query = query.ilike("title", `%${search.replace(/[\\%_]/g, "\\$&")}%`);
   switch (opts.filter) {
     case "pending":
       query = query.eq("approval_status", "pending");
@@ -263,6 +264,8 @@ export interface AdminOrderRow {
   buyer_name: string | null;
   artwork_id: string;
   artwork_title: string | null;
+  /** Absent before supabase/posters.sql — means canvas. */
+  product?: string | null;
   size: string;
   price: number | null;
   currency: string;
@@ -484,4 +487,65 @@ export async function setUserNotificationsDisabled(
     disabled,
   });
   if (error) throw new Error(error.message);
+}
+
+/** A paid order sitting in Printful as a draft, waiting for confirmation. */
+export interface PrintfulDraft {
+  printfulId: number;
+  orderId: string | null;
+  createdAt: string;
+  cost: number | null;
+  city: string | null;
+}
+
+/** Where drafts are confirmed. */
+export const PRINTFUL_ORDERS_URL = "https://www.printful.com/dashboard/default/orders";
+
+/**
+ * Printful orders awaiting confirmation (GET /api/admin/printful/drafts).
+ * Nothing prints or ships until each one is confirmed in Printful.
+ */
+export async function fetchPrintfulDrafts(): Promise<PrintfulDraft[]> {
+  const { data } = await client().auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) throw new Error("Your session expired — sign in again.");
+
+  const res = await ngrokFetch(`${API_URL}/api/admin/printful/drafts`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const json = (await res.json().catch(() => null)) as
+    | { drafts?: PrintfulDraft[]; message?: string }
+    | null;
+  if (!res.ok) {
+    throw new Error(json?.message ?? `Could not reach Printful (${res.status})`);
+  }
+  return json?.drafts ?? [];
+}
+
+/** Shape of admin_insights() (supabase/telemetry.sql). */
+export interface AdminInsights {
+  days: number;
+  installs: number;
+  sessions: number;
+  daily: { day: string; installs: number }[];
+  screens: { screen: string | null; views: number }[];
+  checkout: { opened: number; payment: number; paid: number };
+  pro: { paywall: number; subscribed: number };
+  shares: number;
+  errors: {
+    message: string;
+    source: "app" | "server";
+    count: number;
+    installs: number;
+    last_seen: string;
+    context: string | null;
+    stack: string | null;
+  }[];
+}
+
+/** Usage + error summary for the last `days` days (admin only). */
+export async function fetchInsights(days: number): Promise<AdminInsights> {
+  const { data, error } = await client().rpc("admin_insights", { p_days: days });
+  if (error) throw new Error(error.message);
+  return data as AdminInsights;
 }

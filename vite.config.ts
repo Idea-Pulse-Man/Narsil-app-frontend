@@ -16,7 +16,6 @@ export default defineConfig({
         manualChunks(id) {
           if (!id.includes("node_modules")) return;
           if (id.includes("@stripe")) return "stripe";
-          if (id.includes("@ionic")) return "ionic";
           if (id.includes("framer-motion")) return "motion";
           if (id.includes("@supabase")) return "supabase";
           return "vendor";

@@ -140,6 +140,8 @@ export interface CanvasOrder {
   id: string;
   artwork_id: string;
   size: "Small" | "Medium" | "Large";
+  /** Absent before supabase/posters.sql — means canvas. */
+  product?: "canvas" | "poster";
   price: number | null;
   status: CanvasOrderStatus;
   tracking_number: string | null;
@@ -148,8 +150,8 @@ export interface CanvasOrder {
   created_at: string;
 }
 
-const ORDER_COLUMNS =
-  "id, artwork_id, size, price, status, tracking_number, tracking_url, shipped_at, created_at";
+// `*` so the list keeps loading on a database without the `product` column.
+const ORDER_COLUMNS = "*";
 
 /** The current user's canvas orders, newest first (RLS scopes the rows). */
 export async function fetchCanvasOrders(): Promise<CanvasOrder[]> {

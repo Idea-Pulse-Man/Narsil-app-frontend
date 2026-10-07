@@ -43,6 +43,11 @@ Run these in this order. It's the order production was built in, adjusted for ea
 | 29 | `daily-quiz.sql` | The shared daily Royal Assessment (needs 26) |
 | 30 | `canvas-margin-guard.sql` | Caps artist share at 30% and adds `printful_cost` (needs 6, 8) |
 | 31 | `catalog-facets.sql` | `catalog_facets()`: Search filter options across the whole archive |
+| 32 | `account-deletion.sql` | Keeps canvas orders (anonymous) when a user deletes their account (needs 6) |
+| 33 | `posters.sql` | `product` column (canvas / poster) and the admin order list with it (needs 6, 8) |
+| 34 | `telemetry.sql` | Anonymous usage events, error log and `admin_insights()` (needs 8) |
+| 35 | `push-notifications.sql` | iPhone push tokens + `register_push_token()` |
+| 36 | `search.sql` | Full-text search over descriptions, tags, medium and period |
 
 When you add a file, give it a `REQUIRES:` header and add a row at the bottom of this table.
 

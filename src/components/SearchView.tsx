@@ -247,14 +247,16 @@ export default function SearchView({
     [localQuery, searchArtworks],
   );
 
-  // Server hits pass through the same exact rules as loaded rows, so a typed
-  // word plus a filter never shows works outside the filter.
+  // Server hits pass through the same exact filter rules as loaded rows, so a
+  // typed word plus a filter never shows works outside the filter. The text
+  // itself was matched by the server (titles, artists and — stemmed —
+  // descriptions), so it isn't re-checked here.
   const results = useMemo(() => {
     if (remoteHits.length === 0) return localResults;
     const seen = new Set(localResults.map((art) => art.id));
     const extra = filterArtworks(
       remoteHits.filter((art) => !seen.has(art.id)),
-      localQuery,
+      { ...localQuery, text: undefined },
       artistMap,
     );
     return [...localResults, ...extra];

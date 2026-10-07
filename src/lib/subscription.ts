@@ -85,7 +85,7 @@ async function accessToken(): Promise<string | null> {
   return data.session?.access_token ?? null;
 }
 
-async function authedJson<T>(
+export async function authedJson<T>(
   path: string,
   init?: { method?: string; body?: unknown },
 ): Promise<T> {

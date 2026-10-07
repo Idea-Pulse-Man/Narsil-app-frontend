@@ -6,6 +6,7 @@ import type { ToastState } from "@/components/Toast";
 import { API_URL } from "@/lib/api";
 import { ngrokFetch } from "@/lib/ngrok";
 import { supabase } from "@/lib/supabase";
+import { track } from "@/lib/telemetry";
 
 type ShowToast = (message: string, variant?: ToastState["variant"]) => void;
 
@@ -36,13 +37,25 @@ async function authHeaders(): Promise<Record<string, string>> {
 export const SHARE_ART_PARAM = "art";
 
 /**
- * Build a link that, when opened by anyone, boots the app straight into this
- * artwork's viewer. `MobileShell` reads `?art=<id>` on load and opens it.
+ * Build a link that, when opened by anyone, lands on this artwork. It points
+ * at the backend's share page (`/share/:id`), which gives WhatsApp / iMessage
+ * a picture preview, opens the iPhone app when installed (Universal Links)
+ * and otherwise forwards to the web app's `?art=<id>`. Never the WebView's
+ * own origin — on iOS that is `capacitor://localhost`, useless to anyone else.
  */
 export function buildArtworkShareUrl(artworkId: string): string {
-  if (typeof window === "undefined") return "";
-  const { origin, pathname } = window.location;
-  return `${origin}${pathname}?${SHARE_ART_PARAM}=${encodeURIComponent(artworkId)}`;
+  return `${API_URL}/share/${encodeURIComponent(artworkId)}`;
+}
+
+/** The artwork id in a share link (`…/share/<id>`), or null. */
+export function artworkIdFromShareUrl(url: string): string | null {
+  const match = url.match(/\/share\/([^/?#]+)/);
+  if (!match) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -83,6 +96,7 @@ export async function shareArtwork(
   showToast: ShowToast,
 ): Promise<void> {
   const url = buildArtworkShareUrl(artworkId);
+  track("share_artwork");
   const payload = {
     title: artworkTitle,
     text: `${artworkTitle} — on Narsil`,

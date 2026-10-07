@@ -143,6 +143,7 @@ export function createPaymentIntent(input: {
   artworkId: string;
   size: "Small" | "Medium" | "Large";
   addressId: string;
+  product?: "canvas" | "poster";
 }): Promise<CheckoutIntent> {
   return postJson<CheckoutIntent>("/api/checkout/payment-intent", input);
 }

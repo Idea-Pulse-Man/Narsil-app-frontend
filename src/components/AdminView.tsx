@@ -11,13 +11,18 @@ import { useAppState } from "./AppState";
 import AdminArtworks from "./AdminArtworks";
 import AdminInbox from "./AdminInbox";
 import AdminNews from "./AdminNews";
+import AdminInsights from "./AdminInsights";
 import AdminOrders from "./AdminOrders";
 import AdminOverview from "./AdminOverview";
 import AdminQuiz from "./AdminQuiz";
 import AdminUsers from "./AdminUsers";
 import { screenScrollClass, screenContentClass } from "./artwork-layout";
 import { FilterTabs } from "./admin-ui";
-import { fetchAlertsEnabled, setAlertsEnabled } from "@/lib/admin";
+import {
+  fetchAlertsEnabled,
+  fetchPrintfulDrafts,
+  setAlertsEnabled,
+} from "@/lib/admin";
 import { fetchUnreadSupportCount } from "@/lib/support";
 import type { CanvasOrderStatus } from "@/lib/orders";
 import type { ToastState } from "./Toast";
@@ -29,7 +34,8 @@ type AdminTab =
   | "news"
   | "orders"
   | "artworks"
-  | "inbox";
+  | "inbox"
+  | "insights";
 
 const HINTS: Record<AdminTab, string> = {
   overview: "Narsil users, daily sign-ins and subscriptions.",
@@ -39,6 +45,7 @@ const HINTS: Record<AdminTab, string> = {
   orders: "Track the canvas pipeline and unstick failed fulfilments.",
   artworks: "Approve member uploads, feature, hide, or take a work down.",
   inbox: "Reply to member live chat. Email stays in your mail app.",
+  insights: "Anonymous usage, checkout drop-off and crash reports.",
 };
 
 interface AdminViewProps {
@@ -52,6 +59,8 @@ export default function AdminView({ showToast }: AdminViewProps) {
   const [orderKey, setOrderKey] = useState(0);
   const [signingOut, setSigningOut] = useState(false);
   const [inboxUnread, setInboxUnread] = useState(0);
+  const [draftCount, setDraftCount] = useState(0);
+  const prevDrafts = useRef<number | null>(null);
   const [alertsOn, setAlertsOn] = useState(true);
   const [alertsBusy, setAlertsBusy] = useState(false);
   const prevUnread = useRef<number | null>(null);
@@ -110,6 +119,32 @@ export default function AdminView({ showToast }: AdminViewProps) {
     if (tab === "inbox") void refreshUnread();
   }, [tab, refreshUnread]);
 
+  // Paid canvas orders wait in Printful as drafts until confirmed there —
+  // nothing prints until then, so a new one raises a badge and a toast.
+  useEffect(() => {
+    if (!isAdmin) return;
+    const check = () =>
+      void fetchPrintfulDrafts()
+        .then((drafts) => {
+          const n = drafts.length;
+          if (prevDrafts.current !== null && n > prevDrafts.current) {
+            showToast(
+              n === 1
+                ? "New canvas order — confirm it in Printful"
+                : `${n} canvas orders waiting in Printful`,
+            );
+          }
+          prevDrafts.current = n;
+          setDraftCount(n);
+        })
+        .catch(() => {
+          // Printful unreachable or not configured — keep the last count.
+        });
+    check();
+    const id = window.setInterval(check, 60_000);
+    return () => window.clearInterval(id);
+  }, [isAdmin, showToast]);
+
   const tabs = useMemo(
     () =>
       [
@@ -117,15 +152,20 @@ export default function AdminView({ showToast }: AdminViewProps) {
         { id: "users" as const, label: "Users" },
         { id: "quiz" as const, label: "Quiz" },
         { id: "news" as const, label: "News" },
-        { id: "orders" as const, label: "Canvas" },
+        {
+          id: "orders" as const,
+          label: "Canvas",
+          badge: draftCount > 0 ? draftCount : undefined,
+        },
         { id: "artworks" as const, label: "Artworks" },
         {
           id: "inbox" as const,
           label: "Chatting",
           badge: inboxUnread > 0 ? inboxUnread : undefined,
         },
+        { id: "insights" as const, label: "Insights" },
       ] satisfies { id: AdminTab; label: string; badge?: number }[],
-    [inboxUnread],
+    [inboxUnread, draftCount],
   );
 
   const handleSignOut = async () => {
@@ -226,6 +266,7 @@ export default function AdminView({ showToast }: AdminViewProps) {
               />
             )}
             {tab === "artworks" && <AdminArtworks showToast={showToast} />}
+            {tab === "insights" && <AdminInsights />}
             {tab === "inbox" && (
               <AdminInbox
                 showToast={showToast}

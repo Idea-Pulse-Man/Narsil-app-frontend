@@ -5,10 +5,13 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { Browser } from "@capacitor/browser";
 import {
   ADMIN_PAGE_SIZE,
   ORDER_STATUSES,
+  PRINTFUL_ORDERS_URL,
   fetchAdminOrders,
+  fetchPrintfulDrafts,
   retryFulfillment,
   updateOrder,
   type AdminOrderRow,
@@ -149,6 +152,7 @@ export default function AdminOrders({
 
   return (
     <div className="mt-5">
+      <PrintfulDraftsBanner />
       <FilterTabs
         value={status}
         options={FILTERS}
@@ -243,7 +247,8 @@ function OrderCard({
             {row.artwork_title ?? row.artwork_id}
           </p>
           <p className="mt-0.5 truncate text-xs text-white/45">
-            {row.buyer_email ?? row.buyer_name ?? "unknown buyer"} · {row.size} ·{" "}
+            {row.buyer_email ?? row.buyer_name ?? "unknown buyer"} · {row.size}{" "}
+            {row.product ?? "canvas"} ·{" "}
             {fmtMoney(row.price, row.currency)}
           </p>
           <p className="mt-1 text-[11px] text-white/30">
@@ -433,6 +438,65 @@ function Detail({ label, value }: { label: string; value: string | null }) {
     <div className="flex gap-2">
       <dt className="w-24 shrink-0 text-white/30">{label}</dt>
       <dd className="min-w-0 flex-1 break-all text-white/55">{value ?? "—"}</dd>
+    </div>
+  );
+}
+
+/**
+ * Paid orders sit in Printful as drafts until someone confirms them there
+ * (PRINTFUL_CONFIRM_ORDERS is off). Nothing prints until then, so the count
+ * is the first thing on this tab.
+ */
+function PrintfulDraftsBanner() {
+  const [count, setCount] = useState<number | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchPrintfulDrafts()
+      .then((drafts) => {
+        if (!cancelled) setCount(drafts.length);
+      })
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const open = async () => {
+    try {
+      await Browser.open({ url: PRINTFUL_ORDERS_URL });
+    } catch {
+      window.open(PRINTFUL_ORDERS_URL, "_blank", "noopener");
+    }
+  };
+
+  if (failed) {
+    return (
+      <p className="mb-4 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-[13px] text-white/50">
+        Couldn't check Printful for orders waiting to be confirmed.
+      </p>
+    );
+  }
+  if (!count) return null;
+
+  return (
+    <div className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3">
+      <p className="text-[13px] leading-snug text-amber-100">
+        {count === 1
+          ? "1 paid order is waiting for you to confirm it in Printful."
+          : `${count} paid orders are waiting for you to confirm them in Printful.`}{" "}
+        Nothing prints until you do.
+      </p>
+      <button
+        type="button"
+        onClick={() => void open()}
+        className="shrink-0 rounded-full bg-amber-300 px-3 py-1.5 text-xs font-semibold text-black"
+      >
+        Open Printful
+      </button>
     </div>
   );
 }

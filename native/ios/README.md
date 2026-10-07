@@ -155,3 +155,45 @@ Worth testing explicitly, because each is a different code path:
 - refund (App Store Connect can issue one in sandbox) → `REFUND` → entitlement
   revoked immediately
 - delete the app, reinstall, sign in, **Restore Purchases** → entitlement returns
+
+## Push notifications
+
+The app asks for notification permission after someone buys a print or finishes
+the daily quiz, and from You → Notifications. The backend sends the notifications
+straight to Apple (`narsil-museum-backend/src/services/push.ts`).
+
+1. Copy the AppDelegate hook into the project:
+
+   ```bash
+   cp native/ios/PushNotifications.swift ios/App/App/
+   npm run cap:sync
+   ```
+
+   Confirm it is listed under the **App** target (Build Phases → Compile Sources).
+2. In Xcode → target **App** → **Signing & Capabilities**, add **Push Notifications**.
+3. Create an APNs key: Apple Developer → **Certificates, Identifiers & Profiles → Keys** →
+   **+**, tick **Apple Push Notifications service (APNs)**, then download the `.p8` file
+   (Apple only lets you download it once). Put these in the backend `.env` on EC2:
+
+   ```dotenv
+   APNS_KEY="-----BEGIN PRIVATE KEY-----\n…\n-----END PRIVATE KEY-----"
+   APNS_KEY_ID=ABC123DEFG        # shown next to the key
+   APPLE_TEAM_ID=XXXXXXXXXX      # Apple Developer → Membership
+   # APNS_ENVIRONMENT=sandbox    # only for builds run straight from Xcode
+   ```
+
+   Then restart the server with `pm2 restart narsil-backend --update-env`.
+4. Run `supabase/push-notifications.sql` in Supabase.
+
+## Shared links open the app (Universal Links)
+
+Links shared from the app look like `https://d2lvgalchu2nps.cloudfront.net/share/<id>`.
+To make them open the installed app instead of Safari:
+
+1. Set `APPLE_TEAM_ID` on the backend (same value as above). The backend then serves
+   `/.well-known/apple-app-site-association`.
+2. In Xcode → **Signing & Capabilities**, add **Associated Domains** with the entry
+   `applinks:d2lvgalchu2nps.cloudfront.net`.
+
+Without this, shared links still work: they show a picture preview and open the web
+app.

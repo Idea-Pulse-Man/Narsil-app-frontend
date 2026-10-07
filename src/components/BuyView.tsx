@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { originLabel, priceFromId, useCanvasPrices, WORLD, type Artwork } from "@/data";
+import {
+  originLabel,
+  priceFromId,
+  productsFor,
+  useCanvasPrices,
+  WORLD,
+  type Artwork,
+} from "@/data";
 import { isCanvasSellable } from "@/lib/sellability";
 import { useCatalog } from "@/data/catalog";
 import {
@@ -166,7 +173,12 @@ export default function BuyView({ showToast, active = true }: BuyViewProps) {
       shop[source].map((artwork) => ({
         id: `canvas-${artwork.id}`,
         artwork,
-        priceFrom: priceFromId(artwork.id),
+        // Cheapest way in: a poster where one is offered, else the canvas.
+        priceFrom: Math.min(
+          ...productsFor(artwork.origin).map((p) =>
+            priceFromId(artwork.id, p, artwork.origin),
+          ),
+        ),
       })),
     // priceVersion: recompute when the live price table replaces the fallback.
     // eslint-disable-next-line react-hooks/exhaustive-deps

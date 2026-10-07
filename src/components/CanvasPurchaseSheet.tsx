@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useDragControls } from "framer-motion";
 import {
   Elements,
@@ -8,13 +8,16 @@ import {
 } from "@stripe/react-stripe-js";
 import type { Appearance } from "@stripe/stripe-js";
 import {
-  CANVAS_SIZES,
+  PRODUCT_LABELS,
+  PRODUCT_SIZES,
   priceForSize,
   priceFromId,
+  productsFor,
   useCanvasPrices,
   WORLD,
   type CanvasSize,
   type Artwork,
+  type PrintProduct,
 } from "@/data";
 import { useCatalog } from "@/data/catalog";
 import { useAppState } from "./AppState";
@@ -34,6 +37,8 @@ import { isCanvasSellable } from "@/lib/sellability";
 import BlurImage from "./BlurImage";
 import { CloseIcon, CheckIcon } from "./Icons";
 import type { ToastState } from "./Toast";
+import { track } from "@/lib/telemetry";
+import { askForPushAfter } from "@/lib/push";
 
 const EMPTY_FORM = {
   recipient_name: "",
@@ -85,6 +90,7 @@ export default function CanvasPurchaseSheet({
   const { getArtist } = useCatalog();
   const { isGuest, requestSignIn } = useAppState();
   const [size, setSize] = useState<CanvasSize>("Medium");
+  const [product, setProduct] = useState<PrintProduct>("canvas");
   const [step, setStep] = useState<Step>("details");
   const [intent, setIntent] = useState<CheckoutIntent | null>(null);
   const [placing, setPlacing] = useState(false);
@@ -93,16 +99,25 @@ export default function CanvasPurchaseSheet({
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ ...EMPTY_FORM });
 
+  // Latest callbacks, so the reset effect below runs per artwork — not every
+  // time a parent re-renders with a new inline onClose.
+  const showToastRef = useRef(showToast);
+  const onCloseRef = useRef(onClose);
+  showToastRef.current = showToast;
+  onCloseRef.current = onClose;
+
   // Reset the selection each time a new artwork opens the sheet, and load the
   // signed-in user's saved addresses.
   useEffect(() => {
     if (!artwork) return;
+    track("checkout_open", { origin: artwork.origin });
     if (!isCanvasSellable(artwork)) {
-      showToast("This artwork is not available as a canvas.");
-      onClose();
+      showToastRef.current("This artwork is not available as a print.");
+      onCloseRef.current();
       return;
     }
     setSize("Medium");
+    setProduct("canvas");
     setStep("details");
     setIntent(null);
     setPlacing(false);
@@ -128,7 +143,10 @@ export default function CanvasPurchaseSheet({
   }, [artwork, isGuest]);
 
   const artist = artwork ? getArtist(artwork.artistId) : undefined;
-  const priceFrom = artwork ? priceFromId(artwork.id) : 0;
+  const products = productsFor(artwork?.origin);
+  const priceFrom = artwork ? priceFromId(artwork.id, product, artwork.origin) : 0;
+  const sizes = PRODUCT_SIZES[product];
+  const label = PRODUCT_LABELS[product];
 
   const setField = (key: keyof typeof EMPTY_FORM, value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -185,9 +203,11 @@ export default function CanvasPurchaseSheet({
         artworkId: artwork.id,
         size,
         addressId,
+        product,
       });
       setIntent(checkout);
       setStep("payment");
+      track("checkout_payment", { size, product });
     } catch (err) {
       showToast(
         err instanceof Error ? err.message : "Could not start checkout",
@@ -202,6 +222,9 @@ export default function CanvasPurchaseSheet({
    *  verifies the payment with Stripe and creates the Printful order. */
   const handlePaid = async () => {
     setStep("placed");
+    track("checkout_paid", { size, product });
+    // "We'll tell you when it ships" — the moment notifications make sense.
+    void askForPushAfter("order");
     showToast(WORLD.acquisitionSecured);
     if (!intent) return;
     try {
@@ -254,7 +277,7 @@ export default function CanvasPurchaseSheet({
                     {artwork.title}
                   </h2>
                   <p className="mt-1 truncate text-sm text-white/55">
-                    {artist?.name} · Canvas print
+                    {artist?.name} · {label} print
                   </p>
                 </div>
                 <button
@@ -281,15 +304,46 @@ export default function CanvasPurchaseSheet({
             <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {step === "details" && (
               <>
+            {/* Product selection — posters are the cheaper way in. */}
+            {products.length > 1 && (
+              <div className="px-6 pt-5">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45">
+                  Choose a print
+                </p>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  {products.map((p) => {
+                    const selected = product === p;
+                    const from = artwork ? priceFromId(artwork.id, p, artwork.origin) : 0;
+                    return (
+                      <button
+                        key={p}
+                        onClick={() => setProduct(p)}
+                        className={`rounded-2xl border px-4 py-3 text-left transition-colors ${
+                          selected
+                            ? "border-white/50 bg-white/10"
+                            : "border-white/12 bg-white/[0.03] hover:bg-white/[0.06]"
+                        }`}
+                      >
+                        <p className="text-sm font-medium text-white">{PRODUCT_LABELS[p]}</p>
+                        <p className="text-xs text-white/45">
+                          {p === "canvas" ? "Gallery-wrapped" : "Matte paper"} · from ${from}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Size selection */}
             <div className="px-6 pt-5">
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45">
                 Choose a size
               </p>
               <div className="mt-3 space-y-2">
-                {CANVAS_SIZES.map((opt) => {
+                {sizes.map((opt) => {
                   const selected = size === opt.size;
-                  const price = priceForSize(priceFrom, opt.size);
+                  const price = priceForSize(priceFrom, opt.size, product, artwork.origin);
                   return (
                     <button
                       key={opt.size}
@@ -471,7 +525,7 @@ export default function CanvasPurchaseSheet({
               >
                 {placing
                   ? `Preparing to ${WORLD.acquire.toLowerCase()}…`
-                  : `${WORLD.acquire} · $${priceForSize(priceFrom, size)}`}
+                  : `${WORLD.acquire} · $${priceForSize(priceFrom, size, product, artwork.origin)}`}
               </button>
               {isGuest && (
                 <button
@@ -479,7 +533,7 @@ export default function CanvasPurchaseSheet({
                   onClick={requestSignIn}
                   className="mt-3 w-full text-center text-[13px] font-medium text-accent underline-offset-2 hover:underline"
                 >
-                  Sign in to order a canvas
+                  Sign in to order a print
                 </button>
               )}
             </div>
@@ -492,10 +546,10 @@ export default function CanvasPurchaseSheet({
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-white">
-                        {size} canvas
+                        {size} {label.toLowerCase()}
                       </p>
                       <p className="text-xs text-white/45">
-                        {CANVAS_SIZES.find((s) => s.size === size)?.dimensions}
+                        {sizes.find((s) => s.size === size)?.dimensions}
                         {" · "}
                         {WORLD.dispatchIncluded}
                       </p>
@@ -559,7 +613,7 @@ export default function CanvasPurchaseSheet({
                     {WORLD.acquisitionSecured}
                   </p>
                   <p className="mt-1 text-sm text-white/60">
-                    Payment received — your {size.toLowerCase()} canvas of{" "}
+                    Payment received — your {size.toLowerCase()} {label.toLowerCase()} of{" "}
                     {artwork.title} is being prepared for printing. Track it
                     any time under {WORLD.member} → Canvas orders.
                   </p>

@@ -8,6 +8,9 @@ import {
   priceForSize,
   priceFromId,
   useCanvasPrices,
+  PRODUCT_SIZES,
+  PRODUCT_LABELS,
+  productsFor,
 } from "./shop";
 import type {
   Artwork,
@@ -19,7 +22,7 @@ import type {
 } from "./types";
 import type { HistoryEra } from "./history";
 import type { Category, CategoryGroup } from "./categories";
-import type { CanvasSize, CanvasOption, CanvasProduct } from "./shop";
+import type { CanvasSize, CanvasOption, CanvasProduct, PrintProduct } from "./shop";
 import type { FeedItem } from "./feedItems";
 import {
   feedItemKey,
@@ -45,6 +48,9 @@ export {
   priceForSize,
   priceFromId,
   useCanvasPrices,
+  PRODUCT_SIZES,
+  PRODUCT_LABELS,
+  productsFor,
   feedItemKey,
   artworkFromFeedItem,
   feedItemStableId,
@@ -85,6 +91,7 @@ export type {
   CanvasSize,
   CanvasOption,
   CanvasProduct,
+  PrintProduct,
   FeedItem,
 };
 

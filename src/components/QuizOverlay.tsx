@@ -52,6 +52,7 @@ import StudyBadgePage, {
 } from "./StudyBadgePage";
 import { scrollForLevel, scrollPalette } from "@/lib/quiz/scrolls";
 import { ArrowLeftIcon, CloseIcon, FlameIcon, MedalIcon } from "./Icons";
+import { askForPushAfter } from "@/lib/push";
 
 type Stage = "hub" | "badges" | "playing" | "results";
 
@@ -185,6 +186,15 @@ export default function QuizOverlay({
   }, [dailySession]);
 
   // What the daily CTA should do, given the saved session and progress.
+  // Finishing today's quiz is when a "tomorrow's is ready" reminder makes
+  // sense — ask for notification permission then (iOS asks only once).
+  const wasCompleted = useRef(dailySession?.completed ?? false);
+  useEffect(() => {
+    const completed = dailySession?.completed ?? false;
+    if (completed && !wasCompleted.current) void askForPushAfter("quiz");
+    wasCompleted.current = completed;
+  }, [dailySession?.completed]);
+
   const dailyMode: DailyMode = dailySession?.completed
     ? "review"
     : dailySession

@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { reportError } from "@/lib/telemetry";
 
 interface Props {
   children: ReactNode;
@@ -17,6 +18,7 @@ export default class AppErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
     console.error("Narsil render error:", error, info.componentStack);
+    reportError(error, "render");
   }
 
   private reload = () => {

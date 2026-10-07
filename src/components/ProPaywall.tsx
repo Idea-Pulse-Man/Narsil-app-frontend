@@ -17,6 +17,7 @@ import {
 import { WORLD } from "@/data/worldCopy";
 import { CloseIcon, CheckIcon } from "./Icons";
 import type { ToastState } from "./Toast";
+import { track } from "@/lib/telemetry";
 
 const REASON_COPY: Record<PaywallReason, { title: string; lead: string }> = {
   "practice-quiz": {
@@ -90,6 +91,7 @@ export default function ProPaywall({
 
   useEffect(() => {
     if (!reason) return;
+    track("paywall_open", { reason: String(reason) });
     let cancelled = false;
 
     setLoading(true);
@@ -127,6 +129,7 @@ export default function ProPaywall({
     try {
       const outcome = await subscribe(selected);
       if (outcome.result === "cancelled") return; // silent — a normal choice
+      track("pro_subscribed", { product: selected });
       onSubscribed(outcome.subscription);
       showToast(`${WORLD.explorersGuild} is active`);
       onClose();

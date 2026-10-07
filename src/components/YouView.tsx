@@ -20,6 +20,8 @@ import { useAudio } from "@/lib/audio/AudioProvider";
 import ArtworkTile from "./ArtworkTile";
 import AddressManager from "./AddressManager";
 import ContactAdminSheet from "./ContactAdminSheet";
+import DeleteAccountSheet from "./DeleteAccountSheet";
+import { enablePush, pushPermission, type PushPermission } from "@/lib/push";
 import NewsSheet from "./NewsSheet";
 import OrdersSheet from "./OrdersSheet";
 import ProStatusSheet from "./ProStatusSheet";
@@ -88,6 +90,21 @@ export default function YouView({
   const [proOpen, setProOpen] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
   const [newsOpen, setNewsOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [push, setPush] = useState<PushPermission>("unsupported");
+  useEffect(() => {
+    void pushPermission().then(setPush).catch(() => setPush("unsupported"));
+  }, []);
+
+  const handleNotifications = async () => {
+    if (push === "denied") {
+      showToast("Turn them on in iPhone Settings → Narsil → Notifications");
+      return;
+    }
+    const on = await enablePush().catch(() => false);
+    setPush(on ? "granted" : "denied");
+    showToast(on ? "Notifications are on" : "Notifications are off");
+  };
   const [quizProgress, setQuizProgress] =
     useState<QuizProgress>(EMPTY_PROGRESS);
   const { badges } = useQuizBadges(user?.id ?? null, quizRefresh);
@@ -457,7 +474,14 @@ export default function YouView({
             hint="Email or live chat"
             onClick={openContact}
           />
-          <Row label="Canvas orders" onClick={openOrders} />
+          {push !== "unsupported" && (
+            <Row
+              label="Notifications"
+              hint={push === "granted" ? "On" : "Off"}
+              onClick={() => void handleNotifications()}
+            />
+          )}
+          <Row label="Print orders" onClick={openOrders} />
           <Row label="Delivery addresses" onClick={openAddresses} />
           <Row label="Replay the tutorial" onClick={onRestartTutorial} />
           {hasQuizData && (
@@ -470,6 +494,13 @@ export default function YouView({
           )}
           {!isGuest && (
             <Row label="Sign out" onClick={handleSignOut} destructive />
+          )}
+          {!isGuest && (
+            <Row
+              label="Delete account"
+              onClick={() => setDeleteOpen(true)}
+              destructive
+            />
           )}
         </section>
 
@@ -502,6 +533,11 @@ export default function YouView({
         showToast={showToast}
       />
       <NewsSheet open={newsOpen} onClose={() => setNewsOpen(false)} />
+      <DeleteAccountSheet
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        showToast={showToast}
+      />
       <OrdersSheet open={ordersOpen} onClose={() => setOrdersOpen(false)} />
       <ProStatusSheet
         open={proOpen}

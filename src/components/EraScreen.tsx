@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import type { Artwork } from "@/data";
 import type { HistoryEra } from "@/data/history";
 import { useCatalog } from "@/data/catalog";
 import { sizedImageUrl } from "@/lib/imageUrl";
@@ -18,6 +19,9 @@ import {
   useTopicQuizCache,
   type TopicQuizLaunch,
 } from "@/lib/quiz";
+
+/** Stable empty list, so effects keyed on `works` don't re-run every render. */
+const NO_WORKS: Artwork[] = [];
 
 interface EraScreenProps {
   era: HistoryEra | null;
@@ -56,7 +60,7 @@ export default function EraScreen({
   const unlockedIds = new Set(Object.keys(badges));
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const works = era ? (eraWorks.get(era.id) ?? []) : [];
+  const works = era ? (eraWorks.get(era.id) ?? NO_WORKS) : NO_WORKS;
   const artists = artistsForWorks(works);
   const { visible, sentinelRef, hasMore } = useInfiniteScroll(works, {
     pageSize: ERA_PAGE,

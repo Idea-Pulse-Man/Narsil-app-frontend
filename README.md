@@ -1,11 +1,10 @@
 # Narsil — Museum App
 
-Mobile-first art discovery app: public-domain masterpieces from museum open-access collections (the Met, Rijksmuseum, Cleveland, Wellcome and more), canvas prints, daily quizzes and a Pro subscription. Ionic/Capacitor/React, running on iOS, Android and the web.
+Mobile-first art discovery app: public-domain masterpieces from museum open-access collections (the Met, Rijksmuseum, Cleveland, Wellcome and more), canvas and poster prints, daily quizzes and a Pro subscription. React + Capacitor, built for iPhone (and the web).
 
 ## Stack
 
 - **React 19** + **Vite**
-- **Ionic React** (app shell, native integration)
 - **Capacitor** (iOS / Android builds)
 - **Tailwind CSS v4** + **Framer Motion**
 
@@ -105,16 +104,26 @@ GitHub Actions runs lint, type-check, tests and build on every push to `main`
 - **Search:** text and filters (collection, period, empire, place, portraits, canvas) run
   on the server across the whole archive. The filter lists come from `catalog_facets()`
   (`supabase/catalog-facets.sql`).
-- **Buy:** canvas prints via Stripe (card, plus Apple Pay on iOS) and Printful. US
-  addresses only. Prices come from the backend (`GET /api/prices`).
+- **Buy:** canvas and poster prints via Stripe (card, plus Apple Pay on iOS) and
+  Printful. US addresses only. Prices come from the backend (`GET /api/prices`).
+  Artists' own works are canvas only.
 - **Royal Assessment:** daily and topic quizzes, levels, seals and rankings
 - **Narsil Pro:** Apple in-app subscription (iOS); high-resolution downloads and quiz perks
-- **You:** collections, orders, delivery addresses, support inbox
-- **Admin** (for `profiles.role = 'admin'`): overview, users, orders, artwork approval,
-  news, quiz questions, support
+- **You:** collections, orders, delivery addresses, support inbox, notifications,
+  **Delete account** (required by Apple)
+- **Push notifications (iOS):** daily quiz and streak reminders, "your print has
+  shipped", and "new paid order" for admins. Setup is in `native/ios/README.md`.
+- **Admin** (for `profiles.role = 'admin'`): overview, users, orders (with a badge for
+  paid orders waiting in Printful), artwork approval, news, quiz questions, support,
+  and **Insights** (anonymous usage, checkout drop-off, crash reports)
 
-Shared links (`?art=<id>`) open straight into that artwork, fetching it if it hasn't
-loaded yet.
+Shared links point at the backend's `/share/<id>` page: WhatsApp and iMessage show the
+painting as a preview, and tapping opens the iPhone app (Universal Links) or the web app
+(`?art=<id>`).
+
+**Privacy labels (App Store Connect):** the app collects anonymous **Usage Data →
+Product Interaction** and **Diagnostics → Crash Data** through its own servers. Neither is
+linked to the user, and neither is used for tracking (`src/lib/telemetry.ts`).
 
 ## Project layout
 

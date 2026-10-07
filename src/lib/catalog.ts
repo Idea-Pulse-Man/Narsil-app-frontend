@@ -561,7 +561,8 @@ function ilikePattern(raw: string): string | null {
  * applies the exact client rules (`filterArtworks`) to what comes back.
  */
 export interface CatalogSearchQuery {
-  /** Free text — matched against the title and the artist name. */
+  /** Free text — matched against the title, the artist name and (with
+   *  supabase/search.sql) the description, tags, medium and period. */
   text?: string;
   /** PostgREST `or` clauses for the selected collections (any may match). */
   categoryFilters?: string[];
@@ -632,7 +633,7 @@ export async function searchCatalog(
   }
 
   const fetchPage = async (
-    mode: "title" | "artist" | "all",
+    mode: "title" | "artist" | "text" | "all",
   ): Promise<ArtworkRow[]> => {
     if (mode === "artist" && matchedArtistIds.length === 0) return [];
     let query = supabase!
@@ -649,14 +650,27 @@ export async function searchCatalog(
     if (q.artistIds?.length) query = query.in("artist_id", q.artistIds);
     if (mode === "title" && pattern) query = query.ilike("title", pattern);
     if (mode === "artist") query = query.in("artist_id", matchedArtistIds);
+    // Words anywhere in the description, tags, medium or period
+    // (supabase/search.sql). Stemmed: "horses" finds "horse".
+    if (mode === "text" && q.text) {
+      query = query.textSearch("search_doc", q.text.trim().slice(0, 80), {
+        type: "websearch",
+        config: "english",
+      });
+    }
     if (signal) query = query.abortSignal(signal);
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) {
+      // search.sql not run yet — text matches are a bonus, not required.
+      if (mode === "text") return [];
+      throw error;
+    }
     return ((data ?? []) as unknown as ArtworkRow[]).filter((r) => r.image_url);
   };
 
+  // Title and artist matches first, then works that only mention the words.
   const pages = pattern
-    ? await Promise.all([fetchPage("title"), fetchPage("artist")])
+    ? await Promise.all([fetchPage("title"), fetchPage("artist"), fetchPage("text")])
     : [await fetchPage("all")];
 
   const seen = new Set<string>();

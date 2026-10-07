@@ -162,7 +162,7 @@ export default function OrdersSheet({ open, onClose }: OrdersSheetProps) {
                               {artwork?.title ?? "Canvas print"}
                             </p>
                             <p className="mt-0.5 text-xs text-white/50">
-                              {order.size} canvas
+                              {order.size} {order.product ?? "canvas"}
                               {order.price != null ? ` · $${order.price}` : ""}
                             </p>
                             <p className="mt-0.5 text-[11px] text-white/35">

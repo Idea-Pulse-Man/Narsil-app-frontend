@@ -12,10 +12,13 @@ import ArtFeed from "./ArtFeed";
 import Toast, { type ToastState } from "./Toast";
 import TermsView from "./TermsView";
 import { useAppState } from "./AppState";
-import { SHARE_ART_PARAM } from "@/lib/download";
+import { App as CapacitorApp } from "@capacitor/app";
+import { SHARE_ART_PARAM, artworkIdFromShareUrl } from "@/lib/download";
 import { WORLD } from "@/data/worldCopy";
 import type { TutorialAction } from "./tutorial";
 import type { TopicQuizLaunch } from "@/lib/quiz";
+import { track } from "@/lib/telemetry";
+import { initPush } from "@/lib/push";
 
 const DiscoverView = lazy(() => import("./DiscoverView"));
 const BuyView = lazy(() => import("./BuyView"));
@@ -77,11 +80,15 @@ export default function MobileShell() {
     setSubscription,
     downloadRequest,
     dismissDownload,
+    user,
   } = useAppState();
   const { promptSeen, markPromptSeen, setEnabled } = useAudio();
 
   const [toast, setToast] = useState<ToastState | null>(null);
   const [screen, setScreen] = useState<Screen>("for-you");
+  useEffect(() => {
+    track("screen_view", { screen });
+  }, [screen]);
   /** Guest tapped Discover — keep them off the page and offer the Guild. */
   const [discoverGate, setDiscoverGate] = useState(false);
   // Keep each tab mounted after first visit so switching (For You ↔ Discover,
@@ -225,6 +232,23 @@ export default function MobileShell() {
     setActiveArtworkId(artworkId);
   }, []);
 
+  /** Open a shared artwork, fetching it by id if it isn't loaded yet. */
+  const openSharedArtwork = useCallback(
+    (id: string) => {
+      if (isAdmin) return;
+      if (getArtwork(id)) {
+        openArtwork(id);
+        return;
+      }
+      void ensureArtworks([id]).then((result) => {
+        if (!result) showToast("Couldn't open the shared artwork — try again");
+        else if (result.notFound.length === 0) openArtwork(id);
+        else showToast("This artwork is no longer in the collection");
+      });
+    },
+    [isAdmin, getArtwork, openArtwork, ensureArtworks, showToast],
+  );
+
   // Deep link: `?art=<id>` (from a shared link) opens straight into that
   // artwork's viewer. We consume the param once, then strip it from the URL so
   // a refresh or back-navigation doesn't reopen it. The catalog streams in
@@ -248,17 +272,37 @@ export default function MobileShell() {
     const cleaned = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`;
     window.history.replaceState({}, "", cleaned);
 
-    if (isAdmin) return;
-    if (getArtwork(id)) {
-      openArtwork(id);
-      return;
-    }
-    void ensureArtworks([id]).then((result) => {
-      if (!result) showToast("Couldn't open the shared artwork — try again");
-      else if (result.notFound.length === 0) openArtwork(id);
-      else showToast("This artwork is no longer in the collection");
-    });
-  }, [getArtwork, catalogLoading, openArtwork, isAdmin, ensureArtworks, showToast]);
+    openSharedArtwork(id);
+  }, [getArtwork, catalogLoading, openSharedArtwork]);
+
+  // A tapped push notification opens the screen it is about. Re-run when the
+  // account changes so the device token follows the signed-in user.
+  useEffect(() => {
+    void initPush((tap) => {
+      if (tap.type === "artwork" && tap.id) openSharedArtwork(tap.id);
+      else if (tap.type === "quiz") {
+        setQuizInitialStage("hub");
+        setQuizOpen(true);
+      } else if (tap.type === "orders") setScreen("you");
+    }).catch(() => {});
+  }, [openSharedArtwork, user?.id]);
+
+  // Universal Links: a /share/<id> link tapped while the iPhone app is
+  // installed opens here instead of in Safari (cold start or running).
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    const handle = (url: string | undefined) => {
+      const id = url ? artworkIdFromShareUrl(url) : null;
+      if (id) openSharedArtwork(id);
+    };
+    void CapacitorApp.getLaunchUrl()
+      .then((launch) => handle(launch?.url))
+      .catch(() => {});
+    const listener = CapacitorApp.addListener("appUrlOpen", ({ url }) => handle(url));
+    return () => {
+      void listener.then((l) => l.remove());
+    };
+  }, [openSharedArtwork]);
 
   const navigate = useCallback(
     (next: Screen) => {
