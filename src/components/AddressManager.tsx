@@ -179,7 +179,7 @@ export default function AddressManager({
                 <button
                   onClick={onClose}
                   aria-label="Close"
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-white/55 transition-colors hover:bg-white/10 hover:text-white"
+                  className="relative flex h-8 w-8 items-center justify-center rounded-full text-white/55 transition-colors hover:bg-white/10 hover:text-white after:absolute after:-inset-2 after:content-['']"
                 >
                   <CloseIcon className="h-4 w-4" />
                 </button>
@@ -210,7 +210,7 @@ export default function AddressManager({
                                   {a.recipient_name || a.label}
                                 </span>
                                 {a.is_default && (
-                                  <span className="shrink-0 rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/80">
+                                  <span className="shrink-0 rounded-full bg-white/15 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-white/80">
                                     Default
                                   </span>
                                 )}
@@ -374,7 +374,7 @@ function Input({
       value={value}
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35 transition-colors focus:border-white/25 focus:outline-none"
+      className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/45 transition-colors focus:border-white/25 focus:outline-none"
     />
   );
 }
@@ -400,7 +400,7 @@ function Select({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       className={`w-full appearance-none rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm transition-colors focus:border-white/25 focus:outline-none ${
-        value ? "text-white" : "text-white/35"
+        value ? "text-white" : "text-white/50"
       }`}
     >
       <option value="" className="bg-ink-soft text-white">

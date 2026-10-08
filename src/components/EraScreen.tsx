@@ -97,7 +97,7 @@ export default function EraScreen({
             <button
               onClick={onClose}
               aria-label="Back to Discover"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white transition-colors hover:bg-white/10"
+              className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white transition-colors hover:bg-white/10 after:absolute after:-inset-2 after:content-['']"
             >
               <ArrowLeftIcon className="h-4 w-4" />
             </button>
@@ -113,7 +113,7 @@ export default function EraScreen({
           </div>
 
           <div className="px-5 pb-[calc(env(safe-area-inset-bottom)+2rem)] pt-5">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-300/80">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-300/80">
               {era.years}
             </p>
             <h1 className="mt-1 font-serif text-[28px] leading-tight text-white">

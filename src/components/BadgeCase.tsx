@@ -74,7 +74,7 @@ export default function BadgeCase({
     <section className="mt-8">
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="font-serif text-lg text-white">{WORLD.seals}</h2>
-        <p className="text-[11px] tabular-nums text-white/40">
+        <p className="text-[11px] tabular-nums text-white/50">
           {earned} / {catalog.length}
         </p>
       </div>
@@ -102,11 +102,11 @@ export default function BadgeCase({
         <span className="min-w-0 flex-1 truncate text-[13px] text-white/70">
           Browse all trials
         </span>
-        <span className="shrink-0 text-[11px] tabular-nums text-white/35">
+        <span className="shrink-0 text-[11px] tabular-nums text-white/50">
           {locked.length} locked
         </span>
         <ChevronDownIcon
-          className={`h-3.5 w-3.5 shrink-0 text-white/35 transition-transform ${
+          className={`h-3.5 w-3.5 shrink-0 text-white/50 transition-transform ${
             showAll ? "rotate-180" : ""
           }`}
         />
@@ -116,7 +116,7 @@ export default function BadgeCase({
         <>
           {lockedAges.length > 0 && (
             <>
-              <h3 className="mt-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">
+              <h3 className="mt-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/50">
                 Ages
               </h3>
               <div className="mt-1.5 divide-y divide-white/[0.06] rounded-2xl border border-white/10 bg-white/[0.03]">
@@ -127,7 +127,7 @@ export default function BadgeCase({
 
           {lockedEmpires.length > 0 && (
             <>
-              <h3 className="mt-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">
+              <h3 className="mt-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/50">
                 Empires
               </h3>
               <div className="mt-1.5 divide-y divide-white/[0.06] rounded-2xl border border-white/10 bg-white/[0.03]">
@@ -214,7 +214,7 @@ function TopicAccordion({
       : null;
 
   let summary = "Not started";
-  let summaryTone = "text-white/35";
+  let summaryTone = "text-white/50";
   if (highest) {
     const label = difficultySpec(highest).label;
     const stars = scores[summaryBadge?.id ?? ""]?.stars ?? 0;
@@ -248,7 +248,7 @@ function TopicAccordion({
           )}
           <span className={`text-[11px] ${summaryTone}`}>{summary}</span>
           <ChevronDownIcon
-            className={`h-3.5 w-3.5 text-white/35 transition-transform ${
+            className={`h-3.5 w-3.5 text-white/50 transition-transform ${
               open ? "rotate-180" : ""
             }`}
           />
@@ -275,7 +275,7 @@ function TopicAccordion({
                   mark={title}
                   size={34}
                 />
-                <span className="text-[9px] text-white/40">{spec.label}</span>
+                <span className="text-[11px] text-white/50">{spec.label}</span>
                 <QuizStars stars={stars} size={7} />
                 <span className="sr-only">
                   {title} {spec.label}

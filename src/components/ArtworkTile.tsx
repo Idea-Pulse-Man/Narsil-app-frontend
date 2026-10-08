@@ -118,7 +118,7 @@ function ArtworkTile({
             saved
               ? "border-amber-300/40 bg-amber-300/20 text-amber-300"
               : "border-white/15 bg-black/35 text-white hover:bg-black/50"
-          }`}
+          } after:absolute after:-inset-2 after:content-['']`}
         >
           <BookmarkIcon filled={saved} className="h-4 w-4" />
         </button>

@@ -74,7 +74,7 @@ export default function AuthView({ onClose }: AuthViewProps) {
       <button
         onClick={onClose}
         aria-label="Close"
-        className="absolute right-5 top-[calc(env(safe-area-inset-top)+1.5rem)] flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/70 transition-colors hover:text-white"
+        className="absolute right-5 top-[calc(env(safe-area-inset-top)+1.5rem)] flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/70 transition-colors hover:text-white after:absolute after:-inset-2 after:content-['']"
       >
         <CloseIcon className="h-4 w-4" />
       </button>
@@ -112,7 +112,7 @@ export default function AuthView({ onClose }: AuthViewProps) {
       </div>
 
       {/* Divider */}
-      <div className="my-6 flex items-center gap-3 text-[10px] font-medium uppercase tracking-[0.18em] text-white/30">
+      <div className="my-6 flex items-center gap-3 text-[11px] font-medium uppercase tracking-[0.18em] text-white/50">
         <span className="h-px flex-1 bg-white/10" />
         or
         <span className="h-px flex-1 bg-white/10" />
@@ -127,7 +127,7 @@ export default function AuthView({ onClose }: AuthViewProps) {
             placeholder="Full name"
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
-            className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3.5 text-sm text-white placeholder:text-white/35 transition-colors focus:border-white/25 focus:outline-none"
+            className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3.5 text-sm text-white placeholder:text-white/45 transition-colors focus:border-white/25 focus:outline-none"
           />
         )}
         <input
@@ -137,7 +137,7 @@ export default function AuthView({ onClose }: AuthViewProps) {
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3.5 text-sm text-white placeholder:text-white/35 transition-colors focus:border-white/25 focus:outline-none"
+          className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3.5 text-sm text-white placeholder:text-white/45 transition-colors focus:border-white/25 focus:outline-none"
         />
         <input
           type="password"
@@ -146,7 +146,7 @@ export default function AuthView({ onClose }: AuthViewProps) {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && canSubmit && submitEmail()}
-          className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3.5 text-sm text-white placeholder:text-white/35 transition-colors focus:border-white/25 focus:outline-none"
+          className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3.5 text-sm text-white placeholder:text-white/45 transition-colors focus:border-white/25 focus:outline-none"
         />
       </div>
 
@@ -184,12 +184,12 @@ export default function AuthView({ onClose }: AuthViewProps) {
 
       <button
         onClick={onClose}
-        className="mx-auto mt-4 text-center text-[13px] text-white/35 transition-colors hover:text-white/60"
+        className="mx-auto mt-4 text-center text-[13px] text-white/50 transition-colors hover:text-white/60"
       >
         Continue as guest
       </button>
 
-      <p className="mt-auto pt-8 text-center text-[11px] leading-relaxed text-white/25">
+      <p className="mt-auto pt-8 text-center text-[11px] leading-relaxed text-white/50">
         By continuing you agree to Narsil&apos;s Terms and acknowledge our
         Privacy Policy.
       </p>

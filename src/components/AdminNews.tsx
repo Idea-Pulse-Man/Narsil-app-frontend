@@ -88,7 +88,7 @@ export default function AdminNews({ showToast }: AdminNewsProps) {
 
         {rows.length > 0 && (
           <div className="space-y-3">
-            <p className="text-xs text-white/40">
+            <p className="text-xs text-white/50">
               {total} post{total === 1 ? "" : "s"}
             </p>
             {rows.map((row) => (
@@ -226,7 +226,7 @@ function NewsEditorModal({
           onClick={() => setPublished(true)}
         />
       </div>
-      <p className="mt-2 text-[11px] text-white/40">
+      <p className="mt-2 text-[11px] text-white/50">
         Published posts appear under Profile → News for members.
       </p>
       <div className="mt-4 flex justify-end gap-2">
@@ -251,7 +251,7 @@ function NewsEditorModal({
 }
 
 const fieldClass =
-  "w-full rounded-xl border border-white/12 bg-white/[0.05] px-3 py-2 text-sm text-white placeholder:text-white/35 focus:border-white/25 focus:outline-none";
+  "w-full rounded-xl border border-white/12 bg-white/[0.05] px-3 py-2 text-sm text-white placeholder:text-white/45 focus:border-white/25 focus:outline-none";
 
 function Field({
   label,
@@ -262,7 +262,7 @@ function Field({
 }) {
   return (
     <label className="mt-3 block">
-      <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">
+      <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/50">
         {label}
       </span>
       <div className="mt-1.5">{children}</div>

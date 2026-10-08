@@ -170,7 +170,7 @@ export default function StoryCard({
                 </div>
               ) : null}
 
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent/85">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent/85">
                 Artist
               </p>
               <h2 className="mt-2 max-w-[92%] font-serif text-[1.75rem] leading-tight text-white">
@@ -201,7 +201,7 @@ export default function StoryCard({
               </p>
 
               {backdropTitle ? (
-                <p className="mt-2 max-w-[92%] truncate text-[11px] text-white/40">
+                <p className="mt-2 max-w-[92%] truncate text-[11px] text-white/50">
                   Backdrop · {backdropTitle}
                 </p>
               ) : null}
@@ -262,7 +262,7 @@ export default function StoryCard({
             transition={{ duration: 0.3 }}
             className={`absolute inset-x-0 bottom-0 z-30 flex flex-col justify-end ${artworkFooterClass}`}
           >
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent/85">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent/85">
               This age
             </p>
             <h2 className="mt-2 max-w-[92%] font-serif text-[1.75rem] leading-tight text-white">

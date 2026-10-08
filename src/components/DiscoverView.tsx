@@ -302,7 +302,7 @@ export default function DiscoverView({
                   >
                     <div className="absolute left-0 top-1.5 h-3.5 w-3.5 rounded-full border-2 border-accent/50 bg-ink ring-4 ring-ink" />
 
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">
                       {era.years}
                     </p>
                     <h3 className="mt-1 font-serif text-xl text-white">
@@ -394,7 +394,7 @@ export default function DiscoverView({
                         >
                           {group.empire}
                           <span
-                            className={`ml-1.5 ${active ? "text-ink/55" : "text-white/35"}`}
+                            className={`ml-1.5 ${active ? "text-ink/55" : "text-white/50"}`}
                           >
                             {group.artworks.length}
                           </span>
@@ -523,7 +523,7 @@ function EmptyNote({ text }: { text: string }) {
 function CollectionCount({ count }: { count: number }) {
   if (count <= 0) return null;
   return (
-    <span className="mt-0.5 text-[10px] text-white/40">
+    <span className="mt-0.5 text-[11px] text-white/50">
       {count} {count === 1 ? "work" : "works"}
     </span>
   );

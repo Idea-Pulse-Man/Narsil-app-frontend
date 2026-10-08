@@ -48,7 +48,7 @@ export default function TopTabs({ active, onChange }: TopTabsProps) {
             whileTap={{ scale: 0.94 }}
             aria-label={WORLD.discover}
             aria-current={isSearchActive ? "page" : undefined}
-            className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white"
+            className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white after:absolute after:-inset-2 after:content-['']"
           >
             {isSearchActive && (
               <motion.span

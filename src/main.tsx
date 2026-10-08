@@ -5,6 +5,7 @@ import { StatusBar, Style } from "@capacitor/status-bar";
 import "./index.css";
 import App from "./App.tsx";
 import { startTelemetry } from "./lib/telemetry";
+import { followSystemTextSize } from "./lib/textSize";
 
 async function initNativeShell() {
   if (!Capacitor.isNativePlatform()) return;
@@ -19,6 +20,7 @@ async function initNativeShell() {
 
 void initNativeShell();
 startTelemetry();
+followSystemTextSize();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

@@ -98,7 +98,7 @@ export default function TermsView({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/70"
+            className="relative flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/70 after:absolute after:-inset-2 after:content-['']"
           >
             <CloseIcon className="h-4 w-4" />
           </button>
@@ -114,7 +114,7 @@ export default function TermsView({
         <pre className="whitespace-pre-wrap font-sans text-[13px] leading-relaxed text-white/70">
           {TERMS_BODY}
         </pre>
-        <p className="mt-4 text-[11px] text-white/35">Version {TERMS_VERSION}</p>
+        <p className="mt-4 text-[11px] text-white/50">Version {TERMS_VERSION}</p>
         <div ref={endSentinelRef} className="h-px w-full shrink-0" aria-hidden="true" />
       </div>
 
@@ -136,7 +136,7 @@ export default function TermsView({
           </span>
         </label>
         {!scrolledToEnd && required && (
-          <p className="mt-2 text-xs text-white/40">Scroll to the end to continue.</p>
+          <p className="mt-2 text-xs text-white/50">Scroll to the end to continue.</p>
         )}
         <button
           type="button"

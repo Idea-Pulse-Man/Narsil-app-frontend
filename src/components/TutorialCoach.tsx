@@ -354,7 +354,7 @@ function ActionsExplainer({ onAdvance }: { onAdvance?: () => void }) {
                 key={label}
                 className="flex items-center gap-2 text-[12px] text-white/80"
               >
-                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white/15 text-[9px] font-bold text-white">
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white/15 text-[11px] font-bold text-white">
                   {i + 1}
                 </span>
                 {label}
@@ -394,7 +394,7 @@ function FeatureExplainer({
               key={detail}
               className="flex items-start gap-3 text-[14px] leading-relaxed text-white/80"
             >
-              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-300 text-[10px] font-bold text-ink">
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-300 text-[11px] font-bold text-ink">
                 {index + 1}
               </span>
               {detail}
@@ -657,7 +657,7 @@ export default function TutorialCoach({
           {!isFinal && (
             <button
               onClick={onSkip}
-              className="pointer-events-auto absolute right-5 top-[calc(env(safe-area-inset-top)+1.25rem)] z-[3] px-3 py-1.5 text-xs font-medium text-white/35 transition-colors hover:text-white/55"
+              className="pointer-events-auto absolute right-5 top-[calc(env(safe-area-inset-top)+1.25rem)] z-[3] px-3 py-1.5 text-xs font-medium text-white/50 transition-colors hover:text-white/55"
             >
               Skip
             </button>

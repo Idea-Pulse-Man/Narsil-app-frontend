@@ -30,6 +30,7 @@ import {
 import ArtworkTile from "./ArtworkTile";
 import { useInfiniteScroll } from "./useInfiniteScroll";
 import type { ToastState } from "./Toast";
+import { SkeletonTileGrid } from "./Skeleton";
 
 const CanvasPurchaseSheet = lazy(() => import("./CanvasPurchaseSheet"));
 
@@ -564,13 +565,13 @@ export default function SearchView({
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder={WORLD.discoverPlaceholder}
-            className="min-w-0 flex-1 bg-transparent text-sm text-white placeholder:text-white/35 outline-none"
+            className="min-w-0 flex-1 bg-transparent text-sm text-white placeholder:text-white/45 outline-none"
           />
           {text && (
             <button
               onClick={() => setText("")}
               aria-label="Clear search"
-              className="text-white/40 hover:text-white"
+              className="text-white/50 hover:text-white"
             >
               <CloseIcon className="h-4 w-4" />
             </button>
@@ -601,7 +602,7 @@ export default function SearchView({
           </button>
 
           <div className="mt-3">
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/40">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/50">
               Canvas prints
             </p>
             <div className="flex gap-2">
@@ -642,7 +643,7 @@ export default function SearchView({
                       <button
                         onClick={goBack}
                         aria-label="Back"
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white"
+                        className="relative flex h-8 w-8 items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white after:absolute after:-inset-2 after:content-['']"
                       >
                         <ArrowLeftIcon className="h-4 w-4" />
                       </button>
@@ -997,7 +998,11 @@ export default function SearchView({
           </p>
         )}
 
-        {results.length === 0 && remoteSearching ? null : results.length === 0 ? (
+        {results.length === 0 && remoteSearching ? (
+          <div className="mt-4">
+            <SkeletonTileGrid count={6} />
+          </div>
+        ) : results.length === 0 ? (
           <p className="mt-8 text-center text-sm text-white/45">
             No artworks match your search. Try a different term or filter.
           </p>
@@ -1024,7 +1029,7 @@ export default function SearchView({
               (!browsing && remoteHasMore)) && (
               <div
                 ref={sentinelRef}
-                className="mt-6 flex justify-center py-4 text-xs text-white/40"
+                className="mt-6 flex justify-center py-4 text-xs text-white/50"
               >
                 Loading more…
               </div>
@@ -1064,14 +1069,14 @@ function BranchRow({
     >
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-medium text-white">{label}</span>
-        <span className="mt-0.5 block text-[11px] text-white/40">{detail}</span>
+        <span className="mt-0.5 block text-[11px] text-white/50">{detail}</span>
       </span>
       {count > 0 && (
-        <span className="rounded-full bg-accent/25 px-2 py-0.5 text-[10px] font-semibold text-accent">
+        <span className="rounded-full bg-accent/25 px-2 py-0.5 text-[11px] font-semibold text-accent">
           {count}
         </span>
       )}
-      <ChevronDownIcon className="h-3.5 w-3.5 -rotate-90 text-white/35" />
+      <ChevronDownIcon className="h-3.5 w-3.5 -rotate-90 text-white/50" />
     </button>
   );
 }
@@ -1092,6 +1097,7 @@ function OptionRow({
   return (
     <button
       onClick={onClick}
+      aria-pressed={active}
       className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${
         active
           ? "bg-accent/20 text-accent"

@@ -33,7 +33,7 @@ export default function ArtworkRow({
           {artwork.title}
         </p>
         <p className="mt-0.5 truncate text-xs text-white/50">{subtitle}</p>
-        <p className="mt-1 truncate text-[11px] text-white/40">
+        <p className="mt-1 truncate text-[11px] text-white/50">
           {artwork.medium}
         </p>
       </div>

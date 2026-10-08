@@ -273,12 +273,12 @@ export default function PreferenceModal({
               >
                 Back
               </button>
-              <span className="text-xs font-medium text-white/40">
+              <span className="text-xs font-medium text-white/50">
                 {step + 1} of {totalSteps}
               </span>
               <button
                 onClick={onSkip}
-                className="text-sm font-medium text-white/35 transition-colors hover:text-white/55"
+                className="text-sm font-medium text-white/50 transition-colors hover:text-white/55"
               >
                 Skip
               </button>

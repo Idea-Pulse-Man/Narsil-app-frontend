@@ -97,7 +97,7 @@ export default function AdminOverview({ onJumpToOrders }: AdminOverviewProps) {
           </p>
           <p className="mt-2 font-serif text-4xl text-white">{stats.users}</p>
           <p className="mt-1 text-sm text-white/55">Total members</p>
-          <p className="mt-0.5 text-[11px] text-white/35">
+          <p className="mt-0.5 text-[11px] text-white/50">
             Registered accounts only · guests excluded
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
@@ -217,7 +217,7 @@ export default function AdminOverview({ onJumpToOrders }: AdminOverviewProps) {
 
       <AdminSection title="Order pipeline">
         {pipeline.length === 0 ? (
-          <p className="text-sm text-white/40">No orders yet.</p>
+          <p className="text-sm text-white/50">No orders yet.</p>
         ) : (
           <div className="space-y-2">
             {pipeline.map(([status, count]) => (
@@ -370,7 +370,7 @@ function SigninSignupLineChart({
   );
 
   if (!series.length) {
-    return <p className="text-sm text-white/40">{empty}</p>;
+    return <p className="text-sm text-white/50">{empty}</p>;
   }
 
   const inVals = series.map((p) => p.signins);
@@ -429,7 +429,7 @@ function SigninSignupLineChart({
         </span>
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 pb-2 pt-2 text-[10px] text-white/50">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 pb-2 pt-2 text-[11px] text-white/50">
         <span className="inline-flex items-center gap-1.5">
           <span className="h-1.5 w-1.5 rounded-full bg-sky-400" /> Sign-in
         </span>
@@ -570,7 +570,7 @@ function DayChart({
   totalLabel?: string;
 }) {
   if (!series.length) {
-    return <p className="text-sm text-white/40">{empty}</p>;
+    return <p className="text-sm text-white/50">{empty}</p>;
   }
 
   const values = series.map((p) => Number(p.count) || 0);
@@ -799,7 +799,7 @@ function formatAxisDay(iso: string): string {
 function Stat({ label, value }: { label: string; value: number | string }) {
   return (
     <AdminCard>
-      <p className="text-xs uppercase tracking-wide text-white/40">{label}</p>
+      <p className="text-xs uppercase tracking-wide text-white/50">{label}</p>
       <p className="mt-1 font-serif text-2xl text-white">{value}</p>
     </AdminCard>
   );

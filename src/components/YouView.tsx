@@ -290,7 +290,7 @@ export default function YouView({
                 Sync your vault across devices
               </span>
             </span>
-            <span className="text-white/40">›</span>
+            <span className="text-white/50">›</span>
           </button>
         )}
 
@@ -312,7 +312,7 @@ export default function YouView({
             <FlameIcon
               filled={quizStreak > 0}
               className={`h-6 w-6 shrink-0 ${
-                quizStreak > 0 ? "text-amber-300" : "text-white/30"
+                quizStreak > 0 ? "text-amber-300" : "text-white/50"
               }`}
             />
             <div className="min-w-0 flex-1">
@@ -504,7 +504,7 @@ export default function YouView({
           )}
         </section>
 
-        <p className="mt-6 text-center text-[11px] leading-relaxed text-white/30">
+        <p className="mt-6 text-center text-[11px] leading-relaxed text-white/50">
           Music from{" "}
           <a
             href={attributionUrl}
@@ -517,7 +517,7 @@ export default function YouView({
           .
         </p>
 
-        <p className="mt-8 text-center text-[11px] leading-relaxed text-white/30">
+        <p className="mt-8 text-center text-[11px] leading-relaxed text-white/50">
           Narsil v1.0 — a product preview.
         </p>
       </div>
@@ -595,7 +595,7 @@ function Row({
       } ${destructive ? "text-red-400" : accent ? "" : "text-white/85"}`}
     >
       <span>{label}</span>
-      <span className={accent ? "font-medium text-amber-300" : "text-white/35"}>
+      <span className={accent ? "font-medium text-amber-300" : "text-white/50"}>
         {hint ? hint : "›"}
       </span>
     </button>

@@ -44,7 +44,7 @@ export default function SavedView({
 
         {ready && items.length === 0 ? (
           <div className="mt-16 flex flex-col items-center text-center">
-            <span className="flex h-16 w-16 items-center justify-center rounded-full border border-white/12 bg-white/5 text-white/40">
+            <span className="flex h-16 w-16 items-center justify-center rounded-full border border-white/12 bg-white/5 text-white/50">
               <BookmarkIcon className="h-7 w-7" />
             </span>
             <h2 className="mt-5 max-w-[18rem] font-serif text-xl text-white">
@@ -74,7 +74,7 @@ export default function SavedView({
         )}
 
         {ready && items.length > 0 && (
-          <p className="mt-5 text-center text-[11px] text-white/35">
+          <p className="mt-5 text-center text-[11px] text-white/50">
             {items.length} piece{items.length === 1 ? "" : "s"} in the vault
           </p>
         )}

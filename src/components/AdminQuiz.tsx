@@ -140,7 +140,7 @@ export default function AdminQuiz({ showToast }: AdminQuizProps) {
       </div>
 
       <div className="mt-3">
-        <label className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">
+        <label className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-white/50">
           Topic
         </label>
         <div className="mt-1.5">
@@ -171,7 +171,7 @@ export default function AdminQuiz({ showToast }: AdminQuizProps) {
 
         {rows.length > 0 && (
           <div className="space-y-3">
-            <p className="text-xs text-white/40">
+            <p className="text-xs text-white/50">
               {total} problem{total === 1 ? "" : "s"} · tap a card to preview
             </p>
             {rows.map((row) => {
@@ -209,7 +209,7 @@ export default function AdminQuiz({ showToast }: AdminQuizProps) {
                 >
                   <div className="space-y-3">
                     <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/50">
                         Prompt
                       </p>
                       <p className="mt-1 whitespace-pre-wrap text-sm text-white/85">
@@ -217,7 +217,7 @@ export default function AdminQuiz({ showToast }: AdminQuizProps) {
                       </p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/50">
                         Options
                       </p>
                       <ul className="mt-1.5 space-y-1.5">
@@ -232,12 +232,12 @@ export default function AdminQuiz({ showToast }: AdminQuizProps) {
                                   : "border-white/10 bg-white/[0.03] text-white/70"
                               }`}
                             >
-                              <span className="mr-2 text-white/35">
+                              <span className="mr-2 text-white/50">
                                 {String.fromCharCode(65 + i)}.
                               </span>
                               {opt}
                               {correct && (
-                                <span className="ml-2 text-[10px] font-semibold uppercase tracking-wide text-emerald-300/90">
+                                <span className="ml-2 text-[11px] font-semibold uppercase tracking-wide text-emerald-300/90">
                                   Correct
                                 </span>
                               )}
@@ -248,26 +248,26 @@ export default function AdminQuiz({ showToast }: AdminQuizProps) {
                     </div>
                     <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-[11px]">
                       <div>
-                        <dt className="text-white/30">Topic</dt>
+                        <dt className="text-white/50">Topic</dt>
                         <dd className="mt-0.5 text-white/65">
                           {topicLabel(row.topic_kind, row.topic_id)} (
                           {row.topic_kind})
                         </dd>
                       </div>
                       <div>
-                        <dt className="text-white/30">Mode</dt>
+                        <dt className="text-white/50">Mode</dt>
                         <dd className="mt-0.5 text-white/65">
                           {MODE_LABEL[row.mode as QuizMode] ?? row.mode}
                         </dd>
                       </div>
                       <div>
-                        <dt className="text-white/30">Artwork id</dt>
+                        <dt className="text-white/50">Artwork id</dt>
                         <dd className="mt-0.5 break-all text-white/65">
                           {row.artwork_id ?? "—"}
                         </dd>
                       </div>
                       <div>
-                        <dt className="text-white/30">Created</dt>
+                        <dt className="text-white/50">Created</dt>
                         <dd className="mt-0.5 text-white/65">
                           {fmtDate(row.created_at)}
                         </dd>
@@ -583,7 +583,7 @@ function GenerateAiModal({
 }
 
 const fieldClass =
-  "w-full rounded-xl border border-white/12 bg-ink-soft px-3 py-2.5 text-sm text-white placeholder:text-white/35 focus:border-white/25 focus:outline-none";
+  "w-full rounded-xl border border-white/12 bg-ink-soft px-3 py-2.5 text-sm text-white placeholder:text-white/45 focus:border-white/25 focus:outline-none";
 
 type DarkOption = { value: string; label: string; group?: string };
 
@@ -618,7 +618,7 @@ function DarkSelect({
         className={`${fieldClass} flex items-center justify-between gap-2 text-left`}
       >
         <span className="truncate">{selected?.label ?? "Select…"}</span>
-        <span className="shrink-0 text-white/35">{open ? "▲" : "▼"}</span>
+        <span className="shrink-0 text-white/50">{open ? "▲" : "▼"}</span>
       </button>
       {open && (
         <>
@@ -632,7 +632,7 @@ function DarkSelect({
             {groups.map(([group, opts]) => (
               <div key={group || "default"}>
                 {group ? (
-                  <p className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35">
+                  <p className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/50">
                     {group}
                   </p>
                 ) : null}
@@ -682,7 +682,7 @@ function Field({
 }) {
   return (
     <label className="mt-3 block">
-      <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">
+      <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/50">
         {label}
       </span>
       <div className="mt-1.5">{children}</div>

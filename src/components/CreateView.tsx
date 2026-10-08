@@ -227,7 +227,7 @@ export default function CreateView({ showToast, onPublished }: CreateViewProps) 
               <span className="text-sm font-medium text-white/80">
                 Upload artwork image
               </span>
-              <span className="text-xs text-white/40">
+              <span className="text-xs text-white/50">
                 JPG or PNG · max 10 MB
               </span>
             </>
@@ -275,7 +275,7 @@ export default function CreateView({ showToast, onPublished }: CreateViewProps) 
           </Field>
 
           <div>
-            <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/45">
               Type
             </span>
             <div className="mt-2 flex gap-2">
@@ -364,7 +364,7 @@ export default function CreateView({ showToast, onPublished }: CreateViewProps) 
           Contact admin
         </button>
 
-        <p className="mt-3 text-center text-[11px] leading-relaxed text-white/30">
+        <p className="mt-3 text-center text-[11px] leading-relaxed text-white/50">
           Posts stay hidden until an admin approves them. Email support first, or
           use live chat as a last option.
         </p>
@@ -389,7 +389,7 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45">
+      <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/45">
         {label}
       </span>
       <div className="mt-1.5">{children}</div>

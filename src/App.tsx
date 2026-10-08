@@ -1,3 +1,4 @@
+import { MotionConfig } from "framer-motion";
 import AppErrorBoundary from "@/components/AppErrorBoundary";
 import MobileShell from "@/components/MobileShell";
 import { AppStateProvider, useAppState } from "@/components/AppState";
@@ -14,15 +15,19 @@ function CatalogGate({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <AppErrorBoundary>
-      <div className="app-root">
-        <AppStateProvider>
-          <CatalogGate>
-            <AudioProvider>
-              <MobileShell />
-            </AudioProvider>
-          </CatalogGate>
-        </AppStateProvider>
-      </div>
+      {/* reducedMotion="user": follow iPhone Settings → Accessibility →
+          Motion → Reduce Motion (slides become fades, nothing bounces). */}
+      <MotionConfig reducedMotion="user">
+        <div className="app-root">
+          <AppStateProvider>
+            <CatalogGate>
+              <AudioProvider>
+                <MobileShell />
+              </AudioProvider>
+            </CatalogGate>
+          </AppStateProvider>
+        </div>
+      </MotionConfig>
     </AppErrorBoundary>
   );
 }

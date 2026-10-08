@@ -231,7 +231,7 @@ export default function ArtDiscussion({
               <button
                 onClick={onClose}
                 aria-label="Close discussion"
-                className="-mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white/55 transition-colors hover:bg-white/10 hover:text-white"
+                className="relative -mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white/55 transition-colors hover:bg-white/10 hover:text-white after:absolute after:-inset-2 after:content-['']"
               >
                 <CloseIcon className="h-4 w-4" />
               </button>
@@ -260,7 +260,7 @@ export default function ArtDiscussion({
                   <p className="mt-3 text-sm text-white/55">
                     No comments yet
                   </p>
-                  <p className="mt-1 text-xs text-white/35">
+                  <p className="mt-1 text-xs text-white/50">
                     Be the first to start the discussion.
                   </p>
                 </div>
@@ -288,7 +288,7 @@ export default function ArtDiscussion({
                           <span className="truncate text-sm font-medium text-white">
                             {comment.author_name || "Guest"}
                           </span>
-                          <span className="shrink-0 text-[11px] text-white/35">
+                          <span className="shrink-0 text-[11px] text-white/50">
                             {pending ? "sending…" : relativeTime(comment.created_at)}
                           </span>
                           {mine && !pending && (
@@ -326,7 +326,7 @@ export default function ArtDiscussion({
                       maxLength={COMMENT_MAX}
                       enterKeyHint="send"
                       placeholder="Join the discussion…"
-                      className="min-w-0 flex-1 bg-transparent text-sm text-white placeholder:text-white/35 outline-none"
+                      className="min-w-0 flex-1 bg-transparent text-sm text-white placeholder:text-white/45 outline-none"
                     />
                     <button
                       type="submit"
@@ -341,7 +341,7 @@ export default function ArtDiscussion({
                       {error}
                     </p>
                   ) : (
-                    <p className="mt-2.5 text-center text-[11px] text-white/30">
+                    <p className="mt-2.5 text-center text-[11px] text-white/50">
                       Posting as {displayName}
                     </p>
                   )}
@@ -352,13 +352,13 @@ export default function ArtDiscussion({
                     <input
                       disabled
                       placeholder="Join the discussion…"
-                      className="min-w-0 flex-1 cursor-not-allowed bg-transparent text-sm text-white placeholder:text-white/35 outline-none"
+                      className="min-w-0 flex-1 cursor-not-allowed bg-transparent text-sm text-white placeholder:text-white/45 outline-none"
                     />
-                    <span className="shrink-0 rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-medium text-white/35">
+                    <span className="shrink-0 rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-medium text-white/50">
                       Post
                     </span>
                   </div>
-                  <p className="mt-2.5 text-center text-[11px] text-white/30">
+                  <p className="mt-2.5 text-center text-[11px] text-white/50">
                     Connect a backend to enable live discussion
                   </p>
                 </>

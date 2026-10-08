@@ -20,7 +20,7 @@ interface DailyQuizAdminProps {
 }
 
 const inputClass =
-  "w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none placeholder:text-white/30";
+  "w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none placeholder:text-white/45";
 
 export default function DailyQuizAdmin({ showToast }: DailyQuizAdminProps) {
   const [date, setDate] = useState(utcQuizDate);
@@ -122,7 +122,7 @@ export default function DailyQuizAdmin({ showToast }: DailyQuizAdminProps) {
     <section className="mb-6 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/50">
             Royal Assessment
           </p>
           <p className="mt-1 font-serif text-lg text-white">Shared daily set</p>
@@ -236,7 +236,7 @@ export default function DailyQuizAdmin({ showToast }: DailyQuizAdminProps) {
               >
                 <div className="min-w-0">
                   <p className="truncate text-sm text-white">{q.prompt}</p>
-                  <p className="text-[11px] text-white/40">
+                  <p className="text-[11px] text-white/50">
                     {q.position}. {q.source === "admin" ? "Special" : "Generated"} ·{" "}
                     {MODE_LABEL[q.mode as QuizMode] ?? q.mode}
                   </p>

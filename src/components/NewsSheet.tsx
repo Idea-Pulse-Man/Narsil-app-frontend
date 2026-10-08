@@ -81,7 +81,7 @@ export default function NewsSheet({ open, onClose }: NewsSheetProps) {
             <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {active ? (
                 <article className="space-y-3 pt-2">
-                  <p className="text-[11px] text-white/40">
+                  <p className="text-[11px] text-white/50">
                     {formatNewsDate(active.updated_at)}
                   </p>
                   {active.image_url && (
@@ -107,12 +107,12 @@ export default function NewsSheet({ open, onClose }: NewsSheetProps) {
               ) : (
                 <div className="space-y-2 pt-1">
                   {loading && (
-                    <p className="py-8 text-center text-sm text-white/40">
+                    <p className="py-8 text-center text-sm text-white/50">
                       Loading…
                     </p>
                   )}
                   {!loading && rows.length === 0 && (
-                    <p className="py-8 text-center text-sm text-white/40">
+                    <p className="py-8 text-center text-sm text-white/50">
                       No news yet. Check back soon.
                     </p>
                   )}
@@ -126,7 +126,7 @@ export default function NewsSheet({ open, onClose }: NewsSheetProps) {
                       <span className="truncate text-sm font-medium text-white">
                         {row.title}
                       </span>
-                      <span className="mt-1 text-[11px] text-white/40">
+                      <span className="mt-1 text-[11px] text-white/50">
                         {formatNewsDate(row.updated_at)}
                       </span>
                       <span className="mt-1.5 line-clamp-2 text-xs text-white/55">

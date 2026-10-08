@@ -39,6 +39,7 @@ import { CloseIcon, CheckIcon } from "./Icons";
 import type { ToastState } from "./Toast";
 import { track } from "@/lib/telemetry";
 import { askForPushAfter } from "@/lib/push";
+import { successHaptic } from "@/lib/haptics";
 
 const EMPTY_FORM = {
   recipient_name: "",
@@ -223,6 +224,7 @@ export default function CanvasPurchaseSheet({
   const handlePaid = async () => {
     setStep("placed");
     track("checkout_paid", { size, product });
+    successHaptic();
     // "We'll tell you when it ships" — the moment notifications make sense.
     void askForPushAfter("order");
     showToast(WORLD.acquisitionSecured);
@@ -283,7 +285,7 @@ export default function CanvasPurchaseSheet({
                 <button
                   onClick={onClose}
                   aria-label="Close"
-                  className="-mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white/55 transition-colors hover:bg-white/10 hover:text-white"
+                  className="relative -mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white/55 transition-colors hover:bg-white/10 hover:text-white after:absolute after:-inset-2 after:content-['']"
                 >
                   <CloseIcon className="h-4 w-4" />
                 </button>
@@ -307,7 +309,7 @@ export default function CanvasPurchaseSheet({
             {/* Product selection — posters are the cheaper way in. */}
             {products.length > 1 && (
               <div className="px-6 pt-5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/45">
                   Choose a print
                 </p>
                 <div className="mt-3 grid grid-cols-2 gap-2">
@@ -318,6 +320,7 @@ export default function CanvasPurchaseSheet({
                       <button
                         key={p}
                         onClick={() => setProduct(p)}
+                        aria-pressed={selected}
                         className={`rounded-2xl border px-4 py-3 text-left transition-colors ${
                           selected
                             ? "border-white/50 bg-white/10"
@@ -337,7 +340,7 @@ export default function CanvasPurchaseSheet({
 
             {/* Size selection */}
             <div className="px-6 pt-5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/45">
                 Choose a size
               </p>
               <div className="mt-3 space-y-2">
@@ -348,6 +351,7 @@ export default function CanvasPurchaseSheet({
                     <button
                       key={opt.size}
                       onClick={() => setSize(opt.size)}
+                      aria-pressed={selected}
                       className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left transition-colors ${
                         selected
                           ? "border-white/50 bg-white/10"
@@ -383,7 +387,7 @@ export default function CanvasPurchaseSheet({
             {/* Delivery address */}
             {!isGuest && (
               <div className="px-6 pt-5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/45">
                   Deliver to
                 </p>
 
@@ -557,7 +561,7 @@ export default function CanvasPurchaseSheet({
                     <span className="text-sm font-semibold text-white">
                       {/* The server decides the discount; this only renders it. */}
                       {intent.discountPct > 0 && (
-                        <span className="mr-2 font-normal text-white/35 line-through">
+                        <span className="mr-2 font-normal text-white/50 line-through">
                           ${intent.listPrice}
                         </span>
                       )}
@@ -774,7 +778,7 @@ function AddressInput({
       value={value}
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35 transition-colors focus:border-white/25 focus:outline-none"
+      className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/45 transition-colors focus:border-white/25 focus:outline-none"
     />
   );
 }
@@ -800,7 +804,7 @@ function AddressSelect({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       className={`w-full appearance-none rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm transition-colors focus:border-white/25 focus:outline-none ${
-        value ? "text-white" : "text-white/35"
+        value ? "text-white" : "text-white/50"
       }`}
     >
       <option value="" className="bg-ink-soft text-white">

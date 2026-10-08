@@ -279,7 +279,7 @@ export default function TopicQuizOverlay({
             type="button"
             onClick={onClose}
             aria-label={stage === "playing" ? "Leave trial" : "Close"}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white transition-colors hover:bg-white/10"
+            className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white transition-colors hover:bg-white/10 after:absolute after:-inset-2 after:content-['']"
           >
             {stage === "playing" ? (
               <ArrowLeftIcon className="h-4 w-4" />
@@ -373,7 +373,7 @@ export default function TopicQuizOverlay({
               <p className="mt-2 text-sm text-white/55">
                 {displayStars} of 5 stars · {spec.label}
               </p>
-              <p className="mt-1 text-[12px] text-white/40">{launch.title}</p>
+              <p className="mt-1 text-[12px] text-white/50">{launch.title}</p>
               <p className="mt-4 max-w-[16rem] text-sm leading-relaxed text-white/70">
                 {perfect
                   ? newlyEarned

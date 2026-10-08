@@ -189,7 +189,7 @@ export default function ArtworkViewer({
                   <button
                     onClick={onClose}
                     aria-label="Close viewer"
-                    className="pointer-events-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/35 text-white backdrop-blur-md transition-colors hover:bg-black/55"
+                    className="relative pointer-events-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/35 text-white backdrop-blur-md transition-colors hover:bg-black/55 after:absolute after:-inset-2 after:content-['']"
                   >
                     <CloseIcon className="h-5 w-5" />
                   </button>
@@ -217,7 +217,7 @@ export default function ArtworkViewer({
                           exit={{ opacity: 0, scale: 0.8 }}
                           onClick={() => zoomRef.current?.reset()}
                           aria-label="Reset zoom"
-                          className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/35 text-white backdrop-blur-md transition-colors hover:bg-black/55"
+                          className="relative pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/35 text-white backdrop-blur-md transition-colors hover:bg-black/55 after:absolute after:-inset-2 after:content-['']"
                         >
                           <MinimizeIcon className="h-5 w-5" />
                         </motion.button>
@@ -235,7 +235,7 @@ export default function ArtworkViewer({
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className={`absolute left-3 top-[calc(env(safe-area-inset-top)+3.6rem)] z-10 inline-block whitespace-nowrap rounded-full px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.08em] backdrop-blur-md ${
+                  className={`absolute left-3 top-[calc(env(safe-area-inset-top)+3.6rem)] z-10 inline-block whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] backdrop-blur-md ${
                     artwork.origin === "artist-original"
                       ? "bg-sky-400/20 text-sky-100"
                       : "bg-emerald-400/20 text-emerald-100"

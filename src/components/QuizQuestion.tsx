@@ -3,6 +3,7 @@ import type { QuizQuestion as Question } from "@/lib/quiz";
 import { MODE_LABEL } from "@/lib/quiz";
 import BlurImage from "./BlurImage";
 import { CheckIcon, CloseIcon } from "./Icons";
+import { errorHaptic, successHaptic, tapHaptic } from "@/lib/haptics";
 
 interface QuizQuestionProps {
   question: Question;
@@ -66,7 +67,7 @@ export default function QuizQuestion({
             maxWidth={340}
             priority
           />
-          <span className="absolute left-3 top-3 rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/80 backdrop-blur-md">
+          <span className="absolute left-3 top-3 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/80 backdrop-blur-md">
             {MODE_LABEL[question.mode]}
           </span>
         </div>
@@ -100,7 +101,14 @@ export default function QuizQuestion({
                 key={`${question.id}:${i}`}
                 type="button"
                 disabled={answered}
-                onClick={() => onSelect(i)}
+                onClick={() => {
+                  // Right / wrong feel when the answer is revealed; a plain
+                  // tick in exam mode, so the buzz never gives it away.
+                  if (!revealAnswer) tapHaptic();
+                  else if (i === question.correctIndex) successHaptic();
+                  else errorHaptic();
+                  onSelect(i);
+                }}
                 whileTap={answered ? undefined : { scale: 0.985 }}
                 className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3.5 text-left text-[15px] font-medium transition-colors ${state}`}
               >

@@ -220,12 +220,12 @@ export default function ContactAdminSheet({
 
                 <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {loading && (
-                    <p className="py-6 text-center text-sm text-white/40">
+                    <p className="py-6 text-center text-sm text-white/50">
                       Loading…
                     </p>
                   )}
                   {!loading && messages.length === 0 && (
-                    <p className="py-6 text-center text-sm text-white/40">
+                    <p className="py-6 text-center text-sm text-white/50">
                       No messages yet. Say hello — an admin will reply here.
                     </p>
                   )}
@@ -250,7 +250,7 @@ export default function ContactAdminSheet({
                     }}
                     placeholder="Write a message…"
                     maxLength={4000}
-                    className="min-w-0 flex-1 rounded-full border border-white/12 bg-white/[0.06] px-4 py-2.5 text-sm text-white placeholder:text-white/35 focus:border-white/25 focus:outline-none"
+                    className="min-w-0 flex-1 rounded-full border border-white/12 bg-white/[0.06] px-4 py-2.5 text-sm text-white placeholder:text-white/45 focus:border-white/25 focus:outline-none"
                   />
                   <button
                     type="button"

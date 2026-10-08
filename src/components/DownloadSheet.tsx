@@ -186,7 +186,7 @@ export default function DownloadSheet({
                     {describeTier(artwork, "standard")} · Free
                   </span>
                 </span>
-                <span className="shrink-0 text-white/40">
+                <span className="shrink-0 text-white/50">
                   {busy === "standard" ? (
                     <span className="tabular-nums text-[12px] font-medium text-white/70">
                       {progressLabel}

@@ -199,7 +199,7 @@ export default function AdminUsers({ showToast }: AdminUsersProps) {
 
         {rows.length > 0 && (
           <div className="space-y-3">
-            <p className="text-xs text-white/40">
+            <p className="text-xs text-white/50">
               {total} account{total === 1 ? "" : "s"}
             </p>
             {rows.map((row) => {
@@ -231,7 +231,7 @@ export default function AdminUsers({ showToast }: AdminUsersProps) {
                           {WORLD.explorersGuild}
                         </span>
                       ) : (
-                        <span className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] text-white/35">
+                        <span className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] text-white/50">
                           Free
                         </span>
                       )}
@@ -270,7 +270,7 @@ export default function AdminUsers({ showToast }: AdminUsersProps) {
                   </dl>
 
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/50">
                       Account
                     </p>
                     <div className="mt-2 flex flex-wrap gap-2">
@@ -297,7 +297,7 @@ export default function AdminUsers({ showToast }: AdminUsersProps) {
                   </div>
 
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/50">
                       Access
                     </p>
                     <div className="mt-2 flex flex-wrap gap-2">
@@ -321,13 +321,13 @@ export default function AdminUsers({ showToast }: AdminUsersProps) {
                         onClick={() => void resetPassword(row)}
                       />
                       {self && (
-                        <span className="self-center text-[11px] text-white/25">
+                        <span className="self-center text-[11px] text-white/50">
                           This is you
                         </span>
                       )}
                     </div>
                     {!row.email && (
-                      <p className="mt-2 text-[11px] text-white/35">
+                      <p className="mt-2 text-[11px] text-white/50">
                         Guest / OAuth account without email — password reset
                         unavailable.
                       </p>
@@ -376,7 +376,7 @@ function StatusBadge({ status }: { status: AccountStatus }) {
 function Detail({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
-      <dt className="text-white/30">{label}</dt>
+      <dt className="text-white/50">{label}</dt>
       <dd className="mt-0.5 break-all text-white/65">{value}</dd>
     </div>
   );

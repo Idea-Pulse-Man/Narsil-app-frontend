@@ -251,7 +251,7 @@ function OrderCard({
             {row.product ?? "canvas"} ·{" "}
             {fmtMoney(row.price, row.currency)}
           </p>
-          <p className="mt-1 text-[11px] text-white/30">
+          <p className="mt-1 text-[11px] text-white/50">
             {fmtDate(row.created_at)}
           </p>
         </div>
@@ -265,7 +265,7 @@ function OrderCard({
         <div className="border-t border-white/8 p-3.5">
           {/* Quick actions — primary admin controls */}
           <div className="mb-4">
-            <p className="mb-2 text-[11px] uppercase tracking-wide text-white/40">
+            <p className="mb-2 text-[11px] uppercase tracking-wide text-white/50">
               Actions
             </p>
             <div className="flex flex-wrap gap-2">
@@ -327,7 +327,7 @@ function OrderCard({
               )}
             </div>
             {canDecline && !confirmDecline && (
-              <p className="mt-2 text-[11px] text-white/35">
+              <p className="mt-2 text-[11px] text-white/50">
                 Decline sets status to cancelled. Use for refunds or rejected
                 prints.
               </p>
@@ -355,7 +355,7 @@ function OrderCard({
             <Detail label="Shipped" value={fmtDate(row.shipped_at)} />
           </dl>
 
-          <label className="mt-4 block text-[11px] uppercase tracking-wide text-white/40">
+          <label className="mt-4 block text-[11px] uppercase tracking-wide text-white/50">
             Status
             <select
               value={row.status}
@@ -376,13 +376,13 @@ function OrderCard({
               value={number}
               onChange={(e) => setNumber(e.target.value)}
               placeholder="Tracking number"
-              className="w-full rounded-xl border border-white/12 bg-white/[0.06] px-3 py-2 text-sm text-white placeholder:text-white/30"
+              className="w-full rounded-xl border border-white/12 bg-white/[0.06] px-3 py-2 text-sm text-white placeholder:text-white/45"
             />
             <input
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="Tracking URL"
-              className="w-full rounded-xl border border-white/12 bg-white/[0.06] px-3 py-2 text-sm text-white placeholder:text-white/30"
+              className="w-full rounded-xl border border-white/12 bg-white/[0.06] px-3 py-2 text-sm text-white placeholder:text-white/45"
             />
           </div>
 
@@ -436,7 +436,7 @@ function ActionChip({
 function Detail({ label, value }: { label: string; value: string | null }) {
   return (
     <div className="flex gap-2">
-      <dt className="w-24 shrink-0 text-white/30">{label}</dt>
+      <dt className="w-24 shrink-0 text-white/50">{label}</dt>
       <dd className="min-w-0 flex-1 break-all text-white/55">{value ?? "—"}</dd>
     </div>
   );

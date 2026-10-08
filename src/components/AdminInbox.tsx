@@ -186,7 +186,7 @@ export default function AdminInbox({
         <p className="mt-2 truncate text-sm text-white">
           {active?.full_name?.trim() || active?.email || activeId}
         </p>
-        <p className="flex items-center gap-2 text-xs text-white/40">
+        <p className="flex items-center gap-2 text-xs text-white/50">
           <span>{active?.email ?? "no email"}</span>
           <span className="inline-flex items-center gap-1 text-emerald-300/90">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
@@ -196,7 +196,7 @@ export default function AdminInbox({
 
         <div className="mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto rounded-2xl border border-white/10 bg-white/[0.03] p-3">
           {threadLoading && (
-            <p className="py-6 text-center text-sm text-white/40">Loading…</p>
+            <p className="py-6 text-center text-sm text-white/50">Loading…</p>
           )}
           {!threadLoading && messages.length > 0 && (
             <SupportChatTranscript messages={messages} perspective="admin" />
@@ -215,7 +215,7 @@ export default function AdminInbox({
               }
             }}
             placeholder="Reply as admin…"
-            className="min-w-0 flex-1 rounded-full border border-white/12 bg-white/[0.06] px-4 py-2.5 text-sm text-white placeholder:text-white/35"
+            className="min-w-0 flex-1 rounded-full border border-white/12 bg-white/[0.06] px-4 py-2.5 text-sm text-white placeholder:text-white/45"
           />
           <button
             type="button"
@@ -242,7 +242,7 @@ export default function AdminInbox({
 
       {threads.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs text-white/40">
+          <p className="text-xs text-white/50">
             {total} conversation{total === 1 ? "" : "s"} · live
           </p>
           {threads.map((t) => {
@@ -262,9 +262,9 @@ export default function AdminInbox({
                 <span className="truncate text-sm text-white">
                   {t.full_name?.trim() || t.email || "Member"}
                 </span>
-                <span className="flex shrink-0 items-center gap-2 text-[11px] text-white/35">
+                <span className="flex shrink-0 items-center gap-2 text-[11px] text-white/50">
                   {unread && (
-                    <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                    <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[11px] font-semibold text-white">
                       New
                     </span>
                   )}

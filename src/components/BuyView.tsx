@@ -293,7 +293,7 @@ export default function BuyView({ showToast, active = true }: BuyViewProps) {
                 {!showSkeletonGrid && (
                   <span
                     className={`ml-1.5 tabular-nums ${
-                      active ? "text-ink/40" : "text-white/30"
+                      active ? "text-ink/40" : "text-white/50"
                     }`}
                   >
                     {formatCount(counts[id])}
@@ -316,7 +316,7 @@ export default function BuyView({ showToast, active = true }: BuyViewProps) {
           </div>
         ) : visibleProducts.length === 0 ? (
           <div className="mt-16 flex flex-col items-center text-center">
-            <span className="flex h-16 w-16 items-center justify-center rounded-full border border-white/12 bg-white/5 text-white/40">
+            <span className="flex h-16 w-16 items-center justify-center rounded-full border border-white/12 bg-white/5 text-white/50">
               <SparkleIcon className="h-7 w-7" />
             </span>
             <h2 className="mt-5 font-serif text-xl text-white">
@@ -439,7 +439,7 @@ function CanvasTile({ artwork, priceFrom, index, onOpen }: CanvasTileProps) {
           </p>
           <div className="mt-2 flex items-center justify-between gap-2">
             <span className="flex items-baseline gap-1">
-              <span className="text-[10px] uppercase tracking-[0.08em] text-white/40">
+              <span className="text-[11px] uppercase tracking-[0.08em] text-white/50">
                 from
               </span>
               <span className="text-sm font-semibold tabular-nums text-white">
@@ -467,7 +467,7 @@ function CanvasTile({ artwork, priceFrom, index, onOpen }: CanvasTileProps) {
           saved
             ? "border-amber-300/40 bg-amber-300/20 text-amber-300"
             : "border-white/15 bg-black/35 text-white hover:bg-black/50"
-        }`}
+        } after:absolute after:-inset-2 after:content-['']`}
       >
         <BookmarkIcon filled={saved} className="h-4 w-4" />
       </button>

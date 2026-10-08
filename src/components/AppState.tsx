@@ -41,6 +41,7 @@ import {
   type PaywallReason,
   type SubscriptionState,
 } from "@/lib/subscription";
+import { tapHaptic } from "@/lib/haptics";
 
 /** User preferences captured by the "Personalize your museum" modal. */
 export interface Preferences {
@@ -472,14 +473,17 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       key: string,
       persist: (id: string, on: boolean) => void
     ) =>
-      (id: string) =>
+      (id: string) => {
+        // A light tick for like / save / follow — the iPhone's own feel.
+        tapHaptic();
         setter((prev) => {
           const on = !prev.includes(id);
           const next = on ? [...prev, id] : prev.filter((x) => x !== id);
           writeJSON(key, next);
           if (cloudReady.current) persist(id, on);
           return next;
-        }),
+        });
+      },
     []
   );
 

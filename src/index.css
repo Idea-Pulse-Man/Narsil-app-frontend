@@ -145,3 +145,18 @@ body {
     @apply w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-accent/40 focus:bg-white/[0.06];
   }
 }
+
+/* iPhone Settings → Accessibility → Motion → Reduce Motion. Framer Motion
+   follows it via <MotionConfig reducedMotion="user"> (App.tsx); this covers
+   CSS animations and transitions. Spinners keep turning — a frozen spinner
+   reads as "stuck". */
+@media (prefers-reduced-motion: reduce) {
+  *:not(.animate-spin),
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

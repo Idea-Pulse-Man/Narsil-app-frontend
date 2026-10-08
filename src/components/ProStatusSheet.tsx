@@ -193,7 +193,7 @@ export default function ProStatusSheet({
               {busy ? "Checking…" : "Restore Purchases"}
             </button>
 
-            <p className="mt-4 text-[11px] leading-relaxed text-white/40">
+            <p className="mt-4 text-[11px] leading-relaxed text-white/50">
               Subscriptions are billed by Apple and can only be changed or
               cancelled from Settings → Apple ID → Subscriptions. Cancel at
               least 24 hours before the period ends to avoid the next charge.

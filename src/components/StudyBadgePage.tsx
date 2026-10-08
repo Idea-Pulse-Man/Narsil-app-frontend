@@ -95,7 +95,7 @@ export default function StudyBadgePage({
         type="button"
         onClick={onBack}
         aria-label="Back to Study"
-        className={`mb-3 flex h-9 w-9 items-center justify-center rounded-full border ${box} ${heading}`}
+        className={`relative mb-3 flex h-9 w-9 items-center justify-center rounded-full border ${box} ${heading} after:absolute after:-inset-2 after:content-['']`}
       >
         <ArrowLeftIcon className="h-4 w-4" />
       </button>
@@ -149,11 +149,11 @@ export default function StudyBadgePage({
               }`}
             >
               <StudyBadgeMark badge={badge} earned={earned} size={44} />
-              <span className="line-clamp-2 text-center text-[10px] font-medium leading-tight text-[#1a1208]">
+              <span className="line-clamp-2 text-center text-[11px] font-medium leading-tight text-[#1a1208]">
                 {badge.kind === "assessment" ? badge.title : badge.label}
               </span>
               {badge.kind === "discover" && (
-                <span className="line-clamp-1 text-center text-[9px] text-[#4a3014]">
+                <span className="line-clamp-1 text-center text-[11px] text-[#4a3014]">
                   {badge.title}
                 </span>
               )}
@@ -289,7 +289,7 @@ export function DiscoverLevelCard({
                 size={28}
                 lockedWhite
               />
-              <span className={`text-[9px] ${muted}`}>{spec.label}</span>
+              <span className={`text-[11px] ${muted}`}>{spec.label}</span>
             </span>
           );
         })}

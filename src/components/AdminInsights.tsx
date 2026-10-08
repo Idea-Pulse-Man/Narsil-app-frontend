@@ -104,7 +104,7 @@ export default function AdminInsights() {
           <AdminSection title="Screens" hint="How often each tab is opened.">
             <AdminCard>
               {data.screens.length === 0 ? (
-                <p className="text-sm text-white/40">No screen views yet.</p>
+                <p className="text-sm text-white/50">No screen views yet.</p>
               ) : (
                 <ul className="space-y-2.5">
                   {data.screens.map((s) => (
@@ -149,13 +149,13 @@ export default function AdminInsights() {
                           {e.count}×
                         </span>
                       </div>
-                      <p className="mt-1 text-[11px] text-white/40">
+                      <p className="mt-1 text-[11px] text-white/50">
                         {e.source === "server" ? "Server" : "App"} · {e.installs} installs ·
                         last {fmtDate(e.last_seen)}
                         {e.context ? ` · ${e.context}` : ""}
                       </p>
                       {openError === i && e.stack && (
-                        <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap rounded-xl bg-black/40 p-2 text-[10px] leading-snug text-white/60">
+                        <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap rounded-xl bg-black/40 p-2 text-[11px] leading-snug text-white/60">
                           {e.stack}
                         </pre>
                       )}
@@ -191,7 +191,7 @@ function Funnel({ steps }: { steps: { label: string; value: number }[] }) {
             <span className="text-white">
               {step.value.toLocaleString()}
               {i > 0 && (
-                <span className="ml-2 text-xs text-white/40">{pct(step.value, top)}</span>
+                <span className="ml-2 text-xs text-white/50">{pct(step.value, top)}</span>
               )}
             </span>
           </li>

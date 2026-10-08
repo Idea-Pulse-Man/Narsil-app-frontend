@@ -73,7 +73,7 @@ export default function TopicQuizBar({
     <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
       <div className="flex items-baseline justify-between gap-2">
         <p className="font-serif text-[15px] text-white">{title}</p>
-        <p className="text-[10px] text-white/40">{WORLD.trialHint}</p>
+        <p className="text-[11px] text-white/50">{WORLD.trialHint}</p>
       </div>
       <div className="mt-2.5 grid grid-cols-3 gap-1.5">
         {QUIZ_DIFFICULTIES.map((spec) => {
@@ -211,7 +211,7 @@ function DifficultyButton({
         size={36}
       />
       <span
-        className={`text-[10px] font-medium leading-tight ${
+        className={`text-[11px] font-medium leading-tight ${
           earned
             ? "text-amber-100"
             : accessOk
@@ -223,7 +223,7 @@ function DifficultyButton({
       </span>
       <QuizStars stars={bestStars} size={8} />
       {cooling && (
-        <span className="text-[9px] tabular-nums text-amber-200/80">
+        <span className="text-[11px] tabular-nums text-amber-200/80">
           {formatRemainingMs(cooldownMs)}
         </span>
       )}

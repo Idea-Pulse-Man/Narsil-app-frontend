@@ -10,6 +10,7 @@ import BottomNav from "./BottomNav";
 import { type Screen } from "./navigation";
 import ArtFeed from "./ArtFeed";
 import Toast, { type ToastState } from "./Toast";
+import OfflineBanner from "./OfflineBanner";
 import TermsView from "./TermsView";
 import { useAppState } from "./AppState";
 import { App as CapacitorApp } from "@capacitor/app";
@@ -19,6 +20,7 @@ import type { TutorialAction } from "./tutorial";
 import type { TopicQuizLaunch } from "@/lib/quiz";
 import { track } from "@/lib/telemetry";
 import { initPush } from "@/lib/push";
+import { tapHaptic } from "@/lib/haptics";
 
 const DiscoverView = lazy(() => import("./DiscoverView"));
 const BuyView = lazy(() => import("./BuyView"));
@@ -311,10 +313,11 @@ export default function MobileShell() {
         setDiscoverGate(true);
         return;
       }
+      if (next !== screen) tapHaptic();
       setScreen(next);
       setClean(false);
     },
-    [tutorialActive, isGuest]
+    [tutorialActive, isGuest, screen]
   );
 
   // A guest must never land on Discover (sign-out while that tab is open).
@@ -784,6 +787,7 @@ export default function MobileShell() {
         </AnimatePresence>
 
         <Toast toast={toast} />
+        <OfflineBanner />
 
         {/* One age in full. Sits under the profile/viewer so anything opened
             from an era's list stacks on top of it. */}

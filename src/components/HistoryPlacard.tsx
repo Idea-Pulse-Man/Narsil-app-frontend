@@ -198,7 +198,7 @@ export default function HistoryPlacard({
               </div>
 
               <div className="mt-4 flex items-center gap-2">
-                <span className="rounded-full bg-ink/8 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-ink/55">
+                <span className="rounded-full bg-ink/8 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-ink/55">
                   Museum Placard
                 </span>
               </div>
@@ -225,25 +225,25 @@ export default function HistoryPlacard({
               >
               <dl className="grid grid-cols-2 gap-x-4 gap-y-4 border-y border-ink/10 py-5">
                 <div>
-                  <dt className="text-[10px] font-semibold uppercase tracking-[0.16em] text-ink/45">
+                  <dt className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink/45">
                     Medium
                   </dt>
                   <dd className="mt-1 text-sm text-ink/85">{artwork.medium}</dd>
                 </div>
                 <div>
-                  <dt className="text-[10px] font-semibold uppercase tracking-[0.16em] text-ink/45">
+                  <dt className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink/45">
                     Date
                   </dt>
                   <dd className="mt-1 text-sm text-ink/85">{artwork.year}</dd>
                 </div>
                 <div>
-                  <dt className="text-[10px] font-semibold uppercase tracking-[0.16em] text-ink/45">
+                  <dt className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink/45">
                     Artist
                   </dt>
                   <dd className="mt-1 text-sm text-ink/85">{artist.name}</dd>
                 </div>
                 <div>
-                  <dt className="text-[10px] font-semibold uppercase tracking-[0.16em] text-ink/45">
+                  <dt className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink/45">
                     Museum
                   </dt>
                   <dd className="mt-1 text-sm text-ink/85">{museumName(artwork)}</dd>
@@ -254,7 +254,7 @@ export default function HistoryPlacard({
                 About this work
               </h3>
               {artwork.aiDescription?.trim() ? (
-                <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-ink/40">
+                <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink/40">
                   Curator note
                 </p>
               ) : null}

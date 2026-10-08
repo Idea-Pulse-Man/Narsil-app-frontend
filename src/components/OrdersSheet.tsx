@@ -5,6 +5,7 @@ import { WORLD } from "@/data/worldCopy";
 import { fetchCanvasOrders, type CanvasOrder } from "@/lib/orders";
 import BlurImage from "./BlurImage";
 import { CloseIcon } from "./Icons";
+import { SkeletonCards } from "./Skeleton";
 
 /**
  * User-friendly view of each order status. Backend states that are internal
@@ -109,18 +110,14 @@ export default function OrdersSheet({ open, onClose }: OrdersSheetProps) {
               <button
                 onClick={onClose}
                 aria-label="Close"
-                className="-mr-1 flex h-8 w-8 items-center justify-center rounded-full text-white/55 transition-colors hover:bg-white/10 hover:text-white"
+                className="relative -mr-1 flex h-8 w-8 items-center justify-center rounded-full text-white/55 transition-colors hover:bg-white/10 hover:text-white after:absolute after:-inset-2 after:content-['']"
               >
                 <CloseIcon className="h-4 w-4" />
               </button>
             </div>
 
             <div className="px-6 pb-10 pt-4">
-              {loading && (
-                <p className="py-8 text-center text-sm text-white/45">
-                  Loading your orders…
-                </p>
-              )}
+              {loading && <SkeletonCards count={3} />}
 
               {!loading && orders.length === 0 && (
                 <p className="py-8 text-center text-sm text-white/45">
@@ -165,7 +162,7 @@ export default function OrdersSheet({ open, onClose }: OrdersSheetProps) {
                               {order.size} {order.product ?? "canvas"}
                               {order.price != null ? ` · $${order.price}` : ""}
                             </p>
-                            <p className="mt-0.5 text-[11px] text-white/35">
+                            <p className="mt-0.5 text-[11px] text-white/50">
                               Ordered {placed}
                             </p>
                           </div>

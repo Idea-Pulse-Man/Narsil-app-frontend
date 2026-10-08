@@ -54,7 +54,7 @@ export default function BottomNav({
                 {Icon({ filled: isActive, className: "h-[19px] w-[19px]" })}
               </span>
               <span
-                className={`relative text-[9px] font-medium tracking-tight transition-colors ${
+                className={`relative whitespace-nowrap text-[11px] font-medium tracking-tight transition-colors ${
                   isActive ? "text-accent" : "text-white/55"
                 }`}
               >
@@ -74,7 +74,7 @@ export default function BottomNav({
           <span className="relative text-white/55 transition-colors group-hover:text-white/85">
             <LightbulbIcon className="h-[19px] w-[19px]" />
           </span>
-          <span className="relative text-[9px] font-medium tracking-tight text-white/55 transition-colors group-hover:text-white/85">
+          <span className="relative whitespace-nowrap text-[11px] font-medium tracking-tight text-white/55 transition-colors group-hover:text-white/85">
             {WORLD.assessmentNav}
           </span>
         </button>

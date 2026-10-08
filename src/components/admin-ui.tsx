@@ -38,7 +38,7 @@ export function AdminSection({
         <h2 className="font-serif text-lg text-white">{title}</h2>
         {action}
       </div>
-      {hint && <p className="mt-1 text-xs text-white/40">{hint}</p>}
+      {hint && <p className="mt-1 text-xs text-white/50">{hint}</p>}
       <div className="mt-3">{children}</div>
     </section>
   );
@@ -114,7 +114,7 @@ export function AdminState({
       </div>
     );
   }
-  if (empty) return <p className="py-6 text-sm text-white/40">{emptyLabel}</p>;
+  if (empty) return <p className="py-6 text-sm text-white/50">{emptyLabel}</p>;
   return null;
 }
 
@@ -135,7 +135,7 @@ export function AdminSearch({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-full rounded-full border border-white/12 bg-white/[0.05] px-4 py-2 text-sm text-white placeholder:text-white/35 focus:border-white/25 focus:outline-none"
+      className="w-full rounded-full border border-white/12 bg-white/[0.05] px-4 py-2 text-sm text-white placeholder:text-white/45 focus:border-white/25 focus:outline-none"
     />
   );
 }
@@ -165,6 +165,7 @@ export function FilterTabs<T extends string>({
           key={opt.id}
           type="button"
           onClick={() => onChange(opt.id)}
+          aria-pressed={value === opt.id}
           className={`relative shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
             value === opt.id
               ? "bg-white text-ink"
@@ -174,7 +175,7 @@ export function FilterTabs<T extends string>({
           {opt.label}
           {typeof opt.badge === "number" && opt.badge > 0 && (
             <span
-              className="absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white shadow-sm"
+              className="absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-semibold leading-none text-white shadow-sm"
               aria-label={`${opt.badge} unread`}
             >
               {opt.badge > 99 ? "99+" : opt.badge}
@@ -377,7 +378,7 @@ export function statusTone(status: CanvasOrderStatus | string): string {
     case "fulfillment_failed":
       return "border-red-400/30 bg-red-500/15 text-red-200";
     case "cancelled":
-      return "border-white/10 bg-white/[0.04] text-white/40";
+      return "border-white/10 bg-white/[0.04] text-white/50";
     case "paid":
     case "pending_payment":
     case "registered":

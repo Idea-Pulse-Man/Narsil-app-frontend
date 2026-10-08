@@ -126,7 +126,7 @@ export default function ProfileAvatar({
           onClick={openMenu}
           disabled={busy}
           aria-label={editLabel}
-          className="absolute bottom-1 right-1 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-accent text-ink shadow-sm disabled:opacity-70"
+          className="absolute bottom-1 right-1 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-accent text-ink shadow-sm disabled:opacity-70 after:absolute after:-inset-2 after:content-['']"
         >
           <PencilIcon className="h-3.5 w-3.5" />
         </button>
@@ -161,7 +161,7 @@ export default function ProfileAvatar({
                   type="button"
                   onClick={() => setMenuOpen(false)}
                   aria-label="Close"
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-white/12 text-white/70"
+                  className="relative flex h-8 w-8 items-center justify-center rounded-full border border-white/12 text-white/70 after:absolute after:-inset-2 after:content-['']"
                 >
                   <CloseIcon className="h-4 w-4" />
                 </button>
@@ -214,7 +214,7 @@ function EditOption({
         {icon}
       </span>
       <span className="text-sm font-medium text-white">{label}</span>
-      <span className="ml-auto text-white/35">›</span>
+      <span className="ml-auto text-white/50">›</span>
     </button>
   );
 }

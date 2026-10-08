@@ -512,7 +512,7 @@ export default function QuizOverlay({
               <button
                 onClick={backToHub}
                 aria-label="Back to quiz menu"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white transition-colors hover:bg-white/10"
+                className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white transition-colors hover:bg-white/10 after:absolute after:-inset-2 after:content-['']"
               >
                 <ArrowLeftIcon className="h-4 w-4" />
               </button>
@@ -715,7 +715,7 @@ function QuizHub({
           type="button"
           onClick={onClose}
           aria-label="Close quiz"
-          className={`mb-3 flex h-9 w-9 items-center justify-center rounded-full border ${box} ${heading}`}
+          className={`relative mb-3 flex h-9 w-9 items-center justify-center rounded-full border ${box} ${heading} after:absolute after:-inset-2 after:content-['']`}
         >
           <CloseIcon className="h-4 w-4" />
         </button>
@@ -813,7 +813,7 @@ function QuizHub({
               {WORLD.unchartedArchives}
               {!isPro && (
                 <span
-                  className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${box}`}
+                  className={`ml-2 rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${box}`}
                 >
                   Guild
                 </span>

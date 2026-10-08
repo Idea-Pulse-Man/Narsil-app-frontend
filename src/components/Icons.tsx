@@ -5,6 +5,7 @@ type IconProps = SVGProps<SVGSVGElement> & { filled?: boolean };
 export function HeartIcon({ filled, ...props }: IconProps) {
   return (
     <svg
+      aria-hidden="true"
       viewBox="0 0 24 24"
       fill={filled ? "currentColor" : "none"}
       stroke="currentColor"
@@ -21,6 +22,7 @@ export function HeartIcon({ filled, ...props }: IconProps) {
 export function BookmarkIcon({ filled, ...props }: IconProps) {
   return (
     <svg
+      aria-hidden="true"
       viewBox="0 0 24 24"
       fill={filled ? "currentColor" : "none"}
       stroke="currentColor"
@@ -37,6 +39,7 @@ export function BookmarkIcon({ filled, ...props }: IconProps) {
 export function DownloadIcon(props: IconProps) {
   return (
     <svg
+      aria-hidden="true"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -55,6 +58,7 @@ export function DownloadIcon(props: IconProps) {
 export function ShareIcon(props: IconProps) {
   return (
     <svg
+      aria-hidden="true"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -75,6 +79,7 @@ export function ShareIcon(props: IconProps) {
 export function CommentIcon(props: IconProps) {
   return (
     <svg
+      aria-hidden="true"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -91,6 +96,7 @@ export function CommentIcon(props: IconProps) {
 export function PlusIcon(props: IconProps) {
   return (
     <svg
+      aria-hidden="true"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -108,6 +114,7 @@ export function PlusIcon(props: IconProps) {
 export function MinusIcon(props: IconProps) {
   return (
     <svg
+      aria-hidden="true"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -124,6 +131,7 @@ export function MinusIcon(props: IconProps) {
 export function ChevronUpIcon(props: IconProps) {
   return (
     <svg
+      aria-hidden="true"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -140,6 +148,7 @@ export function ChevronUpIcon(props: IconProps) {
 export function ChevronDownIcon(props: IconProps) {
   return (
     <svg
+      aria-hidden="true"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -156,6 +165,7 @@ export function ChevronDownIcon(props: IconProps) {
 export function CloseIcon(props: IconProps) {
   return (
     <svg
+      aria-hidden="true"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -173,6 +183,7 @@ export function CloseIcon(props: IconProps) {
 export function TrashIcon(props: IconProps) {
   return (
     <svg
+      aria-hidden="true"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -192,6 +203,7 @@ export function TrashIcon(props: IconProps) {
 export function CheckIcon(props: IconProps) {
   return (
     <svg
+      aria-hidden="true"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -208,6 +220,7 @@ export function CheckIcon(props: IconProps) {
 export function SearchIcon(props: IconProps) {
   return (
     <svg
+      aria-hidden="true"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -225,6 +238,7 @@ export function SearchIcon(props: IconProps) {
 export function CompassIcon({ filled, ...props }: IconProps) {
   return (
     <svg
+      aria-hidden="true"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -245,6 +259,7 @@ export function CompassIcon({ filled, ...props }: IconProps) {
 export function UserIcon({ filled, ...props }: IconProps) {
   return (
     <svg
+      aria-hidden="true"
       viewBox="0 0 24 24"
       fill={filled ? "currentColor" : "none"}
       stroke="currentColor"
@@ -262,6 +277,7 @@ export function UserIcon({ filled, ...props }: IconProps) {
 export function PencilIcon(props: IconProps) {
   return (
     <svg
+      aria-hidden="true"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -279,6 +295,7 @@ export function PencilIcon(props: IconProps) {
 export function PlusSquareIcon({ filled, ...props }: IconProps) {
   return (
     <svg
+      aria-hidden="true"
       viewBox="0 0 24 24"
       fill={filled ? "currentColor" : "none"}
       stroke="currentColor"
@@ -297,6 +314,7 @@ export function PlusSquareIcon({ filled, ...props }: IconProps) {
 export function ArrowRightIcon(props: IconProps) {
   return (
     <svg
+      aria-hidden="true"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -314,6 +332,7 @@ export function ArrowRightIcon(props: IconProps) {
 export function ArrowLeftIcon(props: IconProps) {
   return (
     <svg
+      aria-hidden="true"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -331,6 +350,7 @@ export function ArrowLeftIcon(props: IconProps) {
 export function SparkleIcon(props: IconProps) {
   return (
     <svg
+      aria-hidden="true"
       viewBox="0 0 24 24"
       fill="currentColor"
       {...props}
@@ -343,6 +363,7 @@ export function SparkleIcon(props: IconProps) {
 export function MaximizeIcon(props: IconProps) {
   return (
     <svg
+      aria-hidden="true"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -362,6 +383,7 @@ export function MaximizeIcon(props: IconProps) {
 export function MinimizeIcon(props: IconProps) {
   return (
     <svg
+      aria-hidden="true"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -381,6 +403,7 @@ export function MinimizeIcon(props: IconProps) {
 export function EyeOffIcon(props: IconProps) {
   return (
     <svg
+      aria-hidden="true"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -399,7 +422,7 @@ export function EyeOffIcon(props: IconProps) {
 
 export function GoogleGlyph(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 24 24" width="18" height="18" {...props}>
+    <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" {...props}>
       <path
         fill="#4285F4"
         d="M23.52 12.27c0-.82-.07-1.6-.2-2.36H12v4.47h6.47a5.53 5.53 0 0 1-2.4 3.63v3h3.88c2.27-2.09 3.57-5.17 3.57-8.74Z"
@@ -422,7 +445,7 @@ export function GoogleGlyph(props: SVGProps<SVGSVGElement>) {
 
 export function AppleGlyph(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" {...props}>
+    <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" {...props}>
       <path d="M16.37 12.71c-.02-2.02 1.65-2.99 1.72-3.04-.94-1.37-2.4-1.56-2.92-1.58-1.24-.13-2.42.73-3.05.73-.63 0-1.6-.71-2.63-.69-1.35.02-2.6.79-3.3 2-1.4 2.43-.36 6.03 1.01 8 .67.96 1.47 2.04 2.51 2 1.01-.04 1.39-.65 2.61-.65 1.22 0 1.56.65 2.63.63 1.09-.02 1.78-.98 2.44-1.95.77-1.12 1.09-2.2 1.11-2.26-.02-.01-2.13-.82-2.14-3.24ZM14.4 6.79c.56-.68.94-1.62.83-2.56-.81.03-1.79.54-2.37 1.21-.52.6-.97 1.56-.85 2.48.9.07 1.83-.46 2.39-1.13Z" />
     </svg>
   );
@@ -431,6 +454,7 @@ export function AppleGlyph(props: SVGProps<SVGSVGElement>) {
 export function FlameIcon({ filled, ...props }: IconProps) {
   return (
     <svg
+      aria-hidden="true"
       viewBox="0 0 24 24"
       fill={filled ? "currentColor" : "none"}
       stroke="currentColor"
@@ -447,6 +471,7 @@ export function FlameIcon({ filled, ...props }: IconProps) {
 export function LightbulbIcon({ filled, ...props }: IconProps) {
   return (
     <svg
+      aria-hidden="true"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -468,6 +493,7 @@ export function LightbulbIcon({ filled, ...props }: IconProps) {
 export function LockIcon(props: IconProps) {
   return (
     <svg
+      aria-hidden="true"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -485,6 +511,7 @@ export function LockIcon(props: IconProps) {
 export function MedalIcon(props: IconProps) {
   return (
     <svg
+      aria-hidden="true"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -502,6 +529,7 @@ export function MedalIcon(props: IconProps) {
 export function LinkIcon(props: IconProps) {
   return (
     <svg
+      aria-hidden="true"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"

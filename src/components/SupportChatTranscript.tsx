@@ -38,13 +38,13 @@ export default function SupportChatTranscript({
             : mine
               ? "bg-white text-ink"
               : "border border-white/10 bg-white/[0.06] text-white/85";
-        const timeClass = mine ? "text-ink/45" : "text-white/40";
+        const timeClass = mine ? "text-ink/45" : "text-white/50";
 
         return (
           <div key={m.id} className="space-y-2">
             {showDay && (
               <div className="flex justify-center py-1">
-                <span className="rounded-full bg-black/35 px-2.5 py-0.5 text-[10px] font-medium tracking-wide text-white/70">
+                <span className="rounded-full bg-black/35 px-2.5 py-0.5 text-[11px] font-medium tracking-wide text-white/70">
                   {formatSupportChatDay(m.created_at)}
                 </span>
               </div>
@@ -55,7 +55,7 @@ export default function SupportChatTranscript({
                   {m.body}
                 </p>
                 {time ? (
-                  <p className={`mt-1 text-right text-[10px] leading-none ${timeClass}`}>
+                  <p className={`mt-1 text-right text-[11px] leading-none ${timeClass}`}>
                     {time}
                   </p>
                 ) : null}

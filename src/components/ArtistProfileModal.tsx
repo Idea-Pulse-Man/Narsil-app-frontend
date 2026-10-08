@@ -12,6 +12,7 @@ import { CloseIcon, PlusIcon, CheckIcon } from "./Icons";
 import { useAppState } from "./AppState";
 import { formatCount } from "@/lib/format";
 import { useInfiniteScroll } from "./useInfiniteScroll";
+import { Skeleton } from "./Skeleton";
 
 interface ArtistProfileModalProps {
   artist: Artist | null;
@@ -29,6 +30,7 @@ export default function ArtistProfileModal({
     useCatalog();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [engagement, setEngagement] = useState<ArtistEngagement | null>(null);
+  const [engagementLoading, setEngagementLoading] = useState(false);
   const works = artist ? getArtworksByArtist(artist.id) : [];
   const { visible, sentinelRef, hasMore } = useInfiniteScroll(works, {
     pageSize: 24,
@@ -47,12 +49,16 @@ export default function ArtistProfileModal({
     }
     const controller = new AbortController();
     setEngagement(null);
+    setEngagementLoading(true);
     fetchArtistEngagement(artistId, controller.signal)
       .then((next) => {
         if (!controller.signal.aborted) setEngagement(next);
       })
       .catch(() => {
         if (!controller.signal.aborted) setEngagement(null);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setEngagementLoading(false);
       });
     return () => controller.abort();
   }, [artistId]);
@@ -138,7 +144,7 @@ export default function ArtistProfileModal({
               whileTap={{ scale: 0.9 }}
               onClick={onClose}
               aria-label="Close artist profile"
-              className="absolute right-4 top-[calc(env(safe-area-inset-top)+0.75rem)] flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/30 text-white backdrop-blur-md"
+              className="absolute right-4 top-[calc(env(safe-area-inset-top)+0.75rem)] flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/30 text-white backdrop-blur-md after:absolute after:-inset-2 after:content-['']"
             >
               <CloseIcon className="h-5 w-5" />
             </motion.button>
@@ -150,16 +156,19 @@ export default function ArtistProfileModal({
             <div className="mt-5 flex items-center gap-5">
               <StatInline
                 label="Followers"
+                loading={engagementLoading}
                 value={
                   engagement ? formatCount(engagement.followers) : "—"
                 }
               />
               <StatInline
                 label="Likes"
+                loading={engagementLoading}
                 value={engagement ? formatCount(engagement.likes) : "—"}
               />
               <StatInline
                 label="Saves"
+                loading={engagementLoading}
                 value={engagement ? formatCount(engagement.saves) : "—"}
               />
               <button
@@ -194,7 +203,7 @@ export default function ArtistProfileModal({
                 )}
               </button>
             </div>
-            <p className="mt-2 max-w-[28rem] text-[11px] leading-snug text-white/40">
+            <p className="mt-2 max-w-[28rem] text-[11px] leading-snug text-white/50">
               Followers are people in Narsil. Likes and saves are on this
               artist&apos;s works in the collection.
             </p>
@@ -203,7 +212,7 @@ export default function ArtistProfileModal({
               <div className="mt-6 border-y border-white/10 py-6">
                 {famousFor ? (
                   <p className="text-[13px] leading-snug text-accent/90">
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/45">
                       Famous for
                     </span>
                     <span className="mt-1 block font-serif text-[15px] text-white/90">
@@ -288,7 +297,7 @@ function factOrEmpty(value?: string | null): string {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/45">
         {label}
       </p>
       <p className="mt-1 text-sm text-white/85">{value}</p>
@@ -296,11 +305,23 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function StatInline({ label, value }: { label: string; value: string }) {
+function StatInline({
+  label,
+  value,
+  loading = false,
+}: {
+  label: string;
+  value: string;
+  loading?: boolean;
+}) {
   return (
     <div>
-      <p className="font-serif text-lg leading-none text-white">{value}</p>
-      <p className="mt-1 text-[10px] uppercase tracking-[0.12em] text-white/45">
+      {loading ? (
+        <Skeleton className="h-[18px] w-10" />
+      ) : (
+        <p className="font-serif text-lg leading-none text-white">{value}</p>
+      )}
+      <p className="mt-1 text-[11px] uppercase tracking-[0.12em] text-white/45">
         {label}
       </p>
     </div>

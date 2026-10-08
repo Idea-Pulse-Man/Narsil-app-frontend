@@ -31,7 +31,7 @@ export default function ArtistRail({
             fallbackClassName=""
             style={artist.accent ? { backgroundColor: artist.accent } : undefined}
           />
-          <span className="line-clamp-2 text-center text-[10px] leading-tight text-white/55">
+          <span className="line-clamp-2 text-center text-[11px] leading-tight text-white/55">
             {artist.name}
           </span>
         </button>

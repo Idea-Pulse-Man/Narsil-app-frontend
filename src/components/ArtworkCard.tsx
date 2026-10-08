@@ -395,7 +395,7 @@ export default function ArtworkCard({
                     {ageTags.map((tag) => (
                       <span
                         key={tag}
-                        className="rounded-full border border-white/15 bg-black/35 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/80 backdrop-blur-md"
+                        className="rounded-full border border-white/15 bg-black/35 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/80 backdrop-blur-md"
                       >
                         {tag}
                       </span>
@@ -443,7 +443,7 @@ export default function ArtworkCard({
                     initials={artist.initials}
                     lookup={shouldResolvePortrait(artist)}
                     size={24}
-                    className="h-6 w-6 shrink-0 rounded-full text-[10px] font-semibold backdrop-blur-md"
+                    className="h-6 w-6 shrink-0 rounded-full text-[11px] font-semibold backdrop-blur-md"
                     fallbackClassName="bg-white/15 text-white"
                   />
                   {/* Wrap rather than truncate so a long name is never cut off. */}
