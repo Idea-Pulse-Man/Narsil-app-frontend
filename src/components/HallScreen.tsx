@@ -11,18 +11,18 @@ import { BoardRows } from "./QuizRanking";
 import { hallCopy, type HallKind } from "@/lib/quiz/halls";
 
 const FRAME_SRC = "/quiz-scrolls/hall-frame.png";
-/** Native size of the frame art (an iPhone Pro Max screen). */
-const FRAME_W = 1284;
-const FRAME_H = 2778;
+/** Native size of the frame art. */
+const FRAME_W = 1054;
+const FRAME_H = 2478;
 
 /*
  * Clear areas inside the frame art, as % of the frame box. Measured from the
- * PNG's alpha: the ribbon tails narrow the top, a leaning sword narrows the
- * bottom, so the wide middle band holds the rows.
+ * PNG's alpha: the banner's ribbon tails narrow the top, the leaning swords
+ * narrow the bottom, so the wide band between the pillars holds the rows.
  */
-const TITLE_ZONE = { left: "29%", right: "29%", top: "17.4%", bottom: "77.4%" };
-const ROWS_ZONE = { left: "22.5%", right: "22.5%", top: "23.4%", bottom: "46.3%" };
-const FOOT_ZONE = { left: "29.5%", right: "29.5%", top: "55%", bottom: "28.9%" };
+const TITLE_ZONE = { left: "25%", right: "25%", top: "17%", bottom: "76.2%" };
+const ROWS_ZONE = { left: "16.5%", right: "16.5%", top: "24.6%", bottom: "42.6%" };
+const FOOT_ZONE = { left: "25%", right: "22%", top: "60%", bottom: "21.6%" };
 
 interface HallScreenProps {
   open: boolean;
@@ -110,7 +110,7 @@ export default function HallScreen({
           >
             <div
               aria-hidden
-              className="absolute inset-[12%_18%] rounded-[40%] bg-[radial-gradient(ellipse_at_50%_40%,#2e2014_0%,#120c08_75%)]"
+              className="absolute inset-[16%_14%_11%] rounded-[30%] bg-[radial-gradient(ellipse_at_50%_40%,#2e2014_0%,#120c08_75%)]"
             />
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
