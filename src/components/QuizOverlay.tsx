@@ -45,6 +45,8 @@ import { useAppState } from "./AppState";
 import QuizQuestionView from "./QuizQuestion";
 import QuizResults from "./QuizResults";
 import { HallCard } from "./HallCards";
+import CardArt from "./CardArt";
+import { CARD_TONE, STUDY_ART } from "@/lib/quiz/cardArt";
 import { HALL_KINDS, type HallKind } from "@/lib/quiz/halls";
 import QuizScrollFrame from "./QuizScrollFrame";
 import HallScreen from "./HallScreen";
@@ -670,6 +672,7 @@ function QuizHub({
   const { ink } = scrollForLevel(levelId);
   const dark = ink === "dark";
   const { heading, muted, box, label } = scrollPalette(ink);
+  const cardTone = CARD_TONE[ink].card;
   const cta = dark
     ? "border-[#5c3d12]/40 bg-[#2a1c0c] text-[#f6ead0]"
     : "border-amber-200/30 bg-[#f6ead0] text-[#2a1c0c]";
@@ -790,10 +793,11 @@ function QuizHub({
             <button
               type="button"
               onClick={onOpenBadges}
-              className={`mt-3 flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left ${box}`}
+              className={`relative mt-3 flex w-full items-center gap-3 overflow-hidden rounded-xl border px-3 py-3 text-left ${cardTone}`}
             >
-              <MedalIcon className={`h-5 w-5 shrink-0 ${heading}`} />
-              <div className="min-w-0 flex-1">
+              <CardArt art={STUDY_ART.badges} ink={ink} />
+              <MedalIcon className={`relative h-5 w-5 shrink-0 ${heading}`} />
+              <div className="relative min-w-0 flex-1">
                 <p
                   className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${label}`}
                 >
@@ -805,17 +809,18 @@ function QuizHub({
                     : "Assessment ranks and Discover seals"}
                 </p>
               </div>
-              <span className={muted}>›</span>
+              <span className={`relative ${muted}`}>›</span>
             </button>
 
             <div
-              className={`mt-3 flex items-center gap-3 rounded-xl border px-3 py-3 ${box}`}
+              className={`relative mt-3 flex items-center gap-3 overflow-hidden rounded-xl border px-3 py-3 ${cardTone}`}
             >
+              <CardArt art={STUDY_ART.streak} ink={ink} />
               <FlameIcon
                 filled={streak > 0}
-                className={`h-5 w-5 ${streak > 0 ? "text-amber-700" : muted}`}
+                className={`relative h-5 w-5 ${streak > 0 ? "text-amber-700" : muted}`}
               />
-              <div className="min-w-0 flex-1">
+              <div className="relative min-w-0 flex-1">
                 <p className={`text-sm font-semibold ${heading}`}>
                   {streak > 0 ? `${streak} day streak` : "No streak yet"}
                 </p>
@@ -846,9 +851,10 @@ function QuizHub({
               type="button"
               disabled={loading || !practiceReady}
               onClick={onStartPractice}
-              className={`mt-2 flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left disabled:opacity-50 ${box}`}
+              className={`relative mt-2 flex w-full items-center justify-between overflow-hidden rounded-xl border px-4 py-3 text-left disabled:opacity-50 ${cardTone}`}
             >
-              <span>
+              <CardArt art={STUDY_ART.practice} ink={ink} />
+              <span className="relative">
                 <span className={`block text-sm font-medium ${heading}`}>
                   Mixed practice
                 </span>
@@ -858,7 +864,7 @@ function QuizHub({
                     : "Not enough artworks yet"}
                 </span>
               </span>
-              <span className={muted}>›</span>
+              <span className={`relative ${muted}`}>›</span>
             </button>
           </div>
         )}

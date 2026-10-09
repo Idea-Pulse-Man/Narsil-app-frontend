@@ -4,6 +4,7 @@
  */
 
 import { levelTitle } from "./levels";
+import type { CardArtSpec } from "./cardArt";
 
 export type HallKind = "daily" | "monthly" | "discover";
 
@@ -11,7 +12,7 @@ export type HallKind = "daily" | "monthly" | "discover";
  * Representative art per hall (public-domain paintings, `public/quiz-halls/`).
  * `focus` is the object-position that keeps the subject in a short banner.
  */
-export const HALL_ART: Record<HallKind, { src: string; focus: string; credit: string }> = {
+export const HALL_ART: Record<HallKind, CardArtSpec> = {
   daily: {
     src: "/quiz-halls/daily.jpg",
     focus: "50% 72%",

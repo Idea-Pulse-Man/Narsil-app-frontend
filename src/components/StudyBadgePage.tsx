@@ -23,6 +23,8 @@ import { useCatalog } from "@/data/catalog";
 import { scrollForLevel, scrollPalette, type ScrollInk } from "@/lib/quiz/scrolls";
 import PersonLevelFrame from "./PersonLevelFrame";
 import TopicMedal from "./TopicMedal";
+import CardArt from "./CardArt";
+import { CARD_TONE, STUDY_ART } from "@/lib/quiz/cardArt";
 import QuizStars from "./QuizStars";
 import QuizScrollFrame from "./QuizScrollFrame";
 import { ArrowLeftIcon } from "./Icons";
@@ -248,7 +250,7 @@ export function DiscoverLevelCard({
   ink: ScrollInk;
   onOpenBadges: () => void;
 }) {
-  const { heading, muted, box, label } = scrollPalette(ink);
+  const { heading, muted, label } = scrollPalette(ink);
   const rank = highestDiscoverRank(seals);
   const rankLabel = rank ? difficultySpec(rank).label : null;
   let earned = 0;
@@ -260,39 +262,42 @@ export function DiscoverLevelCard({
     <button
       type="button"
       onClick={onOpenBadges}
-      className={`mt-4 w-full rounded-xl border px-3 py-3 text-left ${box}`}
+      className={`relative mt-4 w-full overflow-hidden rounded-xl border px-3 py-3 text-left ${CARD_TONE[ink].card}`}
     >
-      <p className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${label}`}>
-        {WORLD.studyDiscoverRank}
-      </p>
-      <p className={`mt-1 font-serif text-lg ${heading}`}>
-        {rankLabel ? `${rankLabel} rank` : "Unranked"}
-      </p>
-      <p className={`mt-0.5 text-[12px] ${muted}`}>
-        {rankLabel
-          ? `${earned} / ${catalogSize} seals · best Discover trial`
-          : WORLD.studyNoDiscoverRank}
-      </p>
-      <div className="mt-2.5 flex items-center gap-2">
-        {QUIZ_DIFFICULTIES.map((spec) => {
-          const on = Object.keys(seals).some((id) => {
-            const parsed = parseBadgeId(id);
-            return parsed?.difficulty === spec.id;
-          });
-          return (
-            <span key={spec.id} className="flex flex-col items-center gap-0.5">
-              <TopicMedal
-                difficulty={spec.id as QuizDifficulty}
-                unlocked={on}
-                gated={!on}
-                mark={spec.label}
-                size={28}
-                lockedWhite
-              />
-              <span className={`text-[11px] ${muted}`}>{spec.label}</span>
-            </span>
-          );
-        })}
+      <CardArt art={STUDY_ART.discover} ink={ink} />
+      <div className="relative">
+        <p className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${label}`}>
+          {WORLD.studyDiscoverRank}
+        </p>
+        <p className={`mt-1 font-serif text-lg ${heading}`}>
+          {rankLabel ? `${rankLabel} rank` : "Unranked"}
+        </p>
+        <p className={`mt-0.5 text-[12px] ${muted}`}>
+          {rankLabel
+            ? `${earned} / ${catalogSize} seals · best Discover trial`
+            : WORLD.studyNoDiscoverRank}
+        </p>
+        <div className="mt-2.5 flex items-center gap-2">
+          {QUIZ_DIFFICULTIES.map((spec) => {
+            const on = Object.keys(seals).some((id) => {
+              const parsed = parseBadgeId(id);
+              return parsed?.difficulty === spec.id;
+            });
+            return (
+              <span key={spec.id} className="flex flex-col items-center gap-0.5">
+                <TopicMedal
+                  difficulty={spec.id as QuizDifficulty}
+                  unlocked={on}
+                  gated={!on}
+                  mark={spec.label}
+                  size={28}
+                  lockedWhite
+                />
+                <span className={`text-[11px] ${muted}`}>{spec.label}</span>
+              </span>
+            );
+          })}
+        </div>
       </div>
     </button>
   );
