@@ -196,6 +196,7 @@ export default function QuizRanking({
           <HallCard
             kind="daily"
             levelId={levelId}
+            ink={ink}
             rank={board?.rank}
             onOpen={onEnterHall}
           />

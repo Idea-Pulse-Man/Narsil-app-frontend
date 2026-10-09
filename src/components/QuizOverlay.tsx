@@ -769,6 +769,7 @@ function QuizHub({
                   key={kind}
                   kind={kind}
                   levelId={levelId}
+                  ink={ink}
                   rank={kind === "daily" ? board?.rank : null}
                   onOpen={() =>
                     boardLocked ? requestSignIn() : setHallKind(kind)
