@@ -17,7 +17,7 @@ export interface LevelScroll {
 }
 
 const SCROLLS: Record<number, LevelScroll> = {
-  0: { src: "/quiz-scrolls/peasant.png", ink: "dark", wash: 0.55 },
+  0: { src: "/quiz-scrolls/peasant.png", ink: "dark", wash: 0.4 },
   1: { src: "/quiz-scrolls/scholar.png", ink: "dark" },
   2: { src: "/quiz-scrolls/archivist.png", ink: "light" },
   3: { src: "/quiz-scrolls/master-archivist.png", ink: "dark" },
