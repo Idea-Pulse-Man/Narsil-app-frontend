@@ -146,12 +146,43 @@ body {
   }
 }
 
+/* RuneLoader — the Rune Circle quiz loader. */
+@keyframes rune-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes rune-breathe {
+  50% {
+    transform: scale(1.04);
+    box-shadow: 0 0 70px #d9a44166;
+  }
+}
+/* In the components layer so Tailwind utilities (e.g. a per-ring
+   [animation-duration:14s]) can override the defaults. */
+@layer components {
+  .rune-spin {
+    animation: rune-spin 1.6s linear infinite;
+  }
+  .rune-arc {
+    border: 2px solid transparent;
+    border-top-color: #f4d78a;
+    border-right-color: #d9a44166;
+    filter: drop-shadow(0 0 6px #f4d78a);
+    animation-timing-function: cubic-bezier(0.6, 0.2, 0.4, 0.8);
+  }
+  .rune-crest {
+    box-shadow: 0 0 40px #d9a44133;
+    animation: rune-breathe 3.6s ease-in-out infinite;
+  }
+}
+
 /* iPhone Settings → Accessibility → Motion → Reduce Motion. Framer Motion
    follows it via <MotionConfig reducedMotion="user"> (App.tsx); this covers
    CSS animations and transitions. Spinners keep turning — a frozen spinner
    reads as "stuck". */
 @media (prefers-reduced-motion: reduce) {
-  *:not(.animate-spin),
+  *:not(.animate-spin):not(.rune-spin),
   *::before,
   *::after {
     animation-duration: 0.01ms !important;

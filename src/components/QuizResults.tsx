@@ -6,6 +6,7 @@ import { levelTitle, nextThreshold, personLevelNumber } from "@/lib/quiz";
 import type { LevelBoard } from "@/lib/quizRemote";
 import { scrollForLevel, scrollPalette } from "@/lib/quiz/scrolls";
 import BlurImage from "./BlurImage";
+import RuneLoader from "./RuneLoader";
 import { FlameIcon } from "./Icons";
 import PersonLevelFrame from "./PersonLevelFrame";
 import QuizRanking from "./QuizRanking";
@@ -205,6 +206,7 @@ export default function QuizResults({
                   alt={q.artwork.title}
                   accent={q.artwork.accent}
                   thumbWidth={120}
+                  placeholder={<RuneLoader size={44} />}
                 />
               </div>
               <div className="min-w-0 flex-1">

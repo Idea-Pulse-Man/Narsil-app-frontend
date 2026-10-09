@@ -10,8 +10,7 @@ import { displayImageUrl } from "@/lib/imageUrl";
 import { useAppState } from "./AppState";
 import ArtworkCard from "./ArtworkCard";
 import StoryCard from "./StoryCard";
-import { artworkFooterClass } from "./artwork-layout";
-import GalleryFrameMark from "./GalleryFrameMark";
+import RoyalGoldLoader from "./RoyalGoldLoader";
 import HistoryPlacard from "./HistoryPlacard";
 import type { ToastState } from "./Toast";
 import type { TutorialBridge } from "./tutorial";
@@ -279,62 +278,8 @@ export default function ArtFeed({
   if (items.length === 0) {
     if (loading) {
       return (
-        <div
-          role="status"
-          aria-label="Loading the gallery"
-          className="relative h-full w-full overflow-hidden bg-ink"
-        >
-          <div className="absolute inset-0 bg-white/[0.04]">
-            <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-          </div>
-          <div className="pointer-events-none absolute inset-0">
-            <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-black/55 to-transparent" />
-            <div className="absolute inset-x-0 bottom-0 h-[55%] bg-gradient-to-t from-black/80 via-black/35 to-transparent" />
-          </div>
-
-          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center pb-24">
-            <div className="animate-gallery-float relative flex h-[9.5rem] w-[9.5rem] items-center justify-center">
-              <svg
-                viewBox="0 0 96 96"
-                className="animate-gallery-spin absolute inset-0 h-full w-full"
-                aria-hidden
-              >
-                <circle
-                  cx="48"
-                  cy="48"
-                  r="44"
-                  fill="none"
-                  stroke="#c4a574"
-                  strokeWidth="1.2"
-                  opacity="0.18"
-                />
-                <circle
-                  cx="48"
-                  cy="48"
-                  r="44"
-                  fill="none"
-                  stroke="#c4a574"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeDasharray="36 240"
-                  opacity="0.95"
-                />
-              </svg>
-              <GalleryFrameMark />
-            </div>
-            <p className="mt-5 font-serif text-[15px] tracking-[0.06em] text-accent/90">
-              Preparing the gallery…
-            </p>
-          </div>
-
-          <div className={`absolute inset-x-0 bottom-0 ${artworkFooterClass}`}>
-            <div className="h-7 w-[70%] rounded-md bg-white/15" />
-            <div className="mt-3 flex items-center gap-2">
-              <div className="h-6 w-6 shrink-0 rounded-full bg-white/15" />
-              <div className="h-3.5 w-[38%] rounded-full bg-white/10" />
-            </div>
-            <div className="mt-4 h-9 w-28 rounded-full bg-white/10" />
-          </div>
+        <div className="relative h-full w-full bg-ink">
+          <RoyalGoldLoader label="Preparing the gallery" />
         </div>
       );
     }

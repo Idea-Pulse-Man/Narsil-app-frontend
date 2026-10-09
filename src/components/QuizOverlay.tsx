@@ -33,7 +33,8 @@ import {
   type BadgeMap,
 } from "@/lib/quiz";
 import { useCatalog } from "@/data/catalog";
-import { displayImageUrl } from "@/lib/imageUrl";
+import { displayImageUrl, sizedImageUrl } from "@/lib/imageUrl";
+import { preloadImages } from "@/lib/imageCache";
 import { fetchDailyQuizQuestions } from "@/lib/dailyQuiz";
 import {
   submitDailyQuizResult,
@@ -47,7 +48,7 @@ import QuizResults from "./QuizResults";
 import { HallCard } from "./HallCards";
 import CardArt from "./CardArt";
 import { CARD_TONE, STUDY_ART } from "@/lib/quiz/cardArt";
-import { HALL_KINDS, type HallKind } from "@/lib/quiz/halls";
+import { HALL_ART, HALL_KINDS, type HallKind } from "@/lib/quiz/halls";
 import QuizScrollFrame from "./QuizScrollFrame";
 import HallScreen from "./HallScreen";
 import StudyBadgePage, {
@@ -56,6 +57,7 @@ import StudyBadgePage, {
 import { scrollForLevel, scrollPalette } from "@/lib/quiz/scrolls";
 import { ArrowLeftIcon, CloseIcon, FlameIcon, MedalIcon } from "./Icons";
 import { askForPushAfter } from "@/lib/push";
+import RuneLoader from "./RuneLoader";
 
 type Stage = "hub" | "badges" | "playing" | "results";
 
@@ -72,6 +74,28 @@ type DailyMode = "new" | "resume" | "review" | "locked";
 
 /** How long the correct/wrong flash lingers before advancing. */
 const REVEAL_MS = 900;
+
+/** Painted hub art — held behind the loader so the Hall never paints in pieces. */
+const HUB_ART = [
+  ...HALL_KINDS.map((kind) => HALL_ART[kind].src),
+  ...Object.values(STUDY_ART).map((art) => art.src),
+];
+
+/** Wait for a question's artwork at the quiz card's ~340px size. */
+function warmQuestionArt(question: QuizQuestion | undefined): Promise<void> {
+  const url = question?.artwork.image;
+  return preloadImages(url ? [displayImageUrl(url, 340)] : []);
+}
+
+/** Wait for the "Review works" thumbnails on the results screen. */
+function warmReviewThumbs(questions: QuizQuestion[]): Promise<void> {
+  return preloadImages(
+    questions.flatMap((q) =>
+      q.artwork.image ? [sizedImageUrl(q.artwork.image, 120)] : [],
+    ),
+    5000,
+  );
+}
 
 interface Results {
   score: number;
@@ -129,6 +153,9 @@ export default function QuizOverlay({
   const [results, setResults] = useState<Results | null>(null);
   const [dailySession, setDailySession] = useState<DailySession | null>(null);
   const [hubBoard, setHubBoard] = useState<LevelBoard | null>(null);
+  /** Caption for the Rune Circle while a run starts or results are tallied. */
+  const [preparing, setPreparing] = useState<string | null>(null);
+  const [hubArtReady, setHubArtReady] = useState(false);
 
   const excludeRef = useRef<Set<string>>(new Set());
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -168,6 +195,22 @@ export default function QuizOverlay({
   }, [open, isGuest, initialStage]);
 
   useEffect(() => clearTimer, []);
+
+  const scrollSrc = scrollForLevel(progress.levelId).src;
+  useEffect(() => {
+    if (!open) {
+      setHubArtReady(false);
+      setPreparing(null);
+      return;
+    }
+    let active = true;
+    void preloadImages([scrollSrc, ...HUB_ART], 4000).then(() => {
+      if (active) setHubArtReady(true);
+    });
+    return () => {
+      active = false;
+    };
+  }, [open, scrollSrc]);
 
   const playableModes = useMemo(
     () => playableModesFor(pool, artists),
@@ -212,6 +255,8 @@ export default function QuizOverlay({
       finalQuestions: QuizQuestion[],
       answerMs: (number | null)[],
     ) => {
+      setPreparing("Tallying your appraisal");
+      const thumbs = warmReviewThumbs(finalQuestions);
       const score = finalCorrect.filter(Boolean).length;
       const total = finalQuestions.length;
       const breakdown = scoreDaily(
@@ -250,6 +295,7 @@ export default function QuizOverlay({
         board = await fetchLevelBoard(day);
         setHubBoard(board);
       }
+      await thumbs;
 
       setResults({
         score,
@@ -266,12 +312,15 @@ export default function QuizOverlay({
         boardLocked: isGuest,
       });
       setStage("results");
+      setPreparing(null);
     },
     [previewDaily, recordDaily, isGuest],
   );
 
   const openReview = useCallback(
     async (session: DailySession) => {
+      setPreparing("Unrolling your review");
+      const thumbs = warmReviewThumbs(session.questions);
       const corr = sessionCorrectness(session);
       const breakdown = scoreDaily(
         session.questions.map((_, i) => ({
@@ -283,6 +332,7 @@ export default function QuizOverlay({
       if (!isGuest) {
         board = await fetchLevelBoard(todayKey());
       }
+      await thumbs;
       setResults({
         score: corr.filter(Boolean).length,
         total: session.questions.length,
@@ -298,6 +348,7 @@ export default function QuizOverlay({
         boardLocked: isGuest,
       });
       setStage("results");
+      setPreparing(null);
     },
     [isGuest, progress.levelId, progress.totalPoints],
   );
@@ -315,33 +366,45 @@ export default function QuizOverlay({
 
     if (dailyMode === "resume" && dailySession) {
       const start = firstUnanswered(dailySession);
-      setQuestions(dailySession.questions);
-      setCorrect(sessionCorrectness(dailySession).slice(0, start));
-      setQIndex(start);
-      setSelected(null);
-      questionShownAt.current = Date.now();
-      setStage("playing");
+      setPreparing("Summoning the works");
+      void warmQuestionArt(dailySession.questions[start]).then(() => {
+        setQuestions(dailySession.questions);
+        setCorrect(sessionCorrectness(dailySession).slice(0, start));
+        setQIndex(start);
+        setSelected(null);
+        questionShownAt.current = Date.now();
+        setStage("playing");
+        setPreparing(null);
+      });
       return;
     }
 
     // Prefer the shared Supabase edition (cron + admin specials). If that day
     // has no rows yet, build one on device so the assessment is never blank.
+    setPreparing("Summoning the works");
     void (async () => {
       const remote = await fetchDailyQuizQuestions();
       const built =
         remote.length > 0
           ? remote
           : buildDailyQuiz(pool, todayKey(), DAILY_COUNT, quizSalt(user), artists);
-      if (built.length === 0) return;
+      if (built.length === 0) {
+        setPreparing(null);
+        return;
+      }
       const session = newDailySession(built);
       saveDailySession(session);
       setDailySession(session);
+      // Hold the loader until the first artwork is in, so the run never
+      // opens on an empty frame.
+      await warmQuestionArt(built[0]);
       setQuestions(built);
       setCorrect([]);
       setQIndex(0);
       setSelected(null);
       questionShownAt.current = Date.now();
       setStage("playing");
+      setPreparing(null);
     })();
   }, [dailyMode, dailySession, openReview, pool, artists, user]);
 
@@ -356,13 +419,17 @@ export default function QuizOverlay({
     );
     if (!first) return;
     excludeRef.current.add(first.artworkId);
-    setIsDaily(false);
-    setPracticing(true);
-    setQuestions([first]);
-    setQIndex(0);
-    setSelected(null);
-    setCorrect([]);
-    setStage("playing");
+    setPreparing("Summoning the works");
+    void warmQuestionArt(first).then(() => {
+      setIsDaily(false);
+      setPracticing(true);
+      setQuestions([first]);
+      setQIndex(0);
+      setSelected(null);
+      setCorrect([]);
+      setStage("playing");
+      setPreparing(null);
+    });
   }, [pool, artists]);
 
   const nextPractice = useCallback(() => {
@@ -597,6 +664,17 @@ export default function QuizOverlay({
               />
             )}
           </div>
+
+          {/* Rune Circle over everything while the Hall, a run, or the
+              results are still loading. */}
+          {(preparing !== null ||
+            (stage === "hub" && (loading || !hubArtReady))) && (
+            <RuneLoader
+              overlay
+              label={preparing ?? "Opening the Hall"}
+              className="z-20"
+            />
+          )}
         </motion.div>
       )}
     </AnimatePresence>

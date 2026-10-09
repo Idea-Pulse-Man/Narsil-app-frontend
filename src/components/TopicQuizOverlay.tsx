@@ -21,6 +21,7 @@ import {
   type TopicQuizLaunch,
 } from "@/lib/quiz";
 import { displayImageUrl } from "@/lib/imageUrl";
+import { preloadImages } from "@/lib/imageCache";
 import { loadBankQuizQuestions } from "@/lib/quizBank";
 import { WORLD } from "@/data/worldCopy";
 import { useAppState } from "./AppState";
@@ -28,6 +29,7 @@ import QuizQuestionView from "./QuizQuestion";
 import QuizStars from "./QuizStars";
 import TopicMedal from "./TopicMedal";
 import { ArrowLeftIcon, CloseIcon } from "./Icons";
+import RuneLoader from "./RuneLoader";
 
 interface TopicQuizOverlayProps {
   launch: TopicQuizLaunch;
@@ -148,6 +150,8 @@ export default function TopicQuizOverlay({
       return;
     }
 
+    setQuestions([]);
+    setStage("playing");
     const bank = await loadBankQuizQuestions(
       topic.kind,
       topic.id,
@@ -181,6 +185,8 @@ export default function TopicQuizOverlay({
       setQuestions([]);
       return;
     }
+    const first = built[0]?.artwork.image;
+    await preloadImages(first ? [displayImageUrl(first, 340)] : []);
     setBlockReason(null);
     setQuestions(built);
     setQIndex(0);
@@ -334,6 +340,10 @@ export default function TopicQuizOverlay({
                 Done
               </button>
             </div>
+          )}
+
+          {stage === "playing" && !current && (
+            <RuneLoader label="Preparing the trial" className="h-full pb-16" />
           )}
 
           {stage === "playing" && current && (

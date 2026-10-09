@@ -23,9 +23,81 @@
       content="Narsil is a beautiful mobile-first art discovery app. Scroll an endless feed of public-domain masterpieces and freelance originals, learn the history, follow artists, and save what you love."
     />
     <title>Narsil — Discover Art</title>
+    <!-- "Royal Gold" loading screen. Shared by the static boot splash below
+         and the RoyalGoldLoader React component, so they look identical. -->
+    <style>
+      html, body { margin: 0; background: #14100e; }
+      .royal-boot { position: fixed; inset: 0; }
+      .royal-splash {
+        position: absolute; inset: 0; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; padding: 0 32px 64px;
+        background: radial-gradient(circle at 50% 20%, #39271b, #160f0c 55%, #0d0907);
+        font-family: "Playfair Display", Georgia, serif;
+      }
+      .royal-crest {
+        width: 112px; height: 112px; border-radius: 22%; object-fit: cover;
+        box-shadow: 0 0 50px #d9a44133;
+      }
+      .royal-title {
+        margin: 24px 0 0; color: #f7dfa0; font-size: 18px; letter-spacing: 0.42em;
+        text-transform: uppercase; padding-left: 0.42em;
+      }
+      .royal-rule {
+        width: 190px; height: 1px; margin-top: 10px;
+        background: linear-gradient(90deg, transparent, #d9a441, transparent);
+      }
+      .royal-bar { width: 100%; max-width: 280px; margin-top: 32px; }
+      .royal-track {
+        position: relative; height: 15px; border: 1px solid #5b4431; border-radius: 99px;
+        background: #0b0807; box-shadow: inset 0 2px 7px #000; overflow: hidden;
+      }
+      .royal-fill {
+        position: absolute; inset: 0 auto 0 0; width: 0; border-radius: inherit; overflow: hidden;
+        background: linear-gradient(90deg, #6d4613, #d99c2b, #fff0aa, #b77516);
+        box-shadow: 0 0 16px #eab447;
+      }
+      .royal-fill::after {
+        content: ""; position: absolute; inset: 0; width: 35%;
+        background: linear-gradient(90deg, transparent, #fff9, transparent);
+        animation: royal-sweep 1.2s linear infinite;
+      }
+      .royal-status {
+        display: flex; justify-content: space-between; margin-top: 12px;
+        color: #a99579; font-size: 12px; font-variant-numeric: tabular-nums;
+      }
+      @keyframes royal-sweep {
+        from { transform: translateX(-110%); }
+        to { transform: translateX(330%); }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Replaced by React on first render; RoyalGoldLoader takes over. -->
+      <div class="royal-boot">
+        <div class="royal-splash" role="status" aria-label="Loading">
+          <img class="royal-crest" src="/branding/narsil-app-icon.png" alt="" />
+          <p class="royal-title">Regia et Ars</p>
+          <div class="royal-rule"></div>
+          <div class="royal-bar">
+            <div class="royal-track"><div class="royal-fill" id="boot-fill"></div></div>
+            <div class="royal-status"><span>Gilded light</span><span id="boot-pct"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      // Same curve as bootProgress() in RoyalGoldLoader.tsx; stops once
+      // React replaces the splash.
+      (function tick() {
+        var fill = document.getElementById("boot-fill");
+        if (!fill) return;
+        var p = 92 * (1 - Math.exp(-performance.now() / 2600));
+        fill.style.width = p + "%";
+        document.getElementById("boot-pct").textContent = Math.floor(p) + "%";
+        requestAnimationFrame(tick);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

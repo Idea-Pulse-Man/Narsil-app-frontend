@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import type { QuizQuestion as Question } from "@/lib/quiz";
 import { MODE_LABEL } from "@/lib/quiz";
 import BlurImage from "./BlurImage";
+import RuneLoader from "./RuneLoader";
 import { CheckIcon, CloseIcon } from "./Icons";
 import { errorHaptic, successHaptic, tapHaptic } from "@/lib/haptics";
 
@@ -66,6 +67,7 @@ export default function QuizQuestion({
             fit="contain"
             maxWidth={340}
             priority
+            placeholder={<RuneLoader size={150} />}
           />
           <span className="absolute left-3 top-3 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/80 backdrop-blur-md">
             {MODE_LABEL[question.mode]}

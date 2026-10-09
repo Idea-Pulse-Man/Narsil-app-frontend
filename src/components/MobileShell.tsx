@@ -11,6 +11,8 @@ import { type Screen } from "./navigation";
 import ArtFeed from "./ArtFeed";
 import Toast, { type ToastState } from "./Toast";
 import OfflineBanner from "./OfflineBanner";
+import RuneLoader from "./RuneLoader";
+import RoyalGoldLoader from "./RoyalGoldLoader";
 import TermsView from "./TermsView";
 import { useAppState } from "./AppState";
 import { App as CapacitorApp } from "@capacitor/app";
@@ -546,6 +548,10 @@ export default function MobileShell() {
           aria-hidden={onboardingGate}
           inert={onboardingGate ? true : undefined}
         >
+          {/* App-state boot (and a signed-in member's role lookup) — picks
+              up the Royal Gold bar from the static splash in index.html. */}
+          {(!ready || rolePending) && <RoyalGoldLoader />}
+
           {ready && adminMode && (
             <div className="absolute inset-0">
               <Suspense fallback={null}>
@@ -805,7 +811,7 @@ export default function MobileShell() {
         )}
 
         {!adminMode && memberApp && quizOpen && (
-          <Suspense fallback={null}>
+          <Suspense fallback={<RuneLoader overlay label="Opening the Hall" className="z-[65]" />}>
             <QuizOverlay
               open
               initialStage={quizInitialStage}
@@ -820,7 +826,7 @@ export default function MobileShell() {
         )}
 
         {!adminMode && memberApp && topicQuiz && (
-          <Suspense fallback={null}>
+          <Suspense fallback={<RuneLoader overlay label="Preparing the trial" className="z-[70]" />}>
             <TopicQuizOverlay
               launch={topicQuiz}
               onClose={() => {

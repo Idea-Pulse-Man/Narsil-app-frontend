@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type Ref } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode, type Ref } from "react";
 import { sizedImageUrl, previewImageUrl, displayImageUrl, corsFetchImageUrl, isS3Url } from "@/lib/imageUrl";
 import { resolveCachedImage, isImageWarmed, markImageWarmed } from "@/lib/imageCache";
 import { isNgrokUrl, resolveNgrokImageSrc } from "@/lib/ngrok";
@@ -35,6 +35,8 @@ interface BlurImageProps {
   maxWidth?: number;
   /** When false, do not attach a src (pause downloads on a hidden tab). */
   load?: boolean;
+  /** Shown centred over the frame until the image loads (replaces the shimmer). */
+  placeholder?: ReactNode;
 }
 
 const ZOOM_MS = 320;
@@ -72,6 +74,7 @@ export default function BlurImage({
   thumbWidth,
   maxWidth,
   load = true,
+  placeholder,
 }: BlurImageProps) {
   const [displaySrc, setDisplaySrc] = useState(src);
   const [loaded, setLoaded] = useState(false);
@@ -246,7 +249,7 @@ export default function BlurImage({
         className={`relative h-full w-full overflow-hidden ${className}`}
         style={{ backgroundColor: accent }}
       >
-        {!loaded && !failed && <Shimmer />}
+        {!loaded && !failed && !placeholder && <Shimmer />}
         {previewSrc ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
@@ -276,6 +279,11 @@ export default function BlurImage({
             } ${failed ? "invisible" : ""}`}
           />
         ) : null}
+        {!loaded && !failed && placeholder ? (
+          <div className="absolute inset-0 z-[2] grid place-items-center">
+            {placeholder}
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -286,7 +294,7 @@ export default function BlurImage({
       className={`relative h-full w-full overflow-hidden ${className}`}
       style={{ backgroundColor: accent }}
     >
-      {!loaded && !failed && <Shimmer />}
+      {!loaded && !failed && !placeholder && <Shimmer />}
 
       {previewSrc ? (
         /* eslint-disable-next-line @next/next/no-img-element */
@@ -339,6 +347,11 @@ export default function BlurImage({
           transition: `opacity ${ZOOM_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`,
         }}
       />
+      {!loaded && !failed && placeholder ? (
+        <div className="absolute inset-0 z-[2] grid place-items-center">
+          {placeholder}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -88,3 +88,26 @@ export async function resolveCachedImage(src: string): Promise<string> {
     return src;
   }
 }
+
+/**
+ * Resolve once every URL has loaded (or failed), or after `timeoutMs` —
+ * whichever comes first. Used to hold a loader until the first quiz artworks
+ * are in the HTTP cache, without ever stranding the user on a slow network.
+ */
+export function preloadImages(urls: string[], timeoutMs = 8000): Promise<void> {
+  const unique = [...new Set(urls.filter(Boolean))];
+  if (unique.length === 0) return Promise.resolve();
+  const loads = unique.map(
+    (url) =>
+      new Promise<void>((resolve) => {
+        const img = new Image();
+        img.decoding = "async";
+        img.onload = img.onerror = () => resolve();
+        img.src = url;
+      }),
+  );
+  return Promise.race([
+    Promise.all(loads).then(() => undefined),
+    new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
+  ]);
+}
