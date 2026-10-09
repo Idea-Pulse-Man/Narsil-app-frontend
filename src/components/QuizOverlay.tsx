@@ -44,7 +44,8 @@ import { WORLD } from "@/data/worldCopy";
 import { useAppState } from "./AppState";
 import QuizQuestionView from "./QuizQuestion";
 import QuizResults from "./QuizResults";
-import QuizRanking from "./QuizRanking";
+import { HallCard } from "./HallCards";
+import { HALL_KINDS, type HallKind } from "@/lib/quiz/halls";
 import QuizScrollFrame from "./QuizScrollFrame";
 import HallScreen from "./HallScreen";
 import StudyBadgePage, {
@@ -646,7 +647,8 @@ function QuizHub({
     catalog,
   );
   const [hubTab, setHubTab] = useState<"hall" | "study">("hall");
-  const [hallOpen, setHallOpen] = useState(false);
+  const [hallKind, setHallKind] = useState<HallKind | null>(null);
+  const { requestSignIn } = useAppState();
 
   const done = dailyMode === "review" || dailyMode === "locked";
   const dailyCta =
@@ -751,14 +753,29 @@ function QuizHub({
 
         {hubTab === "hall" ? (
           <div className="mt-5">
-            <QuizRanking
-              levelId={levelId}
-              board={board}
-              boardLocked={boardLocked}
-              ink={ink}
-              compact
-              onEnterHall={() => setHallOpen(true)}
-            />
+            <p
+              className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${label}`}
+            >
+              The Halls
+            </p>
+            <p className={`mt-1 text-xs ${label}`}>
+              {boardLocked
+                ? "Sign in to join the Halls and appear on the rankings."
+                : "Today, this month, and the Discover trials"}
+            </p>
+            <div className="mt-3 space-y-2.5">
+              {HALL_KINDS.map((kind) => (
+                <HallCard
+                  key={kind}
+                  kind={kind}
+                  levelId={levelId}
+                  rank={kind === "daily" ? board?.rank : null}
+                  onOpen={() =>
+                    boardLocked ? requestSignIn() : setHallKind(kind)
+                  }
+                />
+              ))}
+            </div>
           </div>
         ) : (
           <div className="mt-1">
@@ -846,10 +863,11 @@ function QuizHub({
         )}
       </QuizScrollFrame>
       <HallScreen
-        open={hallOpen}
+        open={hallKind != null}
+        kind={hallKind ?? "daily"}
         levelId={levelId}
         board={board}
-        onClose={() => setHallOpen(false)}
+        onClose={() => setHallKind(null)}
       />
     </>
   );

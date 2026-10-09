@@ -4,6 +4,7 @@ import { levelTitle } from "@/lib/quiz";
 import { scrollPalette, type ScrollInk } from "@/lib/quiz/scrolls";
 import { useAppState } from "./AppState";
 import PersonLevelFrame from "./PersonLevelFrame";
+import { HallCard } from "./HallCards";
 
 /** Rows visible before the Hall scrolls internally. */
 const HALL_VISIBLE_ROWS = 4;
@@ -109,7 +110,7 @@ export function BoardRows({
         <MemberAvatar
           name={row.isYou ? "You" : row.displayName}
           avatarUrl={row.avatarUrl}
-          levelId={levelId}
+          levelId={row.levelId ?? levelId}
           highlight={row.isYou}
           ink={ink}
           size={dense ? 34 : 44}
@@ -167,7 +168,7 @@ export default function QuizRanking({
   onEnterHall,
 }: QuizRankingProps) {
   const title = levelTitle(levelId);
-  const { label, body, box, heading, muted } = scrollPalette(ink);
+  const { label, body, box } = scrollPalette(ink);
   const { requestSignIn } = useAppState();
 
   return (
@@ -191,23 +192,14 @@ export default function QuizRanking({
           Sign in to join the Hall and appear on the rankings.
         </button>
       ) : onEnterHall ? (
-        <button
-          type="button"
-          onClick={onEnterHall}
-          className={`mt-3 flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left ${box}`}
-        >
-          <span className="min-w-0">
-            <span className={`block font-serif text-base ${heading}`}>
-              Enter the Hall
-            </span>
-            <span className={`mt-0.5 block text-[12px] ${muted}`}>
-              {board?.rank != null
-                ? `You stand #${board.rank} among ${title}s today`
-                : `See today’s ${title}s`}
-            </span>
-          </span>
-          <span className={muted}>›</span>
-        </button>
+        <div className="mt-3">
+          <HallCard
+            kind="daily"
+            levelId={levelId}
+            rank={board?.rank}
+            onOpen={onEnterHall}
+          />
+        </div>
       ) : board && board.rows.length > 0 ? (
         <BoardRows
           rows={board.rows}

@@ -1,9 +1,14 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { levelTitle } from "@/lib/quiz";
-import type { LevelBoard } from "@/lib/quizRemote";
+import { QUIZ_DIFFICULTIES, todayKey, type QuizDifficulty } from "@/lib/quiz";
+import {
+  fetchDiscoverBoard,
+  fetchMonthBoard,
+  type LevelBoard,
+} from "@/lib/quizRemote";
 import { scrollPalette } from "@/lib/quiz/scrolls";
 import { BoardRows } from "./QuizRanking";
+import { hallCopy, type HallKind } from "@/lib/quiz/halls";
 
 const FRAME_SRC = "/quiz-scrolls/hall-frame.png";
 /** Native size of the frame art (an iPhone Pro Max screen). */
@@ -21,16 +26,51 @@ const FOOT_ZONE = { left: "29.5%", right: "29.5%", top: "55%", bottom: "28.9%" }
 
 interface HallScreenProps {
   open: boolean;
+  /** Which hall; defaults to today's same-level board. */
+  kind?: HallKind;
   levelId: number;
+  /** Today's board, already loaded by the hub / results. */
   board: LevelBoard | null;
   onClose: () => void;
 }
 
-/** Full-screen Hall: today's same-level ranking inside the royal frame art. */
-export default function HallScreen({ open, levelId, board, onClose }: HallScreenProps) {
-  const title = levelTitle(levelId);
+/**
+ * Full-screen Hall inside the royal frame art. Today's board is passed in;
+ * the Monthly and Discover boards load when their hall opens.
+ */
+export default function HallScreen({
+  open,
+  kind = "daily",
+  levelId,
+  board: dailyBoard,
+  onClose,
+}: HallScreenProps) {
+  const copy = hallCopy(kind, levelId);
   const { heading, muted, label, box, body } = scrollPalette("light");
   const rowsRef = useRef<HTMLDivElement>(null);
+  const [difficulty, setDifficulty] = useState<QuizDifficulty>("apprentice");
+  const [loaded, setLoaded] = useState<{ key: string; board: LevelBoard | null } | null>(
+    null,
+  );
+
+  const boardKey = kind === "discover" ? `discover:${difficulty}` : kind;
+  useEffect(() => {
+    if (!open || kind === "daily") return;
+    let live = true;
+    const request =
+      kind === "monthly"
+        ? fetchMonthBoard(`${todayKey().slice(0, 7)}-01`)
+        : fetchDiscoverBoard(difficulty);
+    void request.then((board) => {
+      if (live) setLoaded({ key: boardKey, board });
+    });
+    return () => {
+      live = false;
+    };
+  }, [open, kind, difficulty, boardKey]);
+
+  const loading = kind !== "daily" && loaded?.key !== boardKey;
+  const board = kind === "daily" ? dailyBoard : loading ? null : loaded?.board ?? null;
   const rows = board?.rows ?? [];
 
   useEffect(() => {
@@ -47,7 +87,7 @@ export default function HallScreen({ open, levelId, board, onClose }: HallScreen
       list.scrollTop = you.offsetTop - list.clientHeight / 2 + you.offsetHeight / 2;
     }
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open, onClose, rows.length]);
 
   return (
     <AnimatePresence>
@@ -59,7 +99,7 @@ export default function HallScreen({ open, levelId, board, onClose }: HallScreen
           transition={{ duration: 0.2, ease: "easeOut" }}
           className="absolute inset-0 z-10 flex items-center justify-center bg-[#120c08] [container-type:size]"
           role="dialog"
-          aria-label={`Hall of ${title}s`}
+          aria-label={copy.name}
         >
           <div
             className="@container relative"
@@ -85,24 +125,44 @@ export default function HallScreen({ open, levelId, board, onClose }: HallScreen
               style={TITLE_ZONE}
             >
               <h2 className={`font-serif text-[4.6cqw] leading-tight ${heading}`}>
-                Hall of {title}s
+                {copy.name}
               </h2>
-              <p className={`text-[2.9cqw] ${label}`}>Today · same level only</p>
+              <p className={`text-[2.9cqw] leading-snug ${label}`}>{copy.subtitle}</p>
             </div>
 
-            <div
-              ref={rowsRef}
-              className="absolute overflow-y-auto overscroll-contain pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-              style={ROWS_ZONE}
-            >
-              {rows.length > 0 ? (
-                <BoardRows rows={rows} ink="light" levelId={levelId} dense />
-              ) : (
-                <p className={`mt-6 rounded-xl border px-3 py-3 text-center text-sm ${box} ${body}`}>
-                  The Hall is quiet. Finish today&apos;s assessment to take a
-                  place among {title}s.
-                </p>
+            <div className="absolute flex flex-col" style={ROWS_ZONE}>
+              {kind === "discover" && (
+                <div className="mb-1.5 flex shrink-0 gap-0.5 rounded-full border border-white/20 bg-black/45 p-0.5">
+                  {QUIZ_DIFFICULTIES.map((spec) => (
+                    <button
+                      key={spec.id}
+                      type="button"
+                      onClick={() => setDifficulty(spec.id)}
+                      className={`flex-1 rounded-full py-1 text-[2.7cqw] font-semibold ${
+                        difficulty === spec.id
+                          ? "bg-[#f6ead0] text-[#2a1c0c]"
+                          : "text-[#f0e2bc]"
+                      }`}
+                    >
+                      {spec.label}
+                    </button>
+                  ))}
+                </div>
               )}
+              <div
+                ref={rowsRef}
+                className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              >
+                {loading ? (
+                  <p className={`mt-6 text-center text-sm ${muted}`}>Opening the Hall…</p>
+                ) : rows.length > 0 ? (
+                  <BoardRows rows={rows} ink="light" levelId={levelId} dense />
+                ) : (
+                  <p className={`mt-6 rounded-xl border px-3 py-3 text-center text-sm ${box} ${body}`}>
+                    {copy.empty}
+                  </p>
+                )}
+              </div>
             </div>
 
             <div className="absolute flex flex-col items-center text-center" style={FOOT_ZONE}>
@@ -116,13 +176,15 @@ export default function HallScreen({ open, levelId, board, onClose }: HallScreen
                   </p>
                   {board.points != null && (
                     <p className={`text-[3cqw] tabular-nums ${muted}`}>
-                      {board.points.toLocaleString()} pts
+                      {board.points.toLocaleString()} {copy.unit}
                     </p>
                   )}
                 </>
-              ) : (
+              ) : loading ? null : (
                 <p className={`text-[3cqw] ${muted}`}>
-                  Finish today&apos;s assessment to take your place.
+                  {kind === "discover"
+                    ? "Finish a trial at this level to take your place."
+                    : "Finish today’s assessment to take your place."}
                 </p>
               )}
               <button

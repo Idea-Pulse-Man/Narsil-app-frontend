@@ -39,6 +39,8 @@ export interface BoardRow {
   avatarUrl: string | null;
   points: number;
   isYou: boolean;
+  /** Member's own level, for halls that mix levels (Discover). */
+  levelId?: number;
 }
 
 export interface LevelBoard {
@@ -164,52 +166,76 @@ export async function submitDailyQuizResult(
   }
 }
 
-/** Same-level board slice: top 5 + neighbors around you. */
-export async function fetchLevelBoard(
-  playDate?: string,
+type RawBoard = {
+  level_id?: number;
+  rank?: number | null;
+  points?: number | null;
+  played_today?: boolean;
+  played?: boolean;
+  rows?: Array<{
+    rank: number;
+    user_id: string;
+    display_name: string;
+    avatar_url: string | null;
+    points: number;
+    is_you: boolean;
+    level_id?: number;
+  }>;
+} | null;
+
+function parseBoard(row: RawBoard): LevelBoard | null {
+  if (!row) return null;
+  return {
+    levelId: row.level_id ?? 0,
+    rank: row.rank ?? null,
+    points: row.points ?? null,
+    playedToday: !!(row.played_today ?? row.played),
+    rows: (row.rows ?? []).map((r) => ({
+      rank: r.rank,
+      userId: r.user_id,
+      displayName: r.display_name,
+      avatarUrl: r.avatar_url,
+      points: r.points,
+      isYou: r.is_you,
+      levelId: r.level_id,
+    })),
+  };
+}
+
+async function fetchBoard(
+  rpc: string,
+  args: Record<string, unknown>,
 ): Promise<LevelBoard | null> {
   if (!supabase) return null;
   try {
-    const { data, error } = await supabase.rpc("quiz_level_board", {
-      p_play_date: playDate ?? undefined,
-    });
+    const { data, error } = await supabase.rpc(rpc, args);
     if (error) {
-      console.warn("Supabase: quiz_level_board failed.", error.message);
+      // Hall RPCs may not be migrated yet — soft-fail.
+      console.warn(`Supabase: ${rpc} failed.`, error.message);
       return null;
     }
-    const row = data as {
-      level_id?: number;
-      rank?: number | null;
-      points?: number | null;
-      played_today?: boolean;
-      rows?: Array<{
-        rank: number;
-        user_id: string;
-        display_name: string;
-        avatar_url: string | null;
-        points: number;
-        is_you: boolean;
-      }>;
-    } | null;
-    if (!row) return null;
-    return {
-      levelId: row.level_id ?? 0,
-      rank: row.rank ?? null,
-      points: row.points ?? null,
-      playedToday: !!row.played_today,
-      rows: (row.rows ?? []).map((r) => ({
-        rank: r.rank,
-        userId: r.user_id,
-        displayName: r.display_name,
-        avatarUrl: r.avatar_url,
-        points: r.points,
-        isYou: r.is_you,
-      })),
-    };
+    return parseBoard(data as RawBoard);
   } catch (err) {
-    console.warn("Supabase: quiz_level_board error.", err);
+    console.warn(`Supabase: ${rpc} error.`, err);
     return null;
   }
+}
+
+/** Same-level board slice: top 5 + neighbors around you. */
+export function fetchLevelBoard(playDate?: string): Promise<LevelBoard | null> {
+  return fetchBoard("quiz_level_board", { p_play_date: playDate ?? undefined });
+}
+
+/** Monthly Hall: this month's daily points summed, all levels. */
+export function fetchMonthBoard(month?: string): Promise<LevelBoard | null> {
+  return fetchBoard("quiz_month_board", { p_month: month ?? undefined });
+}
+
+/** Discover Hall: best trial scores summed for one difficulty, all members. */
+export function fetchDiscoverBoard(
+  difficulty: string,
+): Promise<LevelBoard | null> {
+  return fetchBoard("quiz_discover_board", { p_difficulty: difficulty });
 }
 
 /** Load every seal the current user has earned. */
