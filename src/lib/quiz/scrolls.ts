@@ -9,10 +9,15 @@ export interface LevelScroll {
   src: string;
   /** Text color on the parchment: dark ink vs cream/gilt. */
   ink: ScrollInk;
+  /**
+   * Opacity (0–1) of a parchment wash over the scroll's middle, fading busy
+   * line art behind the text. The rollers at top and bottom stay untouched.
+   */
+  wash?: number;
 }
 
 const SCROLLS: Record<number, LevelScroll> = {
-  0: { src: "/quiz-scrolls/peasant.png", ink: "dark" },
+  0: { src: "/quiz-scrolls/peasant.png", ink: "dark", wash: 0.55 },
   1: { src: "/quiz-scrolls/scholar.png", ink: "dark" },
   2: { src: "/quiz-scrolls/archivist.png", ink: "light" },
   3: { src: "/quiz-scrolls/master-archivist.png", ink: "dark" },

@@ -11,14 +11,14 @@ const CARD_TONE: Record<
 > = {
   dark: {
     card: "border-[#5c3d12]/35 bg-[#efe2c4]/40 shadow-[0_3px_10px_rgba(42,28,12,0.15)]",
-    art: "opacity-70 mix-blend-multiply [filter:sepia(0.5)_saturate(0.8)]",
+    art: "opacity-50 mix-blend-multiply [filter:sepia(0.5)_saturate(0.8)]",
     name: "text-[#1a1208]",
     teaser: "text-[#3d2810]",
     chevron: "bg-[#2a1c0c] text-[#f6ead0]",
   },
   light: {
     card: "border-white/20 bg-black/35 shadow-[0_3px_10px_rgba(0,0,0,0.25)]",
-    art: "opacity-55 [filter:sepia(0.5)_saturate(0.8)]",
+    art: "opacity-50 [filter:sepia(0.5)_saturate(0.8)]",
     name: "text-[#f8efd8]",
     teaser: "text-[#e8d9b0]",
     chevron: "bg-[#f6ead0] text-[#2a1c0c]",
