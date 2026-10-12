@@ -1,0 +1,86 @@
+:root {
+  color-scheme: dark;
+  --bg: #0a0a0b;
+  --card: #141416;
+  --text: #f4f1ea;
+  --muted: rgba(244, 241, 234, 0.62);
+  --line: rgba(255, 255, 255, 0.1);
+  --accent: #c9a227;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, system-ui, -apple-system, Segoe UI, sans-serif;
+  line-height: 1.6;
+}
+
+body {
+  padding: 2.5rem 1.25rem 4rem;
+}
+
+main {
+  max-width: 42rem;
+  margin: 0 auto;
+}
+
+.wordmark {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+h1 {
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 2rem;
+  font-weight: 600;
+  line-height: 1.2;
+  margin: 1.25rem 0 0.35rem;
+}
+
+.meta {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0 0 2rem;
+}
+
+h2 {
+  font-size: 1.05rem;
+  margin: 1.75rem 0 0.5rem;
+}
+
+p,
+li {
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+ul {
+  padding-left: 1.2rem;
+}
+
+nav {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
