@@ -47,7 +47,7 @@ export default function RoyalGoldLoader({
     <div role="status" aria-label={label} className="royal-splash z-10">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/branding/narsil-app-icon.png"
+        src="/branding/regia-et-ars-crest.png"
         alt=""
         draggable={false}
         className="royal-crest"
