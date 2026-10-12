@@ -155,7 +155,7 @@ body {
 @keyframes rune-breathe {
   50% {
     transform: scale(1.04);
-    box-shadow: 0 0 70px #d9a44166;
+    filter: drop-shadow(0 0 26px #d9a44166);
   }
 }
 /* In the components layer so Tailwind utilities (e.g. a per-ring
@@ -172,7 +172,7 @@ body {
     animation-timing-function: cubic-bezier(0.6, 0.2, 0.4, 0.8);
   }
   .rune-crest {
-    box-shadow: 0 0 40px #d9a44133;
+    filter: drop-shadow(0 0 16px #d9a44133);
     animation: rune-breathe 3.6s ease-in-out infinite;
   }
 }

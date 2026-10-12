@@ -1,6 +1,6 @@
 import { useId } from "react";
 
-const CREST_SRC = "/branding/narsil-app-icon.png";
+const CREST_SRC = "/branding/regia-et-ars-crest.png";
 
 const OUTER_RUNES = "REGIA ET ARS · MEMORIA · FIDES · PULCHRITUDO · ";
 const INNER_RUNES = "✦ ARS ✦ GLADIUS ✦ SCEPTRUM ✦ CODEX ";
@@ -89,7 +89,7 @@ export default function RuneLoader({
         src={CREST_SRC}
         alt=""
         draggable={false}
-        className="rune-crest relative rounded-[22%] object-cover"
+        className="rune-crest relative object-contain"
         style={{
           width: size * (compact ? 0.56 : 0.6),
           height: size * (compact ? 0.56 : 0.6),
