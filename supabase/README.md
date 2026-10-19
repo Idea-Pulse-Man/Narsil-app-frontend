@@ -49,6 +49,7 @@ Run these in this order. It's the order production was built in, adjusted for ea
 | 35 | `push-notifications.sql` | iPhone push tokens + `register_push_token()` |
 | 36 | `search.sql` | Full-text search over descriptions, tags, medium and period |
 | 37 | `quiz-halls.sql` | Monthly Hall and Discover Hall rankings (needs 11, 27) |
+| 38 | `quiz-engine.sql` | Question styles, generated question pool, daily mix, generator runs (needs 8) |
 
 When you add a file, give it a `REQUIRES:` header and add a row at the bottom of this table.
 

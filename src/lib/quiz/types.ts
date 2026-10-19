@@ -8,6 +8,7 @@
  */
 
 import type { Artwork } from "@/data";
+import type { QuizItem } from "./engine/types";
 
 /**
  * What a question asks about. `where` / `what` / `age` keep their original
@@ -75,6 +76,12 @@ export interface QuizQuestion {
   /** Four options, already shuffled. */
   options: string[];
   correctIndex: number;
+  /**
+   * Set for questions from the question engine (any style beyond the classic
+   * four-option card). Those render via `EngineQuestion`; `options` is empty,
+   * `correctIndex` is 0 and the recorded answer is 0 (right) or -1 (wrong).
+   */
+  item?: QuizItem;
 }
 
 /** A finished daily session's outcome, plus the running streak. */
