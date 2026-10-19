@@ -4,31 +4,31 @@ overview: Historical implementation plan. The canvas discount was removed from t
 todos:
   - id: reprice-canvas
     content: "Re-cost the canvas price list against real Printful US figures; update pricing.ts + shop.ts together"
-    status: pending
+    status: completed
   - id: entitlement-store
     content: "Backend: subscriptions table + isSubscriber() helper + GET /api/me/subscription"
-    status: pending
+    status: completed
   - id: storekit-purchase
     content: "App: StoreKit 2 purchase flow, paywall screen, Restore Purchases button"
-    status: pending
+    status: completed
   - id: receipt-verify
     content: "Backend: POST /api/apple/verify — validate the signed JWS, resolve authoritative status via App Store Server API"
-    status: pending
+    status: completed
   - id: apple-notifications
     content: "Backend: POST /api/apple/notifications — App Store Server Notifications V2 listener, idempotent"
-    status: pending
+    status: completed
   - id: checkout-discount
     content: "Backend: apply 20% in createCheckout for subscribers; discount comes out of platform cut, not the artist's"
-    status: pending
+    status: cancelled
   - id: download-tiers
     content: "Two-tier download — ?res=standard (2000px) free, ?res=high (max) gated; wsrv.nl fallback for non-IIIF"
-    status: pending
+    status: completed
   - id: image-dimensions
     content: "Ingest: store image_width/image_height from IIIF info.json; backfill; label the tier 'High Resolution'"
-    status: pending
+    status: completed
   - id: endless-quiz
     content: "App: endless quiz mode — free users get 5 questions per session, then paywall. Daily quiz stays 7 and free"
-    status: pending
+    status: completed
   - id: review-compliance
     content: "Paywall metadata, Terms/Privacy links, sandbox test matrix, Small Business Program enrollment"
     status: pending
@@ -39,6 +39,20 @@ todos:
 > Historical note: the client removed the 20% canvas discount from the offer.
 > Discount-related sections below document the original proposal only and must
 > not be implemented. The live product copy in `ProPaywall.tsx` is authoritative.
+
+> **Status (checked 2026-10-19).** Shipped: subscriptions table +
+> `GET /api/me/subscription`, StoreKit 2 paywall with Restore Purchases and
+> Terms/Privacy links, `POST /api/apple/verify` + `/api/apple/notifications`,
+> the two download tiers, stored image dimensions, and the endless-practice gate
+> (`FREE_PRACTICE_QUESTIONS = 5`). Canvas prices were re-costed against
+> Printful on 2026-09-28 (`narsil-museum-backend/src/services/pricing.ts`).
+> Cancelled: the 20% checkout discount. Still open: Small Business Program
+> enrolment and the sandbox test run in `native/ios/README.md`.
+>
+> Current perks (`ProPaywall.tsx`): endless practice, every age / empire trial
+> beyond Ancient Egypt, uncompressed Master File downloads, and uploading in
+> Create. The daily quiz is now **10** questions (`DAILY_COUNT`), not 7, and is
+> still free.
 
 ## Diagnosis — what exists, what doesn't
 

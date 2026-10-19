@@ -89,7 +89,7 @@ combination of an answer type and display options.
 | `numeric` (slider) | year slider, price guess |
 | `map` (tap on map) | map pin |
 | `text` (type, autocomplete) | type the artist, unscramble |
-| `tap_area` (tap a spot on the image) | intruder tile, spot the change, pin it |
+| `tap_area` (tap a spot on the image) | spot the change, pin it (not built; intruder tile ended up as `single` + tiles) |
 
 **Display options** (no image processing needed; the app does it with CSS):
 - `options_as: "text" | "image"`: text buttons or an image grid.
@@ -302,9 +302,9 @@ work · ✍️ = admin-written only (no generator)
 | `placard_match` | Description → pick the artwork | single | 🟢 |
 | `sort_groups` | Drag into Greek / Roman | match | 🟢 |
 | `detail_match` | Zoomed crop → which painting | single | 🟢 |
-| `zoom_reveal` / `blur_reveal` / `tile_reveal` | Reveal styles | single | 🟢 |
+| `zoom_reveal` / `blur_reveal` / `tiles_reveal` | Reveal styles | single | 🟢 |
 | `mirror` | Real or mirrored | single | 🟢 |
-| `intruder_tile` | Find the wrong tile | tap_area | 🟢 |
+| `intruder_tile` | Find the wrong tile | single (tiles) | 🟢 |
 | `missing_piece` | Which piece fits | single | 🟢 |
 | `timeline` | Oldest → newest | order | 🟢 |
 | `match_pairs` | Artist ↔ artwork | match | 🟢 |

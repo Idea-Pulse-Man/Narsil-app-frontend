@@ -65,4 +65,7 @@ never needs them.
 
 To check whether a file is live, look for what it creates. For example, `catalog_facets`
 appears under **Database → Functions** once file 31 has been run. The app keeps working
-without it, but Search's filter lists only show what has already loaded.
+without it, but Search's filter lists only show what has already loaded. Likewise,
+`quiz_styles` appears under **Table Editor** once file 38 has run; until then the quiz
+simply skips the new question styles and the admin "Question styles" panel shows a
+"run supabase/quiz-engine.sql" hint.

@@ -6,6 +6,21 @@
 >
 > Historical note: the client later removed the 20% canvas discount from the
 > subscription. Discount discussion below is background, not a current feature.
+>
+> **Status update (2026-10-19).** This is a snapshot of July 2026. Since then:
+> - The whole subscription system is **built**: StoreKit 2 paywall with Restore
+>   Purchases, `POST /api/apple/verify`, App Store Server Notifications V2, and
+>   `GET /api/me/subscription` (§5 no longer applies).
+> - Endless practice shipped as a gate: 5 free questions per round
+>   (`FREE_PRACTICE_QUESTIONS`). The daily quiz is 10 questions and free.
+> - Download tiers shipped: `?res=standard` (2000px, free) / `?res=high` (Pro).
+> - Canvas prices were re-costed against Printful on 2026-09-28: **$59 / $89 /
+>   $129** (artist originals: Small $69), and **posters** were added at
+>   $29 / $35 / $45 (`narsil-museum-backend/src/services/pricing.ts`).
+> - Current Pro perks: endless practice, every age / empire trial beyond Ancient
+>   Egypt, Master File downloads, uploading in Create (`ProPaywall.tsx`).
+> - The quiz now has a question engine with 26 extra styles
+>   ([quiz-question-engine.plan.md](quiz-question-engine.plan.md)).
 
 ---
 
@@ -19,7 +34,7 @@ Two separate programs:
 
 | Program | Role |
 |---|---|
-| `museum-app/` | The phone app. A website wrapped by **Capacitor** into a real iOS app. React 19 + Ionic + Tailwind + Framer Motion. |
+| `museum-app/` | The phone app. A website wrapped by **Capacitor** into a real iOS app. React 19 + Vite + Tailwind + Framer Motion. |
 | `narsil-museum-backend/` | The server (Node.js + Express) on Amazon EC2. Holds artwork data, calculates prices, takes payments, orders the prints. Invisible to the user. |
 
 **Supabase** (a hosted database) stores everything permanent — accounts, orders,
@@ -76,7 +91,7 @@ Canvas purchase chain (`services/checkout.ts`):
 Order lifecycle: `pending_payment → paid → submitted`, with
 `fulfillment_failed` as a retryable branch.
 
-### Current prices (`services/pricing.ts`)
+### Prices at the time (July 2026 — see the status update for today's)
 
 | Size | Dimensions | Price |
 |---|---|---|
