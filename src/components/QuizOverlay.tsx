@@ -37,6 +37,14 @@ import { displayImageUrl, sizedImageUrl } from "@/lib/imageUrl";
 import { preloadImages } from "@/lib/imageCache";
 import { fetchDailyQuizQuestions } from "@/lib/dailyQuiz";
 import {
+  fetchDailyEngineQuestions,
+  fetchPracticeMix,
+  fetchPracticeQuestions,
+  markItemSeen,
+  recordItemResult,
+} from "@/lib/quiz/engine/fetch";
+import EngineQuestion from "./quiz/EngineQuestion";
+import {
   submitDailyQuizResult,
   fetchLevelBoard,
   type LevelBoard,
@@ -74,6 +82,30 @@ type DailyMode = "new" | "resume" | "review" | "locked";
 
 /** How long the correct/wrong flash lingers before advancing. */
 const REVEAL_MS = 900;
+/**
+ * Engine questions show an explanation (and, for timelines / matches, the
+ * right answer per tile), so they linger longer. "Next" skips the wait.
+ */
+const ENGINE_REVEAL_MS = 1800;
+const ENGINE_DETAIL_REVEAL_MS = 4500;
+
+/** How long practice waits for the engine batch before starting without it. */
+const ENGINE_FETCH_TIMEOUT_MS = 4000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    promise.catch(() => fallback),
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
+  ]);
+}
+
+function revealMsFor(question: QuizQuestion): number {
+  const type = question.item?.answer_type;
+  if (!type) return REVEAL_MS;
+  return type === "single" || type === "binary"
+    ? ENGINE_REVEAL_MS
+    : ENGINE_DETAIL_REVEAL_MS;
+}
 
 /** Painted hub art — held behind the loader so the Hall never paints in pieces. */
 const HUB_ART = [
@@ -81,8 +113,20 @@ const HUB_ART = [
   ...Object.values(STUDY_ART).map((art) => art.src),
 ];
 
-/** Wait for a question's artwork at the quiz card's ~340px size. */
+/**
+ * Wait for a question's artwork at the quiz card's ~340px size (engine
+ * questions: the main image plus every option thumbnail).
+ */
 function warmQuestionArt(question: QuizQuestion | undefined): Promise<void> {
+  const item = question?.item;
+  if (item) {
+    const urls = [
+      ...(item.media.image_url ? [displayImageUrl(item.media.image_url, 340)] : []),
+      ...(item.media.compare ? [sizedImageUrl(item.media.compare.image_url, 140)] : []),
+      ...item.options.flatMap((o) => (o.image_url ? [sizedImageUrl(o.image_url, 190)] : [])),
+    ];
+    return preloadImages([...new Set(urls)], 5000);
+  }
   const url = question?.artwork.image;
   return preloadImages(url ? [displayImageUrl(url, 340)] : []);
 }
@@ -159,13 +203,38 @@ export default function QuizOverlay({
 
   const excludeRef = useRef<Set<string>>(new Set());
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** The step `advanceTimer` will run — "Next" runs it early. */
+  const pendingAdvance = useRef<(() => void) | null>(null);
   /** When the current question became visible (for time bonus). */
   const questionShownAt = useRef<number>(Date.now());
+  /** Practice: queued question-engine questions + the admin's mix (0–100). */
+  const engineQueue = useRef<QuizQuestion[]>([]);
+  const practiceMix = useRef(0);
+  const refilling = useRef(false);
 
   const clearTimer = () => {
     if (advanceTimer.current) clearTimeout(advanceTimer.current);
     advanceTimer.current = null;
+    pendingAdvance.current = null;
   };
+
+  const scheduleAdvance = useCallback((step: () => void, ms: number) => {
+    pendingAdvance.current = step;
+    advanceTimer.current = setTimeout(() => {
+      pendingAdvance.current = null;
+      step();
+    }, ms);
+  }, []);
+
+  /** Skip the post-answer wait (engine questions' "Next"). */
+  const continueNow = useCallback(() => {
+    const step = pendingAdvance.current;
+    if (!step) return;
+    if (advanceTimer.current) clearTimeout(advanceTimer.current);
+    advanceTimer.current = null;
+    pendingAdvance.current = null;
+    step();
+  }, []);
 
   // On open: load any saved daily session so the hub can resume/review. On
   // close: reset the transient run state (the session stays in localStorage).
@@ -192,6 +261,7 @@ export default function QuizOverlay({
     setPracticing(false);
     setHubBoard(null);
     excludeRef.current = new Set();
+    engineQueue.current = [];
   }, [open, isGuest, initialStage]);
 
   useEffect(() => clearTimer, []);
@@ -379,11 +449,13 @@ export default function QuizOverlay({
       return;
     }
 
-    // Prefer the shared Supabase edition (cron + admin specials). If that day
-    // has no rows yet, build one on device so the assessment is never blank.
+    // Prefer the question-engine edition (every style the admin switched on),
+    // then the classic shared edition (cron + admin specials). If neither has
+    // rows yet, build one on device so the assessment is never blank.
     setPreparing("Summoning the works");
     void (async () => {
-      const remote = await fetchDailyQuizQuestions();
+      const engine = await fetchDailyEngineQuestions();
+      const remote = engine.length > 0 ? engine : await fetchDailyQuizQuestions();
       const built =
         remote.length > 0
           ? remote
@@ -408,56 +480,85 @@ export default function QuizOverlay({
     })();
   }, [dailyMode, dailySession, openReview, pool, artists, user]);
 
+  /** Top up the practice queue from the generated pool (fire and forget). */
+  const refillEngine = useCallback(async () => {
+    if (refilling.current) return;
+    refilling.current = true;
+    try {
+      const batch = await fetchPracticeQuestions(20);
+      const have = new Set(engineQueue.current.map((q) => q.id));
+      engineQueue.current.push(...batch.filter((q) => !have.has(q.id)));
+    } finally {
+      refilling.current = false;
+    }
+  }, []);
+
+  /**
+   * Next practice question: a generated (engine) one `practiceMix`% of the
+   * time when the queue has any, otherwise one built on device. Either side
+   * covers for the other when it runs dry.
+   */
+  const pickPracticeQuestion = useCallback((): QuizQuestion | null => {
+    const queue = engineQueue.current;
+    if (queue.length < 5) void refillEngine();
+    const takeEngine = (): QuizQuestion | null => {
+      const q = queue.shift();
+      if (q?.item) markItemSeen(q.item.id);
+      return q ?? null;
+    };
+    if (queue.length > 0 && Math.random() * 100 < practiceMix.current) {
+      return takeEngine();
+    }
+    // Loop the pool once exhausted so practice stays endless.
+    let q = generateQuestion(pool, Math.random, excludeRef.current, undefined, artists);
+    if (!q) {
+      excludeRef.current = new Set();
+      q = generateQuestion(pool, Math.random, excludeRef.current, undefined, artists);
+    }
+    if (!q) return takeEngine();
+    excludeRef.current.add(q.artworkId);
+    return q;
+  }, [pool, artists, refillEngine]);
+
   const startPractice = useCallback(() => {
     excludeRef.current = new Set();
-    const first = generateQuestion(
-      pool,
-      Math.random,
-      excludeRef.current,
-      undefined,
-      artists,
-    );
-    if (!first) return;
-    excludeRef.current.add(first.artworkId);
+    engineQueue.current = [];
     setPreparing("Summoning the works");
-    void warmQuestionArt(first).then(() => {
+    void (async () => {
+      const [mix, batch] = await Promise.all([
+        withTimeout(fetchPracticeMix(), ENGINE_FETCH_TIMEOUT_MS, 0),
+        withTimeout(fetchPracticeQuestions(20), ENGINE_FETCH_TIMEOUT_MS, []),
+      ]);
+      practiceMix.current = mix;
+      engineQueue.current = batch;
+      const first = pickPracticeQuestion();
+      if (!first) {
+        setPreparing(null);
+        return;
+      }
+      await warmQuestionArt(first);
       setIsDaily(false);
       setPracticing(true);
       setQuestions([first]);
       setQIndex(0);
       setSelected(null);
       setCorrect([]);
+      questionShownAt.current = Date.now();
       setStage("playing");
       setPreparing(null);
-    });
-  }, [pool, artists]);
+    })();
+  }, [pickPracticeQuestion]);
 
   const nextPractice = useCallback(() => {
     if (!practicing) return;
-    // Loop the pool once exhausted so practice stays endless.
-    let q = generateQuestion(
-      pool,
-      Math.random,
-      excludeRef.current,
-      undefined,
-      artists,
-    );
-    if (!q) {
-      excludeRef.current = new Set();
-      q = generateQuestion(
-        pool,
-        Math.random,
-        excludeRef.current,
-        undefined,
-        artists,
-      );
-    }
+    const q = pickPracticeQuestion();
     if (!q) return;
-    excludeRef.current.add(q.artworkId);
     setQuestions([q]);
     setQIndex(0);
     setSelected(null);
-  }, [practicing, pool, artists]);
+    questionShownAt.current = Date.now();
+    void warmQuestionArt(engineQueue.current[0]);
+  }, [practicing, pickPracticeQuestion]);
 
   // Declared before `handleSelect`, which lists it as a dependency — a `const`
   // referenced in a dependency array must already be initialised.
@@ -481,6 +582,8 @@ export default function QuizOverlay({
       if (!question) return;
       const wasCorrect = choice === question.correctIndex;
       setSelected(choice);
+      if (question.item) recordItemResult(question.item.id, wasCorrect);
+      const revealMs = revealMsFor(question);
 
       if (isDaily) {
         const elapsedMs = Math.max(0, Date.now() - questionShownAt.current);
@@ -505,7 +608,7 @@ export default function QuizOverlay({
 
         const nextCorrect = [...correct, wasCorrect];
         setCorrect(nextCorrect);
-        advanceTimer.current = setTimeout(() => {
+        scheduleAdvance(() => {
           if (qIndex + 1 < questions.length) {
             setQIndex((i) => i + 1);
             setSelected(null);
@@ -513,7 +616,7 @@ export default function QuizOverlay({
           } else {
             void finishDaily(nextCorrect, questions, answerMs);
           }
-        }, REVEAL_MS);
+        }, revealMs);
       } else {
         recordPractice(1);
         setCorrect((prev) => [...prev, wasCorrect]);
@@ -524,14 +627,14 @@ export default function QuizOverlay({
         // quiz is never gated.
         const answered = correct.length + 1;
         if (!isPro && answered >= FREE_PRACTICE_QUESTIONS) {
-          advanceTimer.current = setTimeout(() => {
+          scheduleAdvance(() => {
             backToHub();
             requestPro("practice-quiz");
-          }, REVEAL_MS);
+          }, revealMs);
           return;
         }
 
-        advanceTimer.current = setTimeout(nextPractice, REVEAL_MS);
+        scheduleAdvance(nextPractice, revealMs);
       }
     },
     [
@@ -547,6 +650,7 @@ export default function QuizOverlay({
       isPro,
       requestPro,
       backToHub,
+      scheduleAdvance,
     ],
   );
 
@@ -558,6 +662,10 @@ export default function QuizOverlay({
   useEffect(() => {
     if (stage !== "playing") return;
     for (const q of questions.slice(qIndex, qIndex + 3)) {
+      if (q.item) {
+        void warmQuestionArt(q);
+        continue;
+      }
       const url = q.artwork.image;
       if (!url) continue;
       const img = new Image();
@@ -630,7 +738,19 @@ export default function QuizOverlay({
               />
             )}
 
-            {stage === "playing" && current && (
+            {stage === "playing" && current && current.item && (
+              <EngineQuestion
+                key={current.id}
+                question={current}
+                index={isDaily ? qIndex : 0}
+                total={isDaily ? questions.length : 1}
+                selected={selected}
+                onSelect={handleSelect}
+                onContinue={continueNow}
+              />
+            )}
+
+            {stage === "playing" && current && !current.item && (
               <QuizQuestionView
                 key={current.id}
                 question={current}

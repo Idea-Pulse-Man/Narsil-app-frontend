@@ -49,6 +49,7 @@ Run these in this order. It's the order production was built in, adjusted for ea
 | 35 | `push-notifications.sql` | iPhone push tokens + `register_push_token()` |
 | 36 | `search.sql` | Full-text search over descriptions, tags, medium and period |
 | 37 | `quiz-halls.sql` | Monthly Hall and Discover Hall rankings (needs 11, 27) |
+| 38 | `quiz-engine.sql` | Question styles, generated question pool, daily mix, generator runs (needs 8) |
 
 When you add a file, give it a `REQUIRES:` header and add a row at the bottom of this table.
 
@@ -64,4 +65,7 @@ never needs them.
 
 To check whether a file is live, look for what it creates. For example, `catalog_facets`
 appears under **Database → Functions** once file 31 has been run. The app keeps working
-without it, but Search's filter lists only show what has already loaded.
+without it, but Search's filter lists only show what has already loaded. Likewise,
+`quiz_styles` appears under **Table Editor** once file 38 has run; until then the quiz
+simply skips the new question styles and the admin "Question styles" panel shows a
+"run supabase/quiz-engine.sql" hint.
