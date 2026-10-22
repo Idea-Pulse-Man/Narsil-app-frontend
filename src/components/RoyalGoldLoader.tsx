@@ -2,18 +2,29 @@ import { useEffect, useRef } from "react";
 
 /**
  * Startup progress (0–92%) as a function of time since navigation start.
- * It eases toward 92% and holds there — the screen unmounts when the work is
- * actually done, so the bar never claims 100% early. The boot script in
- * `index.html` runs the same formula, so the bar continues smoothly from the
- * static splash into React instead of restarting.
+ * It eases toward 92% and holds there until the parent reports `done`, so the
+ * bar never claims 100% early. The boot script in `index.html` runs the same
+ * formula, so the bar continues smoothly from the static splash into React
+ * instead of restarting.
  */
 function bootProgress(nowMs = performance.now()): number {
   return 92 * (1 - Math.exp(-nowMs / 2600));
 }
 
+/** Once done: run from wherever the bar is to 100%… */
+const FINISH_MS = 450;
+/** …hold the full bar long enough to register… */
+const HOLD_MS = 350;
+/** …then fade out to the page underneath. */
+const FADE_MS = 300;
+
 interface RoyalGoldLoaderProps {
   /** Status line under the bar, left of the percentage. */
   label?: string;
+  /** The work is finished: fill to 100%, hold, fade, then call `onFinished`. */
+  done?: boolean;
+  /** Called after the fade-out — the parent unmounts the loader here. */
+  onFinished?: () => void;
 }
 
 /**
@@ -25,26 +36,70 @@ interface RoyalGoldLoaderProps {
  */
 export default function RoyalGoldLoader({
   label = "Gilded light",
+  done = false,
+  onFinished,
 }: RoyalGoldLoaderProps) {
+  const rootRef = useRef<HTMLDivElement>(null);
   const fillRef = useRef<HTMLDivElement>(null);
   const pctRef = useRef<HTMLSpanElement>(null);
+  // Read by the rAF loop, which is started once and must see the latest props.
+  const doneRef = useRef(done);
+  const onFinishedRef = useRef(onFinished);
+  useEffect(() => {
+    doneRef.current = done;
+    onFinishedRef.current = onFinished;
+  });
 
   // Drive the bar from a rAF loop that writes styles directly — no React
   // re-render per frame.
   useEffect(() => {
     let frame = 0;
-    const tick = () => {
-      const p = bootProgress();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let finishFrom: { p: number; t: number } | null = null;
+    const draw = (p: number) => {
       if (fillRef.current) fillRef.current.style.width = `${p}%`;
       if (pctRef.current) pctRef.current.textContent = `${Math.floor(p)}%`;
-      frame = requestAnimationFrame(tick);
+    };
+    const tick = () => {
+      const now = performance.now();
+      if (doneRef.current && !finishFrom) {
+        finishFrom = { p: bootProgress(now), t: now };
+      }
+      if (!finishFrom) {
+        draw(bootProgress(now));
+        frame = requestAnimationFrame(tick);
+        return;
+      }
+      // Ease-out from the current value to 100%.
+      const k = Math.min(1, (now - finishFrom.t) / FINISH_MS);
+      draw(finishFrom.p + (100 - finishFrom.p) * (1 - (1 - k) ** 3));
+      if (k < 1) {
+        frame = requestAnimationFrame(tick);
+        return;
+      }
+      timer = setTimeout(() => {
+        const root = rootRef.current;
+        if (root) {
+          root.style.transition = `opacity ${FADE_MS}ms ease`;
+          root.style.opacity = "0";
+        }
+        timer = setTimeout(() => onFinishedRef.current?.(), FADE_MS);
+      }, HOLD_MS);
     };
     tick();
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(timer);
+    };
   }, []);
 
   return (
-    <div role="status" aria-label={label} className="royal-splash z-10">
+    <div
+      ref={rootRef}
+      role="status"
+      aria-label={label}
+      className="royal-splash z-10"
+    >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/branding/regia-et-ars-crest.png"
