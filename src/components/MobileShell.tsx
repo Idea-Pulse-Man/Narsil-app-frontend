@@ -115,6 +115,8 @@ export default function MobileShell() {
   /** Bumped when the quiz closes so entry cards re-read their streak. */
   const [quizRefresh, setQuizRefresh] = useState(0);
   const [clean, setClean] = useState(false);
+  /** First-launch Royal Gold splash — stays up until it has shown 100%. */
+  const [bootSplash, setBootSplash] = useState(true);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Sign-in / sign-up screen (full-screen overlay above the shell).
@@ -171,6 +173,8 @@ export default function MobileShell() {
   /** Admin accounts never see Narsil / Discover / Profile — only the dashboard. */
   const adminMode = ready && isAdmin && termsAccepted;
   const memberApp = ready && !isAdmin && !rolePending;
+  /** Boot is finished once the shell knows the role and members have art to show. */
+  const bootDone = ready && !rolePending && (isAdmin || !catalogLoading);
 
   // Auto-open the onboarding preference flow after auth is done.
   const onboardingPrefsTriggered = useRef(false);
@@ -549,8 +553,15 @@ export default function MobileShell() {
           inert={onboardingGate ? true : undefined}
         >
           {/* App-state boot (and a signed-in member's role lookup) — picks
-              up the Royal Gold bar from the static splash in index.html. */}
-          {(!ready || rolePending) && <RoyalGoldLoader />}
+              up the Royal Gold bar from the static splash in index.html.
+              On first launch it overlays the screens below until the feed is
+              ready, fills to 100%, then fades away. */}
+          {(bootSplash || !ready || rolePending) && (
+            <RoyalGoldLoader
+              done={bootDone}
+              onFinished={() => setBootSplash(false)}
+            />
+          )}
 
           {ready && adminMode && (
             <div className="absolute inset-0">
