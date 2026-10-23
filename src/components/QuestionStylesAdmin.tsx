@@ -16,6 +16,7 @@ import {
   fetchStyleStats,
   previewStyle,
   runGenerationNow,
+  setFocusStyle,
   setItemStatus,
   updateEngineConfig,
   updateStyle,
@@ -129,6 +130,33 @@ export default function QuestionStylesAdmin({ showToast }: Props) {
   };
 
   const enabledCount = Object.values(rows).filter((r) => r.enabled).length;
+  const focus = config?.focus_style ?? null;
+  const focusLabel = focus ? (defs.find((d) => d.id === focus)?.label ?? focus) : null;
+
+  /**
+   * Focus mode: every daily + practice question becomes this style (null =
+   * back to the normal mix). Tops the style up when it has too few questions.
+   */
+  const changeFocus = async (style: string | null) => {
+    setBusy(style ?? "__focus");
+    try {
+      await setFocusStyle(style);
+      setConfig((c) => (c ? { ...c, focus_style: style } : c));
+      const label = style ? (defs.find((d) => d.id === style)?.label ?? style) : null;
+      showToast(label ? `Every question is now: ${label}` : "Back to the normal mix");
+    } catch (err) {
+      showToast(errorText(err, "Could not change focus."), "error");
+      setBusy(null);
+      return;
+    }
+    setBusy(null);
+    const live = style ? (stats[style]?.live ?? 0) : Infinity;
+    const wanted = Math.max(20, (config?.daily_count ?? 10) * 2);
+    if (style && live < (config?.daily_count ?? 10)) {
+      showToast(`Only ${live} ${live === 1 ? "question" : "questions"} — generating more…`);
+      await generate(style, wanted);
+    }
+  };
 
   return (
     <section className="mb-8">
@@ -147,12 +175,36 @@ export default function QuestionStylesAdmin({ showToast }: Props) {
 
       {!loading && !error && config && (
         <>
+          {focus && (
+            <div className="mt-3 rounded-2xl border border-amber-300/50 bg-amber-300/10 p-3">
+              <p className="text-sm font-semibold text-amber-50">
+                Focus: every question is “{focusLabel}”
+              </p>
+              <p className="mt-1 text-xs leading-snug text-amber-100/75">
+                All Daily and Practice questions use only this style, even if it is switched
+                off. {stats[focus]?.live ?? 0} live questions.
+                {(stats[focus]?.live ?? 0) === 0 &&
+                  " None yet — open the style and tap Generate now, or players get classic questions."}
+                {" "}Players who already started today's daily keep their set.
+              </p>
+              <button
+                type="button"
+                disabled={busy !== null}
+                onClick={() => void changeFocus(null)}
+                className="mt-2 rounded-full bg-amber-200 px-3.5 py-1.5 text-xs font-semibold text-ink disabled:opacity-40"
+              >
+                Clear focus — back to the mix
+              </button>
+            </div>
+          )}
+
           <EngineSettings
+            focused={focus !== null}
             config={config}
             onSave={async (next) => {
               try {
                 await updateEngineConfig(next);
-                setConfig(next);
+                setConfig((c) => (c ? { ...c, ...next } : c));
                 showToast("Engine settings saved");
               } catch (err) {
                 showToast(errorText(err, "Save failed."), "error");
@@ -205,6 +257,8 @@ export default function QuestionStylesAdmin({ showToast }: Props) {
                   stats={stats[def.id]}
                   open={openId === def.id}
                   busy={busy === def.id}
+                  focused={focus === def.id}
+                  onFocus={() => void changeFocus(focus === def.id ? null : def.id)}
                   onToggleOpen={() => setOpenId(openId === def.id ? null : def.id)}
                   onPatch={(patch, done) => void patchRow(def.id, patch, done)}
                   onGenerate={() => void generate(def.id, row.per_run || 5)}
@@ -232,10 +286,12 @@ export default function QuestionStylesAdmin({ showToast }: Props) {
 
 function EngineSettings({
   config,
+  focused,
   onSave,
 }: {
   config: EngineConfig;
-  onSave: (next: EngineConfig) => Promise<void>;
+  focused: boolean;
+  onSave: (next: Pick<EngineConfig, "daily_count" | "practice_mix">) => Promise<void>;
 }) {
   const [daily, setDaily] = useState(config.daily_count);
   const [mix, setMix] = useState(config.practice_mix);
@@ -271,6 +327,7 @@ function EngineSettings({
       <p className="col-span-2 text-[11px] leading-snug text-white/45">
         Practice mix: share of practice questions taken from generated styles; the rest are classic
         questions built on the phone. 100 = only generated styles.
+        {focused && " Ignored while a focus style is set (always 100)."}
       </p>
       {dirty && (
         <button
@@ -330,6 +387,8 @@ function StyleCard({
   stats,
   open,
   busy,
+  focused,
+  onFocus,
   onToggleOpen,
   onPatch,
   onGenerate,
@@ -341,6 +400,8 @@ function StyleCard({
   stats: StyleStats | undefined;
   open: boolean;
   busy: boolean;
+  focused: boolean;
+  onFocus: () => void;
   onToggleOpen: () => void;
   onPatch: (patch: Partial<StyleRow>, done?: string) => void;
   onGenerate: () => void;
@@ -375,16 +436,37 @@ function StyleCard({
   };
 
   return (
-    <div className={`rounded-2xl border ${row.enabled ? "border-emerald-400/30" : "border-white/10"} bg-white/[0.04]`}>
+    <div
+      className={`rounded-2xl border ${
+        focused ? "border-amber-300/70" : row.enabled ? "border-emerald-400/30" : "border-white/10"
+      } bg-white/[0.04]`}
+    >
       <div className="flex items-start gap-3 p-3">
         <button type="button" onClick={onToggleOpen} className="min-w-0 flex-1 text-left">
-          <p className="font-medium text-white">{def.label}</p>
+          <p className="font-medium text-white">
+            {def.label}
+            {focused && (
+              <span className="ml-2 rounded-full bg-amber-300/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-100">
+                Focus
+              </span>
+            )}
+          </p>
           <p className="mt-0.5 truncate text-xs text-white/45">
             {def.answer_type} · {stats?.live ?? 0} live
             {stats?.review ? ` · ${stats.review} to review` : ""}
             {rate !== null ? ` · ${rate}% right` : ""}
             {` · ${row.surfaces.join(" + ") || "no surface"}`}
           </p>
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={onFocus}
+          className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold disabled:opacity-40 ${
+            focused ? "bg-amber-300 text-ink" : "border border-amber-200/30 text-amber-100/80"
+          }`}
+        >
+          {focused ? "Only this ✓" : "Only this"}
         </button>
         <button
           type="button"

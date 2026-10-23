@@ -210,16 +210,21 @@ export async function fetchPracticeQuestions(limit = 20): Promise<QuizQuestion[]
     .map(itemToQuestion);
 }
 
-/** Admin-set share (0–100) of practice questions drawn from the engine. */
+/**
+ * Share (0–100) of practice questions drawn from the engine. The admin sets
+ * it; in focus mode (one style for every question) it is always 100.
+ */
 export async function fetchPracticeMix(): Promise<number> {
   if (!supabase) return 0;
   const { data, error } = await supabase
     .from("quiz_engine_config")
-    .select("practice_mix")
+    .select("*")
     .eq("id", 1)
     .maybeSingle();
   if (error || !data) return 0;
-  const mix = Number((data as { practice_mix?: number }).practice_mix);
+  const row = data as { practice_mix?: number; focus_style?: string | null };
+  if (row.focus_style) return 100;
+  const mix = Number(row.practice_mix);
   return Number.isFinite(mix) ? Math.min(100, Math.max(0, mix)) : 0;
 }
 

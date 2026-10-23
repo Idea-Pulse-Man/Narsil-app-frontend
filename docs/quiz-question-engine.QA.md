@@ -58,6 +58,11 @@ the same app). ✅ = expected result.
 - [ ] **Generate now** on a style that is **Off**. ✅ Questions are saved, but players still don't see them until it's turned On.
 - [ ] **Generate all now.** ✅ All enabled styles generate; run history lists each style's count.
 - [ ] **Review before live** on → Generate now. ✅ New items land in **To review**, not Live. "Make live" moves one to Live.
+- [ ] **Only this (focus mode):** tap **Only this** on Year slider. ✅ Amber banner "Focus: every question is “Year slider”", card marked FOCUS; if it had fewer than the daily count, a toast says it's generating more.
+- [ ] With focus on, play practice (fresh round) and start a daily on an account that hasn't played today. ✅ **Every** question is a year slider — no classic or other styles.
+- [ ] Focus on a style that is **Off**. ✅ Still used for every question (focus overrides the switch).
+- [ ] Focus on a style with **0** questions while the backend is down. ✅ Banner warns "None yet"; players get classic questions until it's generated.
+- [ ] **Clear focus**. ✅ Banner gone; the next practice round is the normal mix again.
 - [ ] **Questions → Retire** one live question. ✅ It moves to Retired and stops appearing in practice.
 - [ ] **Flagged** tab: empty at first. (After ≥30 plays, questions with <15% or >97% right appear here.)
 - [ ] **Engine settings:** set Daily questions = 6 and Practice % = 100 → Save. ✅ Persists after refresh; tomorrow's daily has 6.
