@@ -256,7 +256,7 @@ revoke all on function public.tick_quiz_absence() from public;
 grant execute on function public.tick_quiz_absence() to authenticated;
 
 -- ── quiz_level_board ───────────────────────────────────────────────────────
--- Top 5 in caller's level today + neighbor window around caller.
+-- Top 50 in caller's level today + neighbor window around caller.
 -- Exposes display name / avatar via security definer (profiles are owner-only).
 
 create or replace function public.quiz_level_board(p_play_date date default null)
@@ -327,7 +327,7 @@ begin
     select *
     from ranked
     where
-      rank <= 5
+      rank <= 50
       or rank between greatest(1, my_rank - 1) and my_rank + 1
   )
   select jsonb_agg(

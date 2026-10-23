@@ -221,7 +221,7 @@ async function fetchBoard(
   }
 }
 
-/** Same-level board slice: top 5 + neighbors around you. */
+/** Same-level board slice: top 50 + neighbors around you. */
 export function fetchLevelBoard(playDate?: string): Promise<LevelBoard | null> {
   return fetchBoard("quiz_level_board", { p_play_date: playDate ?? undefined });
 }

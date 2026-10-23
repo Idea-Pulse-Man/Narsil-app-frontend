@@ -6,7 +6,7 @@
 -- quiz_discover_board Discover Hall: best Discover trial scores (correct
 --                     answers) summed per difficulty, across every member.
 --
--- Both return the same shape as quiz_level_board (top 5 + neighbors around
+-- Both return the same shape as quiz_level_board (top 50 + neighbors around
 -- the caller) so the app renders them with one component.
 --
 -- REQUIRES: quiz-levels.sql (11), quiz-scores.sql (27)
@@ -97,7 +97,7 @@ begin
   )
   into result
   from ranked
-  where rank <= 5
+  where rank <= 50
     or (my_rank is not null and rank between greatest(1, my_rank - 1) and my_rank + 1);
 
   return jsonb_build_object(
@@ -193,7 +193,7 @@ begin
   )
   into result
   from ranked
-  where rank <= 5
+  where rank <= 50
     or (my_rank is not null and rank between greatest(1, my_rank - 1) and my_rank + 1);
 
   return jsonb_build_object(
