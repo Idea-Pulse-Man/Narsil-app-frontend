@@ -41,7 +41,10 @@ const TILE_H = { left: 351, right: 363 };
 const HEAD_H = 629;
 const TITLE = { top: 436, height: 158 };
 const FOOT_H = 1232;
-const ROWS_MIN_H = FRAME_H - HEAD_H - FOOT_H;
+/** Extra pillar repeats even for a short list, so the hall always runs past the screen. */
+const MIN_EXTRA_TILES = 2;
+const ROWS_MIN_H =
+  FRAME_H - HEAD_H - FOOT_H + MIN_EXTRA_TILES * ((TILE_H.left + TILE_H.right) / 2);
 const YOU = { top: 54, height: 171 };
 
 function Piece({ name, className = "" }: { name: keyof typeof PIECES; className?: string }) {
