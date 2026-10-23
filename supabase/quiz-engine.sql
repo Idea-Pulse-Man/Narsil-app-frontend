@@ -183,6 +183,8 @@ create policy "Admins write daily quiz items"
 -- A random batch for practice. The app passes the answer types it can draw,
 -- so switching on a style an old app can't render never reaches that app.
 -- In focus mode only the focused style is served (on or off).
+-- Styles get an EQUAL share: one random question from each style, then a
+-- second from each, … — a style with 80 questions doesn't crowd out one with 8.
 create or replace function public.next_quiz_items(
   p_surface       text   default 'practice',
   p_answer_types  text[] default null,
@@ -196,16 +198,21 @@ set search_path = public
 as $$
   select i.*
   from public.quiz_items i
-  join public.quiz_styles s on s.id = i.style
-  left join public.quiz_engine_config c on c.id = 1
-  where i.status = 'live'
-    and (p_answer_types is null or i.answer_type = any (p_answer_types))
-    and not (i.id = any (coalesce(p_exclude, '{}')))
-    and case
-          when c.focus_style is not null then i.style = c.focus_style
-          else s.enabled and p_surface = any (s.surfaces)
-        end
-  order by random()
+  join (
+    select q.id,
+           row_number() over (partition by q.style order by random()) as style_rank
+    from public.quiz_items q
+    join public.quiz_styles s on s.id = q.style
+    left join public.quiz_engine_config c on c.id = 1
+    where q.status = 'live'
+      and (p_answer_types is null or q.answer_type = any (p_answer_types))
+      and not (q.id = any (coalesce(p_exclude, '{}')))
+      and case
+            when c.focus_style is not null then q.style = c.focus_style
+            else s.enabled and p_surface = any (s.surfaces)
+          end
+  ) picked on picked.id = i.id
+  order by picked.style_rank, random()
   limit least(greatest(coalesce(p_limit, 20), 1), 50);
 $$;
 

@@ -15,8 +15,11 @@ import {
   fetchStyleRows,
   fetchStyleStats,
   previewStyle,
+  rebuildTodayDaily,
   runGenerationNow,
   setFocusStyle,
+  setStylesEnabled,
+  waitForRun,
   setItemStatus,
   updateEngineConfig,
   updateStyle,
@@ -50,6 +53,9 @@ const SURFACES = [
   { id: "daily", label: "Daily" },
   { id: "practice", label: "Practice" },
 ];
+
+/** A style switched on with fewer live questions than this gets some generated at once. */
+const MIN_LIVE = 5;
 
 const inputClass =
   "w-full rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none placeholder:text-white/45";
@@ -109,21 +115,80 @@ export default function QuestionStylesAdmin({ showToast }: Props) {
     }
   };
 
+  /**
+   * Generate now. The backend runs it in the background; we wait on the run
+   * history, then report what it made.
+   */
   const generate = async (style?: string, count?: number) => {
     setBusy(style ?? "__all");
     try {
-      const summary = await runGenerationNow({ style, count });
-      const made = Object.values(summary.created).reduce((a, b) => a + b, 0);
-      const daily = summary.daily ? ` · daily +${summary.daily.added}` : "";
-      showToast(`Generated ${made} question${made === 1 ? "" : "s"}${daily}`);
-      if (summary.problems.length) {
-        showToast(summary.problems.slice(0, 2).join(" · "), "error");
+      const { runId } = await runGenerationNow({ style, count });
+      showToast(style ? "Generating…" : "Generating every style — this can take a minute…");
+      const run = await waitForRun(runId);
+      const made = Object.values(run.created ?? {}).reduce((a, b) => a + b, 0);
+      if (run.status === "failed") {
+        showToast(run.problems?.[0] ?? "Generate failed.", "error");
+      } else {
+        const daily = run.daily_added ? ` · daily +${run.daily_added}` : "";
+        showToast(`Generated ${made} question${made === 1 ? "" : "s"}${daily}`);
+        if (run.problems?.length) showToast(run.problems.slice(0, 2).join(" · "), "error");
       }
-      const [s, history] = await Promise.all([fetchStyleStats(), fetchRuns(8)]);
-      setStats(s);
-      setRuns(history);
     } catch (err) {
       showToast(errorText(err, "Generate failed."), "error");
+    } finally {
+      setBusy(null);
+      const [s, history] = await Promise.all([
+        fetchStyleStats().catch(() => stats),
+        fetchRuns(8).catch(() => runs),
+      ]);
+      setStats(s);
+      setRuns(history);
+    }
+  };
+
+  /** Switch one style on/off; a style switched on with too few questions gets some at once. */
+  const toggleStyle = async (id: string) => {
+    const row = rows[id];
+    if (!row) return;
+    const on = !row.enabled;
+    const label = defs.find((d) => d.id === id)?.label ?? id;
+    await patchRow(id, { enabled: on }, `${label} ${on ? "on" : "off"}`);
+    if (on && (stats[id]?.live ?? 0) < MIN_LIVE) await generate(id, row.per_run || 8);
+  };
+
+  /** All on / all off. Turning on generates for every style that is short of questions. */
+  const setAll = async (on: boolean) => {
+    const ids = defs.map((d) => d.id).filter((id) => rows[id]);
+    setBusy("__bulk");
+    try {
+      await setStylesEnabled(ids, on);
+      setRows((prev) =>
+        Object.fromEntries(Object.entries(prev).map(([id, r]) => [id, { ...r, enabled: on }])),
+      );
+      showToast(on ? "Every style is on" : "Every style is off — players get classic questions");
+    } catch (err) {
+      showToast(errorText(err, "Could not update the styles."), "error");
+      return;
+    } finally {
+      setBusy(null);
+    }
+    if (on && ids.some((id) => (stats[id]?.live ?? 0) < MIN_LIVE)) await generate();
+  };
+
+  /** Make today's daily use the styles switched on right now. */
+  const rebuildDaily = async () => {
+    setBusy("__daily");
+    try {
+      const res = await rebuildTodayDaily();
+      showToast(
+        res.total > 0
+          ? `Today's daily rebuilt: ${res.total} questions. Players who already started keep their set.`
+          : "No questions to build today's daily from — switch styles on (with the Daily chip) and generate first.",
+        res.total > 0 ? undefined : "error",
+      );
+      setRuns(await fetchRuns(8).catch(() => runs));
+    } catch (err) {
+      showToast(errorText(err, "Rebuild failed."), "error");
     } finally {
       setBusy(null);
     }
@@ -166,7 +231,8 @@ export default function QuestionStylesAdmin({ showToast }: Props) {
       </div>
       <p className="mt-1 text-xs text-white/50">
         Switch styles on and the nightly cron (00:10 UTC) generates new questions for them.
-        Daily = the Royal Assessment; Practice = the endless Uncharted Archives.
+        Daily = the Royal Assessment; Practice = the endless Uncharted Archives. Changes reach
+        Practice at once; tap <b>Rebuild today's daily</b> to apply them to today's daily too.
       </p>
 
       <div className="mt-3">
@@ -223,6 +289,30 @@ export default function QuestionStylesAdmin({ showToast }: Props) {
             </button>
             <button
               type="button"
+              disabled={busy !== null}
+              onClick={() => void rebuildDaily()}
+              className="rounded-full border border-amber-200/40 bg-amber-200/10 px-3.5 py-1.5 text-xs font-semibold text-amber-50 disabled:opacity-40"
+            >
+              {busy === "__daily" ? "Rebuilding…" : "Rebuild today's daily"}
+            </button>
+            <button
+              type="button"
+              disabled={busy !== null}
+              onClick={() => void setAll(true)}
+              className="rounded-full border border-emerald-300/40 px-3.5 py-1.5 text-xs font-semibold text-emerald-100 disabled:opacity-40"
+            >
+              All on
+            </button>
+            <button
+              type="button"
+              disabled={busy !== null}
+              onClick={() => void setAll(false)}
+              className="rounded-full border border-white/15 px-3.5 py-1.5 text-xs font-semibold text-white/70 disabled:opacity-40"
+            >
+              All off
+            </button>
+            <button
+              type="button"
               onClick={() => setItemsFor(null)}
               className="rounded-full border border-white/15 px-3.5 py-1.5 text-xs font-semibold text-white/75"
             >
@@ -261,6 +351,7 @@ export default function QuestionStylesAdmin({ showToast }: Props) {
                   onFocus={() => void changeFocus(focus === def.id ? null : def.id)}
                   onToggleOpen={() => setOpenId(openId === def.id ? null : def.id)}
                   onPatch={(patch, done) => void patchRow(def.id, patch, done)}
+                  onToggle={() => void toggleStyle(def.id)}
                   onGenerate={() => void generate(def.id, row.per_run || 5)}
                   onShowItems={() => setItemsFor(def.id)}
                   showToast={showToast}
@@ -391,6 +482,7 @@ function StyleCard({
   onFocus,
   onToggleOpen,
   onPatch,
+  onToggle,
   onGenerate,
   onShowItems,
   showToast,
@@ -404,6 +496,7 @@ function StyleCard({
   onFocus: () => void;
   onToggleOpen: () => void;
   onPatch: (patch: Partial<StyleRow>, done?: string) => void;
+  onToggle: () => void;
   onGenerate: () => void;
   onShowItems: () => void;
   showToast: Props["showToast"];
@@ -471,7 +564,7 @@ function StyleCard({
         <button
           type="button"
           disabled={busy}
-          onClick={() => onPatch({ enabled: !row.enabled }, `${def.label} ${row.enabled ? "off" : "on"}`)}
+          onClick={onToggle}
           aria-pressed={row.enabled}
           className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold disabled:opacity-40 ${
             row.enabled ? "bg-emerald-400/90 text-ink" : "border border-white/15 text-white/60"

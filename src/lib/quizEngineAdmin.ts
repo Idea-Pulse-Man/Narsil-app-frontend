@@ -71,12 +71,11 @@ export interface GenerationRun {
   daily_added: number;
 }
 
-export interface RunSummary {
-  runId: string | null;
-  created: Record<string, number>;
-  rejected: Record<string, number>;
-  problems: string[];
-  daily: { date: string; added: number; total: number } | null;
+export interface DailyRebuild {
+  date: string;
+  added: number;
+  total: number;
+  removed: number;
 }
 
 export type ItemStatus = "live" | "review" | "retired";
@@ -198,15 +197,48 @@ export async function previewStyle(
 }
 
 /** "Generate now": every enabled style, or just `style`. */
+/**
+ * "Generate now": every enabled style, or just `style`. The backend answers at
+ * once with the run id and keeps generating in the background (a big run
+ * outlasts CloudFront's 30-second limit) — follow it with `waitForRun`.
+ */
 export async function runGenerationNow(opts: {
   style?: string;
   count?: number;
   fillDaily?: boolean;
-} = {}): Promise<RunSummary> {
-  return backend<RunSummary>("/run", {
+} = {}): Promise<{ runId: string }> {
+  return backend<{ runId: string }>("/run", {
     method: "POST",
     body: { style: opts.style, count: opts.count, fill_daily: opts.fillDaily ?? true },
   });
+}
+
+/** Poll the run history until `runId` finishes (or ~6 minutes pass). */
+export async function waitForRun(runId: string, timeoutMs = 6 * 60_000): Promise<GenerationRun> {
+  const started = Date.now();
+  for (;;) {
+    await new Promise((r) => setTimeout(r, 2500));
+    const run = (await fetchRuns(10)).find((r) => r.id === runId);
+    if (run && run.status !== "running") return run;
+    if (Date.now() - started > timeoutMs) {
+      throw new Error("Still generating — check Last run in a minute.");
+    }
+  }
+}
+
+/** Refill today's daily mix from the styles switched on now. */
+export async function rebuildTodayDaily(): Promise<DailyRebuild> {
+  return backend<DailyRebuild>("/daily/rebuild", { method: "POST" });
+}
+
+/** Switch many styles on or off at once. */
+export async function setStylesEnabled(ids: string[], enabled: boolean): Promise<void> {
+  if (ids.length === 0) return;
+  const { error } = await client()
+    .from("quiz_styles")
+    .update({ enabled, updated_at: new Date().toISOString() })
+    .in("id", ids);
+  if (error) throw new Error(error.message);
 }
 
 export async function fetchRuns(limit = 10): Promise<GenerationRun[]> {

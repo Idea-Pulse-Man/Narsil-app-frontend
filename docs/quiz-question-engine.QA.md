@@ -63,6 +63,12 @@ the same app). ✅ = expected result.
 - [ ] Focus on a style that is **Off**. ✅ Still used for every question (focus overrides the switch).
 - [ ] Focus on a style with **0** questions while the backend is down. ✅ Banner warns "None yet"; players get classic questions until it's generated.
 - [ ] **Clear focus**. ✅ Banner gone; the next practice round is the normal mix again.
+- [ ] **All on.** ✅ Every card shows On; styles with fewer than 5 questions are generated automatically (toast "Generating every style…", then "Generated N questions").
+- [ ] **All off.** ✅ Every card Off; practice falls back to classic questions.
+- [ ] Switch **one** style On that has 0 questions. ✅ It generates right away; its "live" count goes up.
+- [ ] **Generate all now** with many styles on. ✅ No timeout error even if it takes longer than 30 s; the result toast arrives when the run finishes.
+- [ ] Change which styles are on, then **Rebuild today's daily**. ✅ Toast "Today's daily rebuilt: 10 questions"; an account that hasn't started today gets the new mix.
+- [ ] Practice with 3 styles on, one of them with far fewer questions. ✅ All three appear about equally often.
 - [ ] **Questions → Retire** one live question. ✅ It moves to Retired and stops appearing in practice.
 - [ ] **Flagged** tab: empty at first. (After ≥30 plays, questions with <15% or >97% right appear here.)
 - [ ] **Engine settings:** set Daily questions = 6 and Practice % = 100 → Save. ✅ Persists after refresh; tomorrow's daily has 6.
