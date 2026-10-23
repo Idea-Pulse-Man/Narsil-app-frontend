@@ -11,20 +11,84 @@ import { BoardRows } from "./QuizRanking";
 import { hallCopy, type HallKind } from "@/lib/quiz/halls";
 import { ArrowLeftIcon } from "./Icons";
 
-const FRAME_SRC = "/quiz-scrolls/hall-frame-v2.png";
-/** Native size of the frame art. */
+const ART = "/quiz-scrolls/hall";
+/** Native size of the whole frame art, before it was cut into pieces. */
 const FRAME_W = 1200;
 const FRAME_H = 2677;
+/** Source-art pixels → container units, so everything scales with the frame. */
+const px = (n: number) => `${(n / FRAME_W) * 100}cqw`;
 
 /*
- * Clear areas inside the frame art, as % of the frame box. Measured from the
- * PNG's alpha: the banner's ribbon tails narrow the top, the leaning swords
- * narrow the bottom, so the wide band between the pillars holds the rows.
- * Your own row sits apart, between the sword hilts, so it is always visible.
+ * The frame is cut into a fixed top and bottom plus, per pillar, a
+ * pole-and-banner tile that repeats so the hall grows as tall as its list
+ * (the page scrolls, not the list). Tile ends were picked to join cleanly.
  */
-const TITLE_ZONE = { left: "27.5%", right: "27.5%", top: "16.3%", bottom: "77.8%" };
-const ROWS_ZONE = { left: "19.5%", right: "19.5%", top: "23.5%", bottom: "46.5%" };
-const YOU_ZONE = { left: "23.5%", right: "20%", top: "56%", bottom: "37.6%" };
+const PIECES = {
+  top: [1200, 615],
+  bottom: [1200, 1232],
+  "left-top": [600, 181],
+  "left-bottom": [600, 298],
+  "right-top": [600, 371],
+  "right-bottom": [600, 96],
+} as const;
+const TILE_H = { left: 351, right: 363 };
+
+/*
+ * Content bands, in source-art pixels. The head holds the title under the
+ * banner's ribbon tails; rows fill the wide band between the pillars; the
+ * foot is the swords-and-scroll base, with your own row between the hilts.
+ */
+const HEAD_H = 629;
+const TITLE = { top: 436, height: 158 };
+const FOOT_H = 1232;
+const ROWS_MIN_H = FRAME_H - HEAD_H - FOOT_H;
+const YOU = { top: 54, height: 171 };
+
+function Piece({ name, className = "" }: { name: keyof typeof PIECES; className?: string }) {
+  const [width, height] = PIECES[name];
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={`${ART}/${name}.png`}
+      alt=""
+      width={width}
+      height={height}
+      draggable={false}
+      className={`block h-auto w-full ${className}`}
+    />
+  );
+}
+
+function Pillar({ side }: { side: "left" | "right" }) {
+  return (
+    <div className="flex w-1/2 flex-col">
+      <Piece name={`${side}-top`} />
+      {/* -my-px hides hairline seams between the scaled pieces. */}
+      <div
+        className="-my-px min-h-0 flex-1"
+        style={{
+          backgroundImage: `url(${ART}/${side}-tile.png)`,
+          backgroundSize: `100% ${px(TILE_H[side])}`,
+          backgroundRepeat: "no-repeat round",
+        }}
+      />
+      <Piece name={`${side}-bottom`} />
+    </div>
+  );
+}
+
+function HallFrameArt() {
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 flex select-none flex-col">
+      <Piece name="top" className="-mb-px" />
+      <div className="flex min-h-0 flex-1">
+        <Pillar side="left" />
+        <Pillar side="right" />
+      </div>
+      <Piece name="bottom" className="-mt-px" />
+    </div>
+  );
+}
 
 interface HallScreenProps {
   open: boolean;
@@ -119,34 +183,27 @@ export default function HallScreen({
           </button>
 
           <div className="h-full overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {/* Full width, so the frame runs taller than the screen and scrolls. */}
-            <div
-              className="@container relative mx-auto w-full max-w-[520px]"
-              style={{ aspectRatio: `${FRAME_W} / ${FRAME_H}` }}
-            >
+            {/* Full width; the content sets the height and the art grows to match. */}
+            <div className="@container relative mx-auto w-full max-w-[520px]">
               <div
                 aria-hidden
                 className="absolute inset-[16%_14%_11%] rounded-[30%] bg-[radial-gradient(ellipse_at_50%_40%,#2e2014_0%,#120c08_75%)]"
               />
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={FRAME_SRC}
-                alt=""
-                draggable={false}
-                className="pointer-events-none absolute inset-0 h-full w-full select-none"
-              />
+              <HallFrameArt />
 
-              <div
-                className="absolute flex flex-col items-center justify-center text-center"
-                style={TITLE_ZONE}
-              >
-                <h2 className={`font-serif text-[4.2cqw] leading-tight ${heading}`}>
-                  {copy.name}
-                </h2>
-                <p className={`text-[2.6cqw] leading-snug ${label}`}>{copy.subtitle}</p>
+              <div className="relative" style={{ height: px(HEAD_H) }}>
+                <div
+                  className="absolute inset-x-[27.5%] flex flex-col items-center justify-center text-center"
+                  style={{ top: px(TITLE.top), height: px(TITLE.height) }}
+                >
+                  <h2 className={`font-serif text-[4.2cqw] leading-tight ${heading}`}>
+                    {copy.name}
+                  </h2>
+                  <p className={`text-[2.6cqw] leading-snug ${label}`}>{copy.subtitle}</p>
+                </div>
               </div>
 
-              <div className="absolute flex flex-col" style={ROWS_ZONE}>
+              <div className="relative px-[19.5%] pb-2" style={{ minHeight: px(ROWS_MIN_H) }}>
                 {kind === "discover" && (
                   <div className="mb-1.5 flex shrink-0 gap-0.5 rounded-full border border-white/20 bg-black/45 p-0.5">
                     {QUIZ_DIFFICULTIES.map((spec) => (
@@ -165,41 +222,44 @@ export default function HallScreen({
                     ))}
                   </div>
                 )}
-                <div className="relative min-h-0 flex-1 overflow-y-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                  {loading ? (
-                    <p className={`mt-6 text-center text-sm ${muted}`}>Opening the Hall…</p>
-                  ) : rows.length > 0 ? (
-                    <BoardRows rows={listRows} ink="light" levelId={levelId} dense />
-                  ) : (
-                    <p className={`mt-6 rounded-xl border px-3 py-3 text-center text-sm ${box} ${body}`}>
-                      {copy.empty}
+                {loading ? (
+                  <p className={`mt-6 text-center text-sm ${muted}`}>Opening the Hall…</p>
+                ) : rows.length > 0 ? (
+                  <BoardRows rows={listRows} ink="light" levelId={levelId} dense />
+                ) : (
+                  <p className={`mt-6 rounded-xl border px-3 py-3 text-center text-sm ${box} ${body}`}>
+                    {copy.empty}
+                  </p>
+                )}
+              </div>
+
+              <div className="relative" style={{ height: px(FOOT_H) }}>
+                <div
+                  className="absolute left-[23.5%] right-[20%] flex flex-col justify-end"
+                  style={{ top: px(YOU.top), height: px(YOU.height) }}
+                >
+                  {youApart ? (
+                    <>
+                      <p className={`pb-0.5 text-center text-xs leading-none tracking-widest ${muted}`}>···</p>
+                      <BoardRows rows={[youApart]} ink="light" levelId={levelId} dense />
+                    </>
+                  ) : youIndex >= 0 ? null : board?.rank != null ? (
+                    <p className={`text-center font-serif text-[4.2cqw] leading-tight ${heading}`}>
+                      Your place #{board.rank}
+                      {board.points != null && (
+                        <span className={`block text-[3cqw] tabular-nums ${muted}`}>
+                          {board.points.toLocaleString()} {copy.unit}
+                        </span>
+                      )}
+                    </p>
+                  ) : loading ? null : (
+                    <p className={`text-center text-[3cqw] ${muted}`}>
+                      {kind === "discover"
+                        ? "Finish a trial at this level to take your place."
+                        : "Finish today’s assessment to take your place."}
                     </p>
                   )}
                 </div>
-              </div>
-
-              <div className="absolute flex flex-col justify-end" style={YOU_ZONE}>
-                {youApart ? (
-                  <>
-                    <p className={`pb-0.5 text-center text-xs leading-none tracking-widest ${muted}`}>···</p>
-                    <BoardRows rows={[youApart]} ink="light" levelId={levelId} dense />
-                  </>
-                ) : youIndex >= 0 ? null : board?.rank != null ? (
-                  <p className={`text-center font-serif text-[4.2cqw] leading-tight ${heading}`}>
-                    Your place #{board.rank}
-                    {board.points != null && (
-                      <span className={`block text-[3cqw] tabular-nums ${muted}`}>
-                        {board.points.toLocaleString()} {copy.unit}
-                      </span>
-                    )}
-                  </p>
-                ) : loading ? null : (
-                  <p className={`text-center text-[3cqw] ${muted}`}>
-                    {kind === "discover"
-                      ? "Finish a trial at this level to take your place."
-                      : "Finish today’s assessment to take your place."}
-                  </p>
-                )}
               </div>
             </div>
           </div>
