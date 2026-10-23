@@ -290,20 +290,21 @@ export default function CanvasPurchaseSheet({
                   <CloseIcon className="h-4 w-4" />
                 </button>
               </div>
+            </div>
 
-              <div className="mx-6 mt-4 overflow-hidden rounded-2xl">
-                <div className="aspect-[4/3] w-full">
-                  <BlurImage
-                    src={artwork.image}
-                    alt={artwork.title}
-                    accent={artwork.accent}
-                    fit="contain"
-                  />
-                </div>
+            <div className="mt-4 min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {/* Preview scrolls away with the form so the fields get the room. */}
+            <div className="mx-6 overflow-hidden rounded-2xl">
+              <div className="aspect-[4/3] w-full">
+                <BlurImage
+                  src={artwork.image}
+                  alt={artwork.title}
+                  accent={artwork.accent}
+                  fit="contain"
+                />
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {step === "details" && (
               <>
             {/* Product selection — posters are the cheaper way in. */}
