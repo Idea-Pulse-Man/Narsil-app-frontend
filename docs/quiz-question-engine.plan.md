@@ -27,6 +27,11 @@ Differences from the plan:
 - The tile reveal style's id is `tiles_reveal`.
 - Practice mixes engine questions with on-device classic ones. The admin sets
   the share ("Practice from styles %", `quiz_engine_config.practice_mix`).
+- **Focus mode** (added 2026-10-23): the admin taps **Only this** on a style
+  and every daily + practice question becomes that style, even if it is
+  switched off. Stored in `quiz_engine_config.focus_style`; the
+  `next_quiz_items` / `daily_quiz_edition` RPCs honour it and the generator
+  always builds the focused style. **Clear focus** returns to the mix.
 - After an engine question the answer + explanation stay up (1.8 s for
   single/binary, 4.5 s for the rest) with a **Next** button to skip.
 

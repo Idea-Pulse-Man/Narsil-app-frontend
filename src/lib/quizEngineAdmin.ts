@@ -47,6 +47,8 @@ export interface StyleRow {
 export interface EngineConfig {
   daily_count: number;
   practice_mix: number;
+  /** Focus mode: every daily + practice question is this style. Null = normal mix. */
+  focus_style: string | null;
 }
 
 export interface StyleStats {
@@ -138,11 +140,31 @@ export async function updateStyle(
 export async function fetchEngineConfig(): Promise<EngineConfig> {
   const { data, error } = await client()
     .from("quiz_engine_config")
-    .select("daily_count, practice_mix")
+    .select("*")
     .eq("id", 1)
     .maybeSingle();
   if (error) throw new Error(error.message + SQL_HINT);
-  return (data as EngineConfig | null) ?? { daily_count: 10, practice_mix: 60 };
+  const row = (data ?? {}) as Partial<EngineConfig>;
+  return {
+    daily_count: row.daily_count ?? 10,
+    practice_mix: row.practice_mix ?? 60,
+    focus_style: row.focus_style ?? null,
+  };
+}
+
+/** Turn focus mode on for `style`, or off with null. */
+export async function setFocusStyle(style: string | null): Promise<void> {
+  const { error } = await client()
+    .from("quiz_engine_config")
+    .update({ focus_style: style, updated_at: new Date().toISOString() })
+    .eq("id", 1);
+  if (error) {
+    throw new Error(
+      /focus_style/.test(error.message)
+        ? "Focus mode needs the latest supabase/quiz-engine.sql — run it again."
+        : error.message,
+    );
+  }
 }
 
 export async function updateEngineConfig(patch: Partial<EngineConfig>): Promise<void> {

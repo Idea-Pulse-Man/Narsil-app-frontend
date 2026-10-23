@@ -56,6 +56,11 @@ create table if not exists public.quiz_styles (
   updated_by       uuid references auth.users(id) on delete set null
 );
 
+-- Focus mode: when set, EVERY daily and practice question is this one style
+-- (even if it's switched off). Null = the normal mix of enabled styles.
+alter table public.quiz_engine_config
+  add column if not exists focus_style text references public.quiz_styles(id) on delete set null;
+
 -- ── Runs ──────────────────────────────────────────────────────────────────
 
 create table if not exists public.quiz_generation_runs (
@@ -177,6 +182,7 @@ create policy "Admins write daily quiz items"
 
 -- A random batch for practice. The app passes the answer types it can draw,
 -- so switching on a style an old app can't render never reaches that app.
+-- In focus mode only the focused style is served (on or off).
 create or replace function public.next_quiz_items(
   p_surface       text   default 'practice',
   p_answer_types  text[] default null,
@@ -191,34 +197,69 @@ as $$
   select i.*
   from public.quiz_items i
   join public.quiz_styles s on s.id = i.style
+  left join public.quiz_engine_config c on c.id = 1
   where i.status = 'live'
-    and s.enabled
-    and p_surface = any (s.surfaces)
     and (p_answer_types is null or i.answer_type = any (p_answer_types))
     and not (i.id = any (coalesce(p_exclude, '{}')))
+    and case
+          when c.focus_style is not null then i.style = c.focus_style
+          else s.enabled and p_surface = any (s.surfaces)
+        end
   order by random()
   limit least(greatest(coalesce(p_limit, 20), 1), 50);
 $$;
 
 -- One UTC day's edition, in play order, limited to the caller's answer types.
+-- In focus mode it is `daily_count` questions of the focused style instead,
+-- picked in a fixed order per day (so everyone gets the same set that day).
 create or replace function public.daily_quiz_edition(
   p_date          date   default null,
   p_answer_types  text[] default null
 )
 returns jsonb
-language sql
+language plpgsql
 stable
 set search_path = public
 as $$
+declare
+  day     date := coalesce(p_date, (now() at time zone 'utc')::date);
+  focus   text;
+  wanted  int;
+  result  jsonb;
+begin
+  select c.focus_style, c.daily_count into focus, wanted
+  from public.quiz_engine_config c
+  where c.id = 1;
+
+  if focus is not null then
+    select coalesce(
+      jsonb_agg(to_jsonb(i) || jsonb_build_object('position', r.rn) order by r.rn),
+      '[]'::jsonb
+    ) into result
+    from (
+      select q.id,
+             row_number() over (order by md5(q.id::text || day::text)) as rn
+      from public.quiz_items q
+      where q.status = 'live'
+        and q.style = focus
+        and (p_answer_types is null or q.answer_type = any (p_answer_types))
+    ) r
+    join public.quiz_items i on i.id = r.id
+    where r.rn <= coalesce(wanted, 10);
+    return result;
+  end if;
+
   select coalesce(
     jsonb_agg(to_jsonb(i) || jsonb_build_object('position', d.position) order by d.position),
     '[]'::jsonb
-  )
+  ) into result
   from public.daily_quiz_items d
   join public.quiz_items i on i.id = d.item_id
-  where d.quiz_date = coalesce(p_date, (now() at time zone 'utc')::date)
+  where d.quiz_date = day
     and i.status = 'live'
     and (p_answer_types is null or i.answer_type = any (p_answer_types));
+  return result;
+end;
 $$;
 
 -- Play stats: how often a question is shown / answered right. Feeds the

@@ -210,7 +210,7 @@ export default function QuizOverlay({
   /** Practice: queued question-engine questions + the admin's mix (0–100). */
   const engineQueue = useRef<QuizQuestion[]>([]);
   const practiceMix = useRef(0);
-  const refilling = useRef(false);
+  const refilling = useRef<Promise<void> | null>(null);
 
   const clearTimer = () => {
     if (advanceTimer.current) clearTimeout(advanceTimer.current);
@@ -480,17 +480,19 @@ export default function QuizOverlay({
     })();
   }, [dailyMode, dailySession, openReview, pool, artists, user]);
 
-  /** Top up the practice queue from the generated pool (fire and forget). */
-  const refillEngine = useCallback(async () => {
-    if (refilling.current) return;
-    refilling.current = true;
-    try {
-      const batch = await fetchPracticeQuestions(20);
-      const have = new Set(engineQueue.current.map((q) => q.id));
-      engineQueue.current.push(...batch.filter((q) => !have.has(q.id)));
-    } finally {
-      refilling.current = false;
-    }
+  /** Top up the practice queue from the generated pool (one request at a time). */
+  const refillEngine = useCallback((): Promise<void> => {
+    if (refilling.current) return refilling.current;
+    refilling.current = (async () => {
+      try {
+        const batch = await fetchPracticeQuestions(20);
+        const have = new Set(engineQueue.current.map((q) => q.id));
+        engineQueue.current.push(...batch.filter((q) => !have.has(q.id)));
+      } finally {
+        refilling.current = null;
+      }
+    })();
+    return refilling.current;
   }, []);
 
   /**
@@ -551,14 +553,21 @@ export default function QuizOverlay({
 
   const nextPractice = useCallback(() => {
     if (!practicing) return;
-    const q = pickPracticeQuestion();
-    if (!q) return;
-    setQuestions([q]);
-    setQIndex(0);
-    setSelected(null);
-    questionShownAt.current = Date.now();
-    void warmQuestionArt(engineQueue.current[0]);
-  }, [practicing, pickPracticeQuestion]);
+    void (async () => {
+      // Focus mode (mix 100): wait for the next batch rather than slipping in
+      // an on-device classic question while it loads.
+      if (practiceMix.current >= 100 && engineQueue.current.length === 0) {
+        await withTimeout(refillEngine(), ENGINE_FETCH_TIMEOUT_MS, undefined);
+      }
+      const q = pickPracticeQuestion();
+      if (!q) return;
+      setQuestions([q]);
+      setQIndex(0);
+      setSelected(null);
+      questionShownAt.current = Date.now();
+      void warmQuestionArt(engineQueue.current[0]);
+    })();
+  }, [practicing, pickPracticeQuestion, refillEngine]);
 
   // Declared before `handleSelect`, which lists it as a dependency — a `const`
   // referenced in a dependency array must already be initialised.
