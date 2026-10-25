@@ -237,6 +237,9 @@ async function fetchArtworkTablePage(
     .not("image_url", "is", null)
     .or("hidden.is.null,hidden.eq.false")
     .order("created_at", { ascending: false })
+    // Ingest writes a batch per statement, so whole batches share one
+    // created_at; without a unique tiebreaker pages repeat or skip works.
+    .order("id", { ascending: true })
     .range(from, from + PAGE_SIZE - 1);
   if (signal) query = query.abortSignal(signal);
   const { data, error } = await query;
@@ -389,6 +392,7 @@ export async function fetchArtworkBatch(
     .order("featured", { ascending: false, nullsFirst: false })
     .order("like_count", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
+    .order("id", { ascending: true })
     .range(offset, offset + limit - 1);
   if (signal) query = query.abortSignal(signal);
 
@@ -469,6 +473,7 @@ export async function fetchSellableArtworkBatch(
     .order("featured", { ascending: false, nullsFirst: false })
     .order("like_count", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
+    .order("id", { ascending: true })
     .range(offset, offset + limit - 1);
   query =
     source === "freelance"

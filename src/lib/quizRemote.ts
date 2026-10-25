@@ -108,6 +108,20 @@ export async function upsertQuizProgress(progress: QuizProgress): Promise<void> 
   }
 }
 
+/**
+ * Wipe the account's quiz progress, points and level included. Points can't
+ * be lowered through `upsertQuizProgress` (supabase/integrity-guards.sql).
+ */
+export async function resetQuizProgressRemote(): Promise<void> {
+  if (!supabase) return;
+  try {
+    const { error } = await supabase.rpc("reset_quiz_progress");
+    if (error) console.warn("Supabase: reset_quiz_progress failed.", error.message);
+  } catch (err) {
+    console.warn("Supabase: reset_quiz_progress error.", err);
+  }
+}
+
 /** Apply missed-day −100 penalties on the server (idempotent). */
 export async function tickQuizAbsenceRemote(): Promise<void> {
   if (!supabase) return;
