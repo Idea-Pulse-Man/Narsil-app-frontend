@@ -9,6 +9,7 @@ import { useCallback, useEffect, useState } from "react";
 import { STORAGE_KEYS, readJSON, writeJSON } from "@/lib/storage";
 import {
   fetchQuizProgress,
+  resetQuizProgressRemote,
   upsertQuizProgress,
   tickQuizAbsenceRemote,
 } from "@/lib/quizRemote";
@@ -69,7 +70,7 @@ function saveProgress(progress: QuizProgress): void {
 export async function resetQuizData(): Promise<void> {
   saveProgress(EMPTY_PROGRESS);
   clearDailySession();
-  await upsertQuizProgress(EMPTY_PROGRESS);
+  await resetQuizProgressRemote();
 }
 
 export function hasPlayedToday(progress: QuizProgress): boolean {
@@ -220,6 +221,13 @@ export function mergeProgress(
   return normalizeProgress({
     ...winner,
     totalAnswered: Math.max(a.totalAnswered, b.totalAnswered),
+    // Points and level are the server's: only submit_daily_quiz_result and
+    // tick_quiz_absence may move them (supabase/integrity-guards.sql), so a
+    // higher local total is one the leaderboards will never count.
+    totalPoints: b.totalPoints,
+    levelId: b.levelId,
+    lastDailyPoints: b.lastDailyPoints,
+    absenceAppliedThrough: b.absenceAppliedThrough,
   });
 }
 

@@ -124,7 +124,7 @@ create policy "Artists are public"
 
 create policy "Users manage their own artist profile"
   on public.artists for all
-  to authenticated``
+  to authenticated
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
