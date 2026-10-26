@@ -32,13 +32,23 @@ export default function QuizScrollFrame({
           style={{ opacity: wash }}
         />
       ) : null}
+      {/* The 4:5 art is height-fitted on phones, so the rollers sit at fixed
+          fractions of the frame height (top ~9%, bottom ~11.5%). Pin the
+          scroller + footer between them so nothing scrolls over the rollers. */}
       <div
-        className={`relative min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${className}`}
+        className="absolute inset-x-0 flex flex-col"
+        style={{
+          top: "max(9.5%, env(safe-area-inset-top))",
+          bottom: "max(12%, env(safe-area-inset-bottom))",
+        }}
       >
-        {/* Keep copy inside the blank parchment panel, clear of rollers + border art. */}
-        <div className="px-[13%] pb-[18%] pt-[16%]">{children}</div>
+        <div
+          className={`relative min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_bottom,transparent,#000_14px,#000_calc(100%-14px),transparent)] ${className}`}
+        >
+          <div className="px-[13%] pb-4 pt-4">{children}</div>
+        </div>
+        {footer}
       </div>
-      {footer}
     </div>
   );
 }
