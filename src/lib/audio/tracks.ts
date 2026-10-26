@@ -1,38 +1,52 @@
 /**
- * Calm public-domain classical recordings for museum-style background
- * ambience. Sourced from the Internet Archive — compositions and recordings
- * are in the public domain, so they are safe for commercial use.
+ * Calm solo-piano recordings for museum-style background ambience, bundled in
+ * `public/music/` so playback works offline and contacts no third party.
+ *
+ * Every recording was released into the public domain (CC0) by its own
+ * performer or producer, not merely tagged so by an uploader, and the
+ * compositions are centuries out of copyright, so they are safe for
+ * commercial use (App Store 5.2.1). Each MP3 is the producer's own encode of
+ * a 24-bit studio master. Don't add a track without the same provenance.
  */
 export const CLASSICAL_TRACKS = [
   {
-    id: "bach-air-g-string",
-    title: "Bach — Air on the G String",
-    url: "https://archive.org/download/Bach-airOnTheGString/LaMusicaClasicaMasRelajanteDelMundo-Bach-AirOnTheGString.mp3",
-    attribution: "Bach — Air on the G String (public domain, Internet Archive)",
-  },
-  {
     id: "bach-goldberg-aria",
     title: "Bach — Goldberg Variations, Aria",
-    url: "https://archive.org/download/Bachs_Aria_Goldberg_Variations_BWV_988-2809/Aaron_Dunn_-_Goldberg_Variations_BWV_988_-_Aria.mp3",
-    attribution: "Bach — Goldberg Variations Aria (Musopen, public domain)",
+    url: "/music/bach-goldberg-aria.mp3",
+    credit: "Kimiko Ishizaka, The Open Goldberg Variations (CC0)",
   },
   {
-    id: "debussy-clair-de-lune",
-    title: "Debussy — Clair de Lune",
-    url: "https://archive.org/download/01-debussey-clair-de-lune/01%20-%20Debussey%20-%20Clair%20de%20Lune.mp3",
-    attribution: "Debussy — Clair de Lune (public domain, Internet Archive)",
+    id: "bach-prelude-c-major",
+    title: "Bach — Prelude No. 1 in C major, BWV 846",
+    url: "/music/bach-prelude-c-major.mp3",
+    credit: "Kimiko Ishizaka, The Open Well-Tempered Clavier (CC0)",
   },
   {
-    id: "chopin-nocturne-e-flat",
+    id: "chopin-nocturne-op9-no2",
     title: "Chopin — Nocturne in E-flat, Op. 9 No. 2",
-    url: "https://archive.org/download/NocturneInE-flat/NocturneInE-flat.mp3",
-    attribution: "Chopin — Nocturne in E-flat (public domain, Internet Archive)",
+    url: "/music/chopin-nocturne-op9-no2.mp3",
+    credit: "Musopen, The Complete Works of Chopin (CC0)",
+  },
+  {
+    id: "chopin-berceuse-op57",
+    title: "Chopin — Berceuse in D-flat, Op. 57",
+    url: "/music/chopin-berceuse-op57.mp3",
+    credit: "Musopen, The Complete Works of Chopin (CC0)",
   },
 ] as const;
 
-/** Public-domain source; shown as attribution in the music prompt/settings. */
-export const MUSIC_ATTRIBUTION_URL = "https://archive.org/details/opensource_audio";
-export const MUSIC_ATTRIBUTION_LABEL = "Internet Archive (public domain)";
+/** Per-source credits shown in Settings. CC0 needs none, but we credit anyway. */
+export const MUSIC_CREDITS = [
+  {
+    label: "Kimiko Ishizaka",
+    url: "https://www.opengoldbergvariations.org/",
+  },
+  {
+    label: "Musopen",
+    url: "https://musopen.org/",
+  },
+] as const;
+
 export const MUSIC_VOLUME = 0.2;
 
 export function pickRandomTrack() {
