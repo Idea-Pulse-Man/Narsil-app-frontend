@@ -889,7 +889,7 @@ function QuizHub({
       <QuizScrollFrame
         levelId={levelId}
         footer={
-          <div className="relative px-[13%] pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-1">
+          <div className="relative px-[13%] pb-1 pt-1">
             <button
               type="button"
               disabled={

@@ -184,7 +184,7 @@ function BadgeDetail({
     badge.kind === "discover" ? (scores[badge.id]?.stars ?? 0) : null;
 
   return (
-    <div className="relative px-[13%] pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-1">
+    <div className="relative px-[13%] pb-1 pt-1">
       <div className="rounded-2xl border border-[#5c3d12]/40 bg-[#f5ead2]/95 px-4 py-3 text-[#1a1208]">
         <p className="font-serif text-lg leading-tight">
           {badge.title}

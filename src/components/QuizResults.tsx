@@ -64,7 +64,7 @@ export default function QuizResults({
         levelId={levelId}
         className={milestone !== null ? "pt-4" : ""}
         footer={
-          <div className="relative px-[13%] pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2">
+          <div className="relative px-[13%] pb-1 pt-2">
             <button
               type="button"
               onClick={onDone}
