@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useCatalog } from "@/data/catalog";
 import { WORLD } from "@/data/worldCopy";
 import { FEED_MATCH_MODES, FEED_MATCH_COPY } from "@/lib/personalize";
@@ -80,8 +80,7 @@ export default function YouView({
   const {
     enabled: musicOn,
     setEnabled: setMusicOn,
-    attributionUrl,
-    attributionLabel,
+    credits: musicCredits,
     unavailable,
   } = useAudio();
   const { getArtist, getArtwork, searchFacets } = useCatalog();
@@ -505,16 +504,21 @@ export default function YouView({
         </section>
 
         <p className="mt-6 text-center text-[11px] leading-relaxed text-white/50">
-          Music from{" "}
-          <a
-            href={attributionUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline-offset-2 hover:underline"
-          >
-            {attributionLabel}
-          </a>
-          .
+          Music by{" "}
+          {musicCredits.map((c, i) => (
+            <Fragment key={c.url}>
+              {i > 0 && " and "}
+              <a
+                href={c.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline-offset-2 hover:underline"
+              >
+                {c.label}
+              </a>
+            </Fragment>
+          ))}
+          , released into the public domain (CC0).
         </p>
 
         <p className="mt-8 text-center text-[11px] leading-relaxed text-white/50">

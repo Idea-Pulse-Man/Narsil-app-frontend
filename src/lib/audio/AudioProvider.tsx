@@ -8,12 +8,7 @@ import {
   useState,
 } from "react";
 import { readJSON, STORAGE_KEYS, writeJSON } from "@/lib/storage";
-import {
-  MUSIC_ATTRIBUTION_LABEL,
-  MUSIC_ATTRIBUTION_URL,
-  MUSIC_VOLUME,
-  pickRandomTrack,
-} from "./tracks";
+import { MUSIC_CREDITS, MUSIC_VOLUME, pickRandomTrack } from "./tracks";
 
 interface AudioContextValue {
   enabled: boolean;
@@ -21,8 +16,7 @@ interface AudioContextValue {
   unavailable: boolean;
   setEnabled: (on: boolean) => void;
   markPromptSeen: () => void;
-  attributionUrl: string;
-  attributionLabel: string;
+  credits: typeof MUSIC_CREDITS;
 }
 
 const AudioCtx = createContext<AudioContextValue | null>(null);
@@ -72,9 +66,10 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const track = trackRef.current;
-    if (audio.src !== track.url) {
-      audio.src = track.url;
+    // `audio.src` reads back absolute, so a relative track url never equals
+    // it; set it once so toggling music resumes instead of restarting.
+    if (!audio.src) {
+      audio.src = trackRef.current.url;
     }
 
     const onError = () => setUnavailable(true);
@@ -96,8 +91,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       unavailable,
       setEnabled,
       markPromptSeen,
-      attributionUrl: MUSIC_ATTRIBUTION_URL,
-      attributionLabel: MUSIC_ATTRIBUTION_LABEL,
+      credits: MUSIC_CREDITS,
     }),
     [enabled, promptSeen, unavailable, setEnabled, markPromptSeen],
   );
