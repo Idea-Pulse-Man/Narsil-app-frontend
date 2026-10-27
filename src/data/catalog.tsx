@@ -31,8 +31,8 @@ import type { Artwork, Artist, CategoryId, ArtworkSearchQuery, FypArtistCard } f
 import {
   CATALOG_ARCHIVE_PAGE_SIZE,
   CATALOG_BATCH_SIZE,
-  fetchArtworkBatch,
   fetchArtworkCount,
+  fetchFeedBatch,
   fetchArtworksByIds,
   fetchCatalogArchivePage,
   type RemoteCatalog,
@@ -49,11 +49,12 @@ import {
 import { buildSearchIndex, filterArtworks, type SearchIndex } from "@/lib/searchIndex";
 import { sanitizeRemoteCatalog, purgeLegacyCatalogCaches } from "@/lib/catalogValidate";
 import { warmFeedImages } from "@/lib/imageCache";
+import { STORAGE_KEYS, readJSON } from "@/lib/storage";
 import {
   diversifyFeed,
   isDefaultFeedEligible,
   isGenericMakerName,
-  FEED_POOL_CAP,
+  partitionSeen,
   sortByPopularity,
 } from "@/lib/feed-utils";
 
@@ -184,12 +185,19 @@ function buildFeed(
   return diversifyFeed(out);
 }
 
-/** Persist the first feed window + warm those image bytes for the next launch. */
+/**
+ * Persist the next launch's first feed window + warm those image bytes.
+ * Works the user hasn't seen yet go first, so the next launch doesn't open on
+ * the same already-seen favourites every time.
+ */
 function persistFeedWindow(
-  feedWindow: Artwork[],
+  pool: Artwork[],
   artists: Artist[],
   fypArtistCards: FypArtistCard[] = [],
 ): void {
+  const seen = new Set(readJSON<string[]>(STORAGE_KEYS.seen, []));
+  const { unseen, alreadySeen } = partitionSeen(pool, seen);
+  const feedWindow = [...unseen, ...alreadySeen].slice(0, CATALOG_BATCH_SIZE);
   const artistIds = new Set(feedWindow.map((a) => a.artistId));
   writeCatalogSnapshot({
     artworks: feedWindow.slice(0, CATALOG_BATCH_SIZE),
@@ -219,6 +227,11 @@ export function CatalogProvider({
   const fullLoadStartedRef = useRef(false);
   const archiveOffsetRef = useRef(0);
   const serverOffsetRef = useRef(snapshot?.artworks.length ?? 0);
+  // Ids the feed already holds — `feed_batch` skips them so pages never repeat.
+  const feedIdsRef = useRef(new Set(snapshot?.artworks.map((a) => a.id)));
+  // The snapshot paints before the first batch lands; hold `loadNextBatch`
+  // until then, or both requests would exclude the same ids and overlap.
+  const firstBatchPendingRef = useRef(false);
   const searchIndexRef = useRef<SearchIndex | null>(null);
   const [searchIndexReady, setSearchIndexReady] = useState(false);
   const [remote, setRemote] = useState<RemoteCatalog | null>(snapshot);
@@ -277,9 +290,10 @@ export function CatalogProvider({
 
   const fetchBatchAtOffset = useCallback(
     async (offset: number, signal?: AbortSignal) => {
-      const batch = await fetchArtworkBatch(offset, CATALOG_BATCH_SIZE, signal);
+      const batch = await fetchFeedBatch([...feedIdsRef.current], offset, signal);
       if (signal?.aborted) return null;
       serverOffsetRef.current = offset + batch.artworks.length;
+      for (const art of batch.artworks) feedIdsRef.current.add(art.id);
       applyBatch(batch, { fetchedCount: batch.artworks.length });
       return batch;
     },
@@ -295,12 +309,24 @@ export function CatalogProvider({
         }
       });
 
-      if (snapshotRef.current) {
+      const snapshotIds = snapshotRef.current?.artworks.map((a) => a.id);
+      if (snapshotIds) {
         setLoading(false);
+        firstBatchPendingRef.current = true;
         try {
-          // Always refresh the first window so slim/legacy snapshots pick up
-          // placard descriptions without waiting for Search's full archive.
-          await fetchBatchAtOffset(0, signal);
+          const batch = await fetchBatchAtOffset(0, signal).finally(() => {
+            firstBatchPendingRef.current = false;
+          });
+          if (!batch) return;
+          // Snapshot rows are stored with trimmed placard copy. The first
+          // batch skips works the feed already holds, so reload the snapshot
+          // rows it didn't bring back to get their full descriptions.
+          const fetched = new Set(batch.artworks.map((a) => a.id));
+          const stale = snapshotIds.filter((id) => !fetched.has(id));
+          if (stale.length > 0) {
+            const full = await fetchArtworksByIds(stale, signal);
+            if (!signal.aborted) applyBatch(full, { skipHasMore: true });
+          }
         } catch (err) {
           if (signal.aborted) return;
           console.warn("Catalog: first batch refresh failed.", err);
@@ -317,11 +343,12 @@ export function CatalogProvider({
         if (!signal.aborted) setLoading(false);
       }
     },
-    [fetchBatchAtOffset],
+    [fetchBatchAtOffset, applyBatch],
   );
 
   const loadNextBatch = useCallback(async () => {
     if (loadingBatch || !hasMoreBatches || catalogComplete) return;
+    if (firstBatchPendingRef.current) return;
     batchControllerRef.current?.abort();
     const controller = new AbortController();
     batchControllerRef.current = controller;
@@ -512,7 +539,6 @@ export function CatalogProvider({
   const rankedFeedRef = useRef<{
     key: string;
     pool: Artwork[];
-    window: Artwork[];
   } | null>(null);
 
   useEffect(() => {
@@ -520,7 +546,7 @@ export function CatalogProvider({
     const key = `${remote.artworks.length}:${remote.artists.length}`;
     if (rankedFeedRef.current?.key !== key) return;
     persistFeedWindow(
-      rankedFeedRef.current.window,
+      rankedFeedRef.current.pool,
       remote.artists,
       remote.fypArtistCards,
     );
@@ -541,6 +567,7 @@ export function CatalogProvider({
     fullLoadStartedRef.current = false;
     serverOffsetRef.current = 0;
     archiveOffsetRef.current = 0;
+    feedIdsRef.current = new Set();
     setHasMoreBatches(true);
     setCatalogComplete(false);
 
@@ -615,15 +642,13 @@ export function CatalogProvider({
     const feedCandidates = browseArtworks
       .filter((a) => !isUnknownArtist(a.artistId))
       .filter(isDefaultFeedEligible);
-    const namedFeedFull = buildFeed(feedCandidates, artistMap).slice(
-      0,
-      FEED_POOL_CAP,
-    );
+    // No popularity cap: batches arrive unseen-first, so the newest (least
+    // popular) works are exactly the ones a cap would wrongly cut.
+    const namedFeedFull = buildFeed(feedCandidates, artistMap);
     const namedFeed = namedFeedFull.slice(0, CATALOG_BATCH_SIZE);
     rankedFeedRef.current = {
       key: `${browseArtworks.length}:${browseArtists.length}`,
       pool: namedFeedFull,
-      window: namedFeed,
     };
 
     const artworksByArtistId: Record<string, Artwork[]> = {};

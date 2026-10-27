@@ -10,7 +10,8 @@
  * Public catalog tables are world-readable (RLS `using(true)`), so the app's
  * anon key is enough — no secret ever reaches the client.
  *
- * Feed loading is paginated (80 popular works at a time via `fetchArtworkBatch`).
+ * Feed loading is paginated (80 works at a time via `fetchFeedBatch`, the
+ * user's unseen works first).
  * The Gallery shop pages sellable rows via `fetchSellableArtworkBatch`.
  * Search queries the server for matches instead of downloading the whole archive.
  */
@@ -398,15 +399,22 @@ export async function fetchArtworkBatch(
 
   const { data, error } = await query;
   if (error) throw error;
-  const artworkRows = ((data ?? []) as unknown as ArtworkRow[]).filter(
-    (r) => r.image_url,
-  );
+  return feedBatchCatalog(data as unknown as ArtworkRow[] | null, offset === 0, signal);
+}
+
+/** Map a page of feed rows, with their artists (and on the first page, the For You artist cards). */
+async function feedBatchCatalog(
+  rows: ArtworkRow[] | null,
+  withCards: boolean,
+  signal?: AbortSignal,
+): Promise<RemoteCatalog> {
+  const artworkRows = (rows ?? []).filter((r) => r.image_url);
   const artistIds = artworkRows
     .map((r) => r.artist_id)
     .filter((id): id is string => Boolean(id));
   const [artistRows, fypArtistCards] = await Promise.all([
     fetchArtistsByIds(artistIds, ARTIST_PREVIEW_COLUMNS, signal),
-    offset === 0 ? fetchFypArtistCards(signal) : Promise.resolve([]),
+    withCards ? fetchFypArtistCards(signal) : Promise.resolve([]),
   ]);
 
   return {
@@ -418,6 +426,37 @@ export async function fetchArtworkBatch(
       .filter((artist): artist is Artist => artist !== null),
     fypArtistCards,
   };
+}
+
+/** False once `feed_batch` turns out not to be installed — page by offset from then on. */
+let feedBatchRpc = true;
+
+/**
+ * Next For You batch for the current user: works they haven't seen first
+ * (most popular first), then seen ones, skipping `exclude` — the ids already
+ * loaded this session. Falls back to the popularity page at `offset` while
+ * supabase/feed-batch.sql isn't installed.
+ */
+export async function fetchFeedBatch(
+  exclude: string[],
+  offset: number,
+  signal?: AbortSignal,
+): Promise<RemoteCatalog> {
+  if (!supabase) return { artworks: [], artists: [], fypArtistCards: [] };
+  if (feedBatchRpc) {
+    let query = supabase
+      .rpc("feed_batch", { p_exclude: exclude, p_limit: CATALOG_BATCH_SIZE })
+      .select(ARTWORK_PREVIEW_COLUMNS);
+    if (signal) query = query.abortSignal(signal);
+    const { data, error } = await query;
+    if (!error) {
+      return feedBatchCatalog(data as unknown as ArtworkRow[] | null, offset === 0, signal);
+    }
+    if (error.code !== "PGRST202") throw error;
+    console.warn("Feed: feed_batch unavailable — paging by popularity.", error.message);
+    feedBatchRpc = false;
+  }
+  return fetchArtworkBatch(offset, CATALOG_BATCH_SIZE, signal);
 }
 
 export type CanvasShopSource = "museum" | "freelance";

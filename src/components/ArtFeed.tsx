@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Artwork, FeedItem } from "@/data";
 import { feedItemKey } from "@/data";
 import { useCatalog } from "@/data/catalog";
-import { orderSessionFeed, interleaveStorySlides, shufflePreRankedBatches, diversifyFeed } from "@/lib/feed-utils";
+import { orderSessionFeed, interleaveStorySlides, shufflePreRankedBatches, diversifyFeed, partitionSeen } from "@/lib/feed-utils";
 import { prioritizeByTaste, hasTastePreferences } from "@/lib/personalize";
 import { isRenderableFeedItem } from "@/lib/feedItemGuards";
 import { markImageWarmed } from "@/lib/imageCache";
@@ -21,6 +21,10 @@ export type FeedFilter = "all" | "museum" | "freelance";
 const FEED_PAGE = 2;
 /** Grow the window this many cards before the user reaches the last mounted one. */
 const FEED_LOOKAHEAD = 2;
+/** Cards past the current one a new batch may not reorder (the next one peeks in mid-swipe). */
+const FEED_LOCK_AHEAD = 1;
+/** Fetch the next batch once fewer unseen works than this are queued ahead. */
+const FEED_UNSEEN_LOW = 30;
 
 interface ArtFeedProps {
   showToast: (message: string, variant?: ToastState["variant"]) => void;
@@ -88,6 +92,8 @@ export default function ArtFeed({
   // this frozen list so they stay stable while scrolling.
   const frozenArtworks = useRef<Artwork[] | null>(null);
   const freezeKey = useRef<string>("");
+  // Works before this index are on screen (or next up) and never move.
+  const lockedArtworks = useRef(0);
   const nextFreezeKey = `${filter}:${feedMatchMode}:${(preferences.artTypes ?? []).join(",")}|${(preferences.periods ?? []).join(",")}|${(preferences.empires ?? []).join(",")}|${(preferences.artists ?? []).join(",")}|${(preferences.interests ?? []).join(",")}`;
 
   const artworks = useMemo<Artwork[]>(() => {
@@ -126,9 +132,22 @@ export default function ArtFeed({
     const byId = new Map(ranked.map((art) => [art.id, art]));
     const have = new Set(frozenArtworks.current.map((art) => art.id));
     const extra = ranked.filter((art) => !have.has(art.id));
+    const current = frozenArtworks.current.map((art) => byId.get(art.id) ?? art);
+    if (extra.length === 0) {
+      frozenArtworks.current = current;
+      return current;
+    }
+    // A returning user's first pool is mostly works seen in earlier sessions.
+    // Queue the batch's unseen works ahead of those instead of after them —
+    // but only past the cards already mounted, so nothing jumps on screen.
+    const lock = Math.min(lockedArtworks.current, current.length);
+    const { unseen, alreadySeen } = partitionSeen(
+      [...current.slice(lock), ...extra],
+      seenSnapshot ?? new Set<string>(),
+    );
     frozenArtworks.current = [
-      ...frozenArtworks.current.map((art) => byId.get(art.id) ?? art),
-      ...extra,
+      ...current.slice(0, lock),
+      ...diversifyFeed([...unseen, ...alreadySeen]),
     ];
     return frozenArtworks.current;
   }, [feedPool, filter, seenSnapshot, preferences, feedMatchMode, nextFreezeKey, artistMap, sessionSeed, ready]);
@@ -140,16 +159,24 @@ export default function ArtFeed({
 
   // Mixed feed: artworks + intermittent artist / era story slides.
   // Tutorial stays artwork-only so gesture lessons land on real cards.
-  const items = useMemo<FeedItem[]>(
-    () =>
-      interleaveStorySlides(artworks, {
-        seed: sessionSeed,
-        fypArtistCardMap,
-        skipStories: !!tutorial?.active,
-        filter,
-      }).filter((item) => isRenderableFeedItem(item, renderGuard)),
-    [artworks, fypArtistCardMap, sessionSeed, tutorial?.active, filter, renderGuard],
-  );
+  // Each story's backdrop is pinned so a batch reordering the works ahead
+  // can't swap the image behind a story that's already mounted.
+  const backdropPins = useRef(new Map<string, string>());
+  const items = useMemo<FeedItem[]>(() => {
+    const next = interleaveStorySlides(artworks, {
+      seed: sessionSeed,
+      fypArtistCardMap,
+      skipStories: !!tutorial?.active,
+      filter,
+      backdropPins: backdropPins.current,
+    }).filter((item) => isRenderableFeedItem(item, renderGuard));
+    for (const item of next) {
+      if (item.kind !== "artwork") {
+        backdropPins.current.set(feedItemKey(item), item.backdropArtworkId);
+      }
+    }
+    return next;
+  }, [artworks, fypArtistCardMap, sessionSeed, tutorial?.active, filter, renderGuard]);
 
   // Infinite scroll: mount a small window of cards and grow it as the user
   // swipes toward the end, so a long feed doesn't decode hundreds of images up
@@ -164,6 +191,14 @@ export default function ArtFeed({
   }, [currentIndex, renderCount, items.length]);
 
   const visibleItems = items.slice(0, renderCount);
+
+  useEffect(() => {
+    let lastLocked: Artwork | undefined;
+    for (const item of items.slice(0, currentIndex + 1 + FEED_LOCK_AHEAD)) {
+      if (item.kind === "artwork") lastLocked = item.artwork;
+    }
+    lockedArtworks.current = lastLocked ? artworks.indexOf(lastLocked) + 1 : 0;
+  }, [items, currentIndex, artworks]);
 
   // Warm the browser cache for images just ahead of the user so swiping to the
   // next card shows it instantly (artwork image or story backdrop).
@@ -230,7 +265,10 @@ export default function ArtFeed({
   }, [items, markSeen, preloadItem]);
 
   // WhatsApp-style batching: when the user has scrolled through half of the
-  // loaded artwork pool, fetch the next 80 from Supabase.
+  // loaded artwork pool — or the unseen works queued ahead run low — fetch the
+  // next 80 from Supabase. A batch of only already-seen works grows the pool,
+  // which re-arms this, so a returning user chains batches until new art turns
+  // up; one that adds nothing (pool cap reached) leaves it disarmed.
   const batchRequested = useRef(false);
   useEffect(() => {
     batchRequested.current = false;
@@ -244,7 +282,18 @@ export default function ArtFeed({
       .slice(0, currentIndex + 1)
       .filter((item) => item.kind === "artwork").length;
     const halfway = Math.max(1, Math.floor(artworks.length / 2));
-    if (artworksViewed >= halfway && !batchRequested.current) {
+    const unseenAhead = seenSnapshot
+      ? items
+          .slice(currentIndex + 1)
+          .filter(
+            (item) =>
+              item.kind === "artwork" && !seenSnapshot.has(item.artwork.id),
+          ).length
+      : Infinity;
+    if (
+      (artworksViewed >= halfway || unseenAhead < FEED_UNSEEN_LOW) &&
+      !batchRequested.current
+    ) {
       batchRequested.current = true;
       void loadNextBatch();
     }
@@ -257,6 +306,7 @@ export default function ArtFeed({
     hasMoreBatches,
     loadNextBatch,
     active,
+    seenSnapshot,
   ]);
 
   // Tutorial resets should close the shared placard.
