@@ -373,6 +373,8 @@ export const STORY_GAP_MIN = 4;
 export const STORY_GAP_MAX = 7;
 /** Only talk about art the user just saw. */
 export const STORY_LOOKBACK = 8;
+/** How many upcoming works a story may take its backdrop from. */
+export const STORY_BACKDROP_WINDOW = 24;
 /** Skip stub / empty bios — Wikipedia extracts are typically longer. */
 export const STORY_ARTIST_MIN_BIO = 140;
 
@@ -403,34 +405,6 @@ export function isStoryWorthyArtist(artist?: Artist | null): boolean {
   return true;
 }
 
-/** Prefer a recognizable / popular work by this artist as the story backdrop. */
-export function pickFamousBackdrop(
-  artistId: string,
-  recent: Artwork[],
-  pool: Artwork[],
-  excludeId?: string,
-): Artwork | undefined {
-  const byArtist = pool.filter(
-    (a) => a.artistId === artistId && a.image && a.id !== excludeId,
-  );
-  if (byArtist.length > 0) {
-    const ranked = [...byArtist].sort((a, b) => {
-      const score = (art: Artwork) =>
-        (art.featured ? 1000 : 0) + (art.likeCount ?? 0) + (art.saveCount ?? 0);
-      return score(b) - score(a);
-    });
-    // Prefer non-sketches when possible — finished works read better as hero art.
-    const finished = ranked.find((a) => !isSketchArtwork(a));
-    return finished ?? ranked[0];
-  }
-  return (
-    [...recent]
-      .reverse()
-      .find((a) => a.artistId === artistId && a.image && a.id !== excludeId) ??
-    [...recent].reverse().find((a) => a.image && a.id !== excludeId)
-  );
-}
-
 export interface InterleaveStoryOptions {
   seed: number;
   /** Active For You artist cards keyed by artist id. */
@@ -439,12 +413,21 @@ export interface InterleaveStoryOptions {
   skipStories?: boolean;
   /** Freelance filter: skip historical era slides. */
   filter?: "all" | "museum" | "freelance";
+  /**
+   * Story key → backdrop artwork id from an earlier walk. Reused while still
+   * valid so a story keeps its image when a new batch reorders the works ahead.
+   */
+  backdropPins?: Map<string, string>;
 }
 
 /**
  * Walk a ranked artwork list and insert full-screen artist / era story slides
  * every 4–7 cards. Stories are tied to recent works (lookback window), seeded
  * so the mix is fresh each session but stable while scrolling.
+ *
+ * A story's backdrop is always a work the user hasn't reached yet, and that
+ * work is then dropped from its own card slot — every image shows once,
+ * either as a card or behind a story, never both.
  */
 export function interleaveStorySlides(
   artworks: Artwork[],
@@ -453,6 +436,7 @@ export function interleaveStorySlides(
     fypArtistCardMap,
     skipStories = false,
     filter = "all",
+    backdropPins,
   }: InterleaveStoryOptions,
 ): FeedItem[] {
   if (artworks.length === 0) return [];
@@ -463,28 +447,63 @@ export function interleaveStorySlides(
   const rand = mulberry32(seed ^ 0xfeedbeef);
   const usedArtists = new Set<string>();
   const usedEras = new Set<string>();
+  const indexById = new Map(artworks.map((art, i) => [art.id, i]));
+  /** Works shown behind a story — skipped when the walk reaches their slot. */
+  const backdrops = new Set<string>();
+  const placed: Artwork[] = [];
+  const eraIds = new Map<string, string | null>();
+  const eraIdOf = (art: Artwork) => {
+    if (!eraIds.has(art.id)) eraIds.set(art.id, eraForArtwork(art)?.id ?? null);
+    return eraIds.get(art.id);
+  };
   const out: FeedItem[] = [];
   let sinceLastStory = STORY_LEAD_IN;
   let nextGap =
     STORY_GAP_MIN +
     Math.floor(rand() * (STORY_GAP_MAX - STORY_GAP_MIN + 1));
 
-  const pickArtist = (recent: Artwork[]): FeedItem | null => {
-    for (let i = recent.length - 1; i >= 0; i--) {
-      const art = recent[i];
-      const card = fypArtistCardMap[art.artistId];
+  /** Not yet shown as a card (at or before `i`) or behind another story. */
+  const isFresh = (id: string, i: number) => {
+    const pos = indexById.get(id);
+    return !backdrops.has(id) && (pos === undefined || pos > i);
+  };
+
+  /**
+   * Claim a backdrop for a story placed after card `i`: its pinned work if
+   * still fresh, else `preferred` if fresh, else the first matching work in
+   * the next STORY_BACKDROP_WINDOW cards (finished works over sketches).
+   */
+  const claimBackdrop = (
+    key: string,
+    i: number,
+    match: (art: Artwork) => boolean,
+    preferred?: string,
+  ): string | undefined => {
+    const pinned = backdropPins?.get(key);
+    let id = [pinned, preferred].find((c) => c && isFresh(c, i));
+    if (!id) {
+      const ahead = artworks
+        .slice(i + 1, i + 1 + STORY_BACKDROP_WINDOW)
+        .filter((a) => a.image && !backdrops.has(a.id) && match(a));
+      id = (ahead.find((a) => !isSketchArtwork(a)) ?? ahead[0])?.id;
+    }
+    if (id) backdrops.add(id);
+    return id;
+  };
+
+  const pickArtist = (recent: Artwork[], i: number): FeedItem | null => {
+    for (let r = recent.length - 1; r >= 0; r--) {
+      const card = fypArtistCardMap[recent[r].artistId];
       if (!card?.active) continue;
       if (usedArtists.has(card.artistId)) continue;
+      const backdropId = claimBackdrop(
+        `artist-story-${card.artistId}`,
+        i,
+        (a) => a.artistId === card.artistId,
+        card.backdropArtworkId,
+      );
+      if (!backdropId) continue;
       usedArtists.add(card.artistId);
-      const excludeId = art.id;
-      const cardBackdrop =
-        card.backdropArtworkId && card.backdropArtworkId !== excludeId
-          ? card.backdropArtworkId
-          : undefined;
-      const backdropId =
-        cardBackdrop ??
-        pickFamousBackdrop(card.artistId, recent, artworks, excludeId)?.id ??
-        art.id;
       return {
         kind: "artist-story",
         artistId: card.artistId,
@@ -494,50 +513,37 @@ export function interleaveStorySlides(
     return null;
   };
 
-  const pickEra = (recent: Artwork[]): FeedItem | null => {
+  const pickEra = (recent: Artwork[], i: number): FeedItem | null => {
     if (filter === "freelance") return null;
-    for (let i = recent.length - 1; i >= 0; i--) {
-      const art = recent[i];
-      const era = eraForArtwork(art);
-      if (!era || usedEras.has(era.id)) continue;
-      usedEras.add(era.id);
-      // Prefer a finished work from the lookback that belongs to this era,
-      // but not the card the user just saw — that reads as a duplicate image.
-      const eraBackdrop =
-        [...recent]
-          .reverse()
-          .find(
-            (a) =>
-              a.id !== art.id &&
-              eraForArtwork(a)?.id === era.id &&
-              a.image &&
-              !isSketchArtwork(a),
-          ) ??
-        [...recent]
-          .reverse()
-          .find((a) => a.id !== art.id && eraForArtwork(a)?.id === era.id && a.image) ??
-        art;
-      return {
-        kind: "era-story",
-        eraId: era.id,
-        backdropArtworkId: eraBackdrop.id,
-      };
+    for (let r = recent.length - 1; r >= 0; r--) {
+      const eraId = eraIdOf(recent[r]);
+      if (!eraId || usedEras.has(eraId)) continue;
+      const backdropId = claimBackdrop(
+        `era-story-${eraId}`,
+        i,
+        (a) => eraIdOf(a) === eraId,
+      );
+      if (!backdropId) continue;
+      usedEras.add(eraId);
+      return { kind: "era-story", eraId, backdropArtworkId: backdropId };
     }
     return null;
   };
 
   for (let i = 0; i < artworks.length; i++) {
     const artwork = artworks[i];
+    if (backdrops.has(artwork.id)) continue;
     out.push({ kind: "artwork", artwork });
+    placed.push(artwork);
     sinceLastStory += 1;
 
     if (sinceLastStory < nextGap) continue;
 
-    const recent = artworks.slice(Math.max(0, i - STORY_LOOKBACK + 1), i + 1);
+    const recent = placed.slice(-STORY_LOOKBACK);
     const wantArtist = rand() < 0.5;
     const story =
-      (wantArtist ? pickArtist(recent) : pickEra(recent)) ??
-      (wantArtist ? pickEra(recent) : pickArtist(recent));
+      (wantArtist ? pickArtist(recent, i) : pickEra(recent, i)) ??
+      (wantArtist ? pickEra(recent, i) : pickArtist(recent, i));
 
     if (story) {
       out.push(story);

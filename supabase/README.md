@@ -51,6 +51,7 @@ Run these in this order. It's the order production was built in, adjusted for ea
 | 37 | `quiz-halls.sql` | Monthly Hall and Discover Hall rankings (needs 11, 27) |
 | 38 | `quiz-engine.sql` | Question styles, generated question pool, daily mix, generator runs (needs 8) |
 | 39 | `integrity-guards.sql` | Locks member artwork edits, hides unapproved uploads, caps quiz scores (needs 8, 14, 15, 11, 27) |
+| 40 | `feed-batch.sql` | `feed_batch()`: For You pages with the user's unseen works first (needs 2, 4) |
 
 When you add a file, give it a `REQUIRES:` header and add a row at the bottom of this table.
 
