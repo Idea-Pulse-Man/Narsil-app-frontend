@@ -39,6 +39,9 @@ export const STUDY_ART = {
 /*
  * Sepia, half transparent, and masked out behind the text on the left.
  * The card itself turns translucent so the scroll shows through.
+ * No mix-blend-mode: iOS WebKit drops blended layers inside the masked
+ * scroller (QuizScrollFrame), so the art vanished on iPhone. Dimming with
+ * brightness() stands in for the old multiply.
  */
 export const CARD_TONE: Record<
   ScrollInk,
@@ -46,7 +49,7 @@ export const CARD_TONE: Record<
 > = {
   dark: {
     card: "border-[#5c3d12]/35 bg-[#efe2c4]/40 shadow-[0_3px_10px_rgba(42,28,12,0.15)]",
-    art: "opacity-50 mix-blend-multiply [filter:sepia(0.5)_saturate(0.8)]",
+    art: "opacity-45 [filter:sepia(0.5)_saturate(0.8)_brightness(0.8)]",
     name: "text-[#1a1208]",
     teaser: "text-[#3d2810]",
     chevron: "bg-[#2a1c0c] text-[#f6ead0]",

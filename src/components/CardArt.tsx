@@ -13,7 +13,6 @@ export default function CardArt({ art, ink }: { art: CardArtSpec; ink: ScrollInk
       alt=""
       aria-hidden
       draggable={false}
-      loading="lazy"
       className={`pointer-events-none absolute inset-0 h-full w-full select-none object-cover [mask-image:linear-gradient(90deg,transparent_0%,rgba(0,0,0,0.3)_40%,#000_80%)] ${CARD_TONE[ink].art}`}
       style={{ objectPosition: art.focus }}
     />
