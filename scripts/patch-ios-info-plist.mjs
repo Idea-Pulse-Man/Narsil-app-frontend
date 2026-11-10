@@ -17,10 +17,17 @@ const plist = require("plist");
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const infoPlistPath = join(root, "ios", "App", "App", "Info.plist");
 
-/** Keys Apple aborts on when missing during Photos writes. */
+/**
+ * Keys Apple aborts on when missing during Photos writes, plus the camera
+ * string App Store processing demands (ITMS-90683) because the Stripe SDK's
+ * card scanner references the camera API.
+ */
 const REQUIRED = {
   NSPhotoLibraryAddUsageDescription:
     "Narsil saves artwork extracts to your Photos library when you choose Save Image.",
+  NSCameraUsageDescription:
+    "Narsil uses the camera to scan your card when you pay for a print.",
+  ITSAppUsesNonExemptEncryption: false,
 };
 
 if (!existsSync(infoPlistPath)) {
